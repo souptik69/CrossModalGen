@@ -8,4 +8,10 @@ Misc/transformers_test_results
 
 CMG_trial1/Models
 
-##
+CMG_trial1/src/configs/__pycache__
+
+CMG_trial1/src/dataset/__pycache__
+
+CMG_trial1/src/model/__pycache__
+
+CMG_trial1/src/utils/__pycache__

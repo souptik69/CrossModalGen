@@ -6,3 +6,4 @@ Updating:  clip_gradient: 0.8 (default) ----> 0.5
 Updating:  print_freq: 20 (default) ----> 1
 87323/87323 samples are used for train
 total 141 classes in Vggsound40K_AVT
+Pretraining complete!
