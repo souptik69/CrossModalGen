@@ -156,14 +156,14 @@ def main():
 
     if model_resume is True:
         
-        # # 100k
-        # path_checkpoints = "/project/ag-jafra/Souptik/VGGSoundAVEL/CMG_Models/AVT_100k_pretrain/checkpoint/DCID-model-5.pt"
+        # 100k
+        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/AVTPretrain100k/checkpoint/DCID-model-5.pt"
         
         # # 100k audio ReLU
         # path_checkpoints = "/project/ag-jafra/Souptik/VGGSoundAVEL/CMG_Models/AVT_audio100k/checkpoint/DCID-model-5.pt"
         
-        # 40k orignal checkpoint
-        path_checkpoints = "/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/checkpoint/AVT_vgg40k_size400.pt"
+        # # 40k orignal checkpoint
+        # path_checkpoints = "/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/checkpoint/AVT_vgg40k_size400.pt"
        
         # # 40k my model
         # path_checkpoints = "/project/ag-jafra/Souptik/VGGSoundAVEL/CMG_Models/AVT_40k_pretrain/checkpoint/DCID-model-5.pt"
@@ -276,7 +276,7 @@ def train_epoch(Encoder, Decoder,ExpLogLoss_fn, train_dataloader, criterion, cri
             # loss3 = distance_map_loss(Sigmoid_fun(video_class), labels_evn.cuda())+ loss3
             video_event_loss = loss1 + loss2 
             
-            precision, recall = compute_accuracy_recall_supervised_sigmoid(Sigmoid_fun(video_class), labels_evn.cuda())
+            precision, recall = compute_accuracy_supervised_sigmoid(Sigmoid_fun(video_class), labels_evn.cuda())
             loss_items = {
                 "video_event_loss":video_event_loss.item(),
                 "BCELoss":loss1.item(),
@@ -300,7 +300,7 @@ def train_epoch(Encoder, Decoder,ExpLogLoss_fn, train_dataloader, criterion, cri
             loss2 = ExpLogLoss_fn(audio_class, labels_evn.cuda())
             # loss3 = distance_map_loss(Sigmoid_fun(video_class), labels_evn.cuda())
             audio_event_loss = loss1 + loss2
-            precision, recall = compute_accuracy_recall_supervised_sigmoid(Sigmoid_fun(audio_class), labels_evn.cuda())
+            precision, recall = compute_accuracy_supervised_sigmoid(Sigmoid_fun(audio_class), labels_evn.cuda())
             loss_items = {
                 "audio_event_loss":audio_event_loss.item(),
                 "BCELoss":loss1.item(),
@@ -394,7 +394,7 @@ def validate_epoch(Encoder,Decoder,ExpLogLoss_fn, val_dataloader, criterion, cri
             
             loss = audio_event_loss
             
-            precision, recall = compute_accuracy_recall_supervised_sigmoid(Sigmoid_fun(audio_class), labels_evn.cuda())
+            precision, recall = compute_accuracy_supervised_sigmoid(Sigmoid_fun(audio_class), labels_evn.cuda())
             """draw image"""
             # if n_iter % 5 == 0:
             #     rand_choose = random.randint(0,B-1)
@@ -411,7 +411,7 @@ def validate_epoch(Encoder,Decoder,ExpLogLoss_fn, val_dataloader, criterion, cri
             # loss3 = distance_map_loss(Sigmoid_fun(video_class), labels_evn.cuda())
             video_event_loss = loss1 + loss2
             loss = video_event_loss
-            precision, recall = compute_accuracy_recall_supervised_sigmoid(Sigmoid_fun(video_class), labels_evn.cuda())
+            precision, recall = compute_accuracy_supervised_sigmoid(Sigmoid_fun(video_class), labels_evn.cuda())
             """draw image"""
             # if n_iter % 5 == 0:
             #     rand_choose = random.randint(0,B-1)
