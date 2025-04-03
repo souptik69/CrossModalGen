@@ -1,0 +1,8 @@
+Updating:  n_epoch: 100 (default) ----> 6
+Updating:  test_batch_size: 16 (default) ----> 64
+Updating:  lr: 0.001 (default) ----> 0.0004
+Updating:  snapshot_pref: ./exp/debug/123 (default) ----> /project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/AVT100k/
+Updating:  clip_gradient: 0.8 (default) ----> 0.5
+Updating:  print_freq: 20 (default) ----> 1
+87323/87323 samples are used for train
+total 141 classes in Vggsound40K_AVT
