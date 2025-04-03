@@ -34,4 +34,4 @@ python $SRCDIR/CMG_trial1/src/ave_precision.py \
     --print_freq 1 \
     --eval_freq 1
 
-echo "AVE training complete!"
+# echo "AVE training complete!"
