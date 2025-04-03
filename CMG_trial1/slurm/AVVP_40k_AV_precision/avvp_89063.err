@@ -1,0 +1,467 @@
+2025-04-03 20:58:47,868 INFO 
+Creating folder: /project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/AVVPExp100k/A2V
+2025-04-03 20:58:47,868 INFO 
+Runtime args
+
+{
+    "dataset_name": "avvp_av",
+    "n_epoch": 50,
+    "batch_size": 64,
+    "test_batch_size": 64,
+    "lr": 0.0004,
+    "gpu": "0",
+    "snapshot_pref": "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/AVVPExp100k/A2V",
+    "resume": "",
+    "evaluate": false,
+    "clip_gradient": 0.5,
+    "loss_weights": 0.5,
+    "start_epoch": 0,
+    "model_save_path": "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/AVVPExp100k/A2V/",
+    "weight_decay": 0.0005,
+    "print_freq": 1,
+    "save_freq": null,
+    "eval_freq": 1,
+    "mi_lr": 0.001
+}
+
+2025-04-03 20:58:52,671 INFO Resume from number 5-th model.
+2025-04-03 20:58:53,254 INFO Epoch 6, Batch 0, lr = 0.00040, audio_event_loss = 4.7459, BCELoss = 0.6736, ExpLogLoss = 4.0722, audio_precision = 0.0417, audio_recall = 0.2971, 
+2025-04-03 20:58:53,421 INFO Epoch 6, Batch 10, lr = 0.00040, audio_event_loss = 4.2378, BCELoss = 0.6265, ExpLogLoss = 3.6113, audio_precision = 0.1325, audio_recall = 0.6367, 
+2025-04-03 20:58:53,508 INFO Epoch 6, Batch 20, lr = 0.00040, audio_event_loss = 3.5569, BCELoss = 0.5463, ExpLogLoss = 3.0106, audio_precision = 0.2158, audio_recall = 0.7715, 
+2025-04-03 20:58:53,630 INFO **********************************************		 Train results (accuracy and recall): 0.1815	0.7071.
+2025-04-03 20:58:53,630 INFO epoch: *******************************************6
+2025-04-03 20:58:56,350 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.1805	0.7059	0.2875.
+**********************************************		 Best results (accuracy and recall F1-score): 0.1805	0.7059	0.2875.
+2025-04-03 20:58:56,383 INFO -----------------------------
+2025-04-03 20:58:56,383 INFO evaluate loss:3.1309667309852656
+2025-04-03 20:58:56,383 INFO -----------------------------
+2025-04-03 20:58:56,698 INFO Epoch 7, Batch 0, lr = 0.00040, audio_event_loss = 3.1990, BCELoss = 0.4767, ExpLogLoss = 2.7223, audio_precision = 0.2152, audio_recall = 0.7608, 
+2025-04-03 20:58:56,818 INFO Epoch 7, Batch 10, lr = 0.00040, audio_event_loss = 2.8822, BCELoss = 0.4161, ExpLogLoss = 2.4661, audio_precision = 0.2290, audio_recall = 0.8116, 
+2025-04-03 20:58:56,903 INFO Epoch 7, Batch 20, lr = 0.00040, audio_event_loss = 2.6452, BCELoss = 0.3537, ExpLogLoss = 2.2915, audio_precision = 0.2462, audio_recall = 0.8277, 
+2025-04-03 20:58:57,040 INFO **********************************************		 Train results (accuracy and recall): 0.2455	0.8106.
+2025-04-03 20:58:57,041 INFO epoch: *******************************************7
+2025-04-03 20:58:59,874 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.2239	0.6536	0.3335.
+**********************************************		 Best results (accuracy and recall F1-score): 0.2239	0.6536	0.3335.
+2025-04-03 20:58:59,902 INFO -----------------------------
+2025-04-03 20:58:59,902 INFO evaluate loss:2.5898912489389287
+2025-04-03 20:58:59,902 INFO -----------------------------
+2025-04-03 20:59:00,194 INFO Epoch 8, Batch 0, lr = 0.00040, audio_event_loss = 2.5902, BCELoss = 0.3027, ExpLogLoss = 2.2875, audio_precision = 0.2755, audio_recall = 0.7997, 
+2025-04-03 20:59:00,304 INFO Epoch 8, Batch 10, lr = 0.00040, audio_event_loss = 2.4431, BCELoss = 0.2593, ExpLogLoss = 2.1838, audio_precision = 0.2858, audio_recall = 0.7498, 
+2025-04-03 20:59:00,402 INFO Epoch 8, Batch 20, lr = 0.00040, audio_event_loss = 2.2531, BCELoss = 0.2192, ExpLogLoss = 2.0339, audio_precision = 0.3329, audio_recall = 0.7223, 
+2025-04-03 20:59:00,539 INFO **********************************************		 Train results (accuracy and recall): 0.3280	0.7205.
+2025-04-03 20:59:00,540 INFO epoch: *******************************************8
+2025-04-03 20:59:03,308 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.2877	0.5067	0.3670.
+**********************************************		 Best results (accuracy and recall F1-score): 0.2877	0.5067	0.3670.
+2025-04-03 20:59:03,339 INFO -----------------------------
+2025-04-03 20:59:03,339 INFO evaluate loss:2.3560096150297642
+2025-04-03 20:59:03,339 INFO -----------------------------
+2025-04-03 20:59:03,680 INFO Epoch 9, Batch 0, lr = 0.00040, audio_event_loss = 2.3395, BCELoss = 0.1912, ExpLogLoss = 2.1483, audio_precision = 0.3798, audio_recall = 0.6709, 
+2025-04-03 20:59:03,815 INFO Epoch 9, Batch 10, lr = 0.00040, audio_event_loss = 2.2007, BCELoss = 0.1690, ExpLogLoss = 2.0317, audio_precision = 0.4006, audio_recall = 0.6208, 
+2025-04-03 20:59:03,909 INFO Epoch 9, Batch 20, lr = 0.00040, audio_event_loss = 2.2774, BCELoss = 0.1546, ExpLogLoss = 2.1228, audio_precision = 0.4645, audio_recall = 0.5544, 
+2025-04-03 20:59:04,054 INFO **********************************************		 Train results (accuracy and recall): 0.4412	0.5626.
+2025-04-03 20:59:04,054 INFO epoch: *******************************************9
+2025-04-03 20:59:06,873 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.3764	0.4084	0.3917.
+**********************************************		 Best results (accuracy and recall F1-score): 0.3764	0.4084	0.3917.
+2025-04-03 20:59:06,901 INFO -----------------------------
+2025-04-03 20:59:06,901 INFO evaluate loss:2.275747893375941
+2025-04-03 20:59:06,901 INFO -----------------------------
+2025-04-03 20:59:07,171 INFO Epoch 10, Batch 0, lr = 0.00040, audio_event_loss = 2.0919, BCELoss = 0.1426, ExpLogLoss = 1.9493, audio_precision = 0.4742, audio_recall = 0.4891, 
+2025-04-03 20:59:07,282 INFO Epoch 10, Batch 10, lr = 0.00040, audio_event_loss = 2.1020, BCELoss = 0.1356, ExpLogLoss = 1.9663, audio_precision = 0.5186, audio_recall = 0.4566, 
+2025-04-03 20:59:07,369 INFO Epoch 10, Batch 20, lr = 0.00040, audio_event_loss = 2.1423, BCELoss = 0.1324, ExpLogLoss = 2.0099, audio_precision = 0.5600, audio_recall = 0.3893, 
+2025-04-03 20:59:07,500 INFO **********************************************		 Train results (accuracy and recall): 0.5514	0.4133.
+2025-04-03 20:59:07,501 INFO epoch: *******************************************10
+2025-04-03 20:59:10,279 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.5736	0.3440	0.4301.
+**********************************************		 Best results (accuracy and recall F1-score): 0.5736	0.3440	0.4301.
+2025-04-03 20:59:10,309 INFO -----------------------------
+2025-04-03 20:59:10,309 INFO evaluate loss:2.198922695751696
+2025-04-03 20:59:10,309 INFO -----------------------------
+2025-04-03 20:59:10,626 INFO Epoch 11, Batch 0, lr = 0.00040, audio_event_loss = 2.1123, BCELoss = 0.1286, ExpLogLoss = 1.9837, audio_precision = 0.5791, audio_recall = 0.3652, 
+2025-04-03 20:59:10,831 INFO Epoch 11, Batch 10, lr = 0.00040, audio_event_loss = 2.0883, BCELoss = 0.1262, ExpLogLoss = 1.9621, audio_precision = 0.6354, audio_recall = 0.3547, 
+2025-04-03 20:59:10,917 INFO Epoch 11, Batch 20, lr = 0.00040, audio_event_loss = 2.0897, BCELoss = 0.1240, ExpLogLoss = 1.9657, audio_precision = 0.6272, audio_recall = 0.3416, 
+2025-04-03 20:59:11,043 INFO **********************************************		 Train results (accuracy and recall): 0.6381	0.3449.
+2025-04-03 20:59:11,044 INFO epoch: *******************************************11
+2025-04-03 20:59:13,680 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6104	0.3014	0.4035.
+**********************************************		 Best results (accuracy and recall F1-score): 0.6104	0.3014	0.4035.
+2025-04-03 20:59:13,709 INFO -----------------------------
+2025-04-03 20:59:13,710 INFO evaluate loss:2.1745386179996
+2025-04-03 20:59:13,710 INFO -----------------------------
+2025-04-03 20:59:14,006 INFO Epoch 12, Batch 0, lr = 0.00040, audio_event_loss = 2.0028, BCELoss = 0.1188, ExpLogLoss = 1.8840, audio_precision = 0.6790, audio_recall = 0.3460, 
+2025-04-03 20:59:14,116 INFO Epoch 12, Batch 10, lr = 0.00040, audio_event_loss = 2.0580, BCELoss = 0.1222, ExpLogLoss = 1.9358, audio_precision = 0.6211, audio_recall = 0.3107, 
+2025-04-03 20:59:14,242 INFO Epoch 12, Batch 20, lr = 0.00040, audio_event_loss = 2.0103, BCELoss = 0.1177, ExpLogLoss = 1.8925, audio_precision = 0.6929, audio_recall = 0.3386, 
+2025-04-03 20:59:14,388 INFO **********************************************		 Train results (accuracy and recall): 0.6470	0.3215.
+2025-04-03 20:59:14,389 INFO epoch: *******************************************12
+2025-04-03 20:59:17,100 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6331	0.2957	0.4031.
+**********************************************		 Best results (accuracy and recall F1-score): 0.6331	0.2957	0.4031.
+2025-04-03 20:59:17,131 INFO -----------------------------
+2025-04-03 20:59:17,131 INFO evaluate loss:2.1833356646238573
+2025-04-03 20:59:17,131 INFO -----------------------------
+2025-04-03 20:59:17,419 INFO Epoch 13, Batch 0, lr = 0.00040, audio_event_loss = 2.0644, BCELoss = 0.1209, ExpLogLoss = 1.9435, audio_precision = 0.6222, audio_recall = 0.3070, 
+2025-04-03 20:59:17,586 INFO Epoch 13, Batch 10, lr = 0.00040, audio_event_loss = 1.9811, BCELoss = 0.1175, ExpLogLoss = 1.8636, audio_precision = 0.6527, audio_recall = 0.2930, 
+2025-04-03 20:59:17,721 INFO Epoch 13, Batch 20, lr = 0.00040, audio_event_loss = 2.0412, BCELoss = 0.1184, ExpLogLoss = 1.9228, audio_precision = 0.6882, audio_recall = 0.3119, 
+2025-04-03 20:59:17,852 INFO **********************************************		 Train results (accuracy and recall): 0.6770	0.3024.
+2025-04-03 20:59:17,853 INFO epoch: *******************************************13
+2025-04-03 20:59:20,188 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6510	0.2796	0.3912.
+**********************************************		 Best results (accuracy and recall F1-score): 0.6510	0.2796	0.3912.
+2025-04-03 20:59:20,215 INFO -----------------------------
+2025-04-03 20:59:20,215 INFO evaluate loss:2.1641325358396015
+2025-04-03 20:59:20,215 INFO -----------------------------
+2025-04-03 20:59:20,470 INFO Epoch 14, Batch 0, lr = 0.00040, audio_event_loss = 1.9789, BCELoss = 0.1173, ExpLogLoss = 1.8616, audio_precision = 0.6897, audio_recall = 0.3033, 
+2025-04-03 20:59:20,563 INFO Epoch 14, Batch 10, lr = 0.00040, audio_event_loss = 1.9553, BCELoss = 0.1161, ExpLogLoss = 1.8392, audio_precision = 0.6907, audio_recall = 0.3133, 
+2025-04-03 20:59:20,690 INFO Epoch 14, Batch 20, lr = 0.00040, audio_event_loss = 2.0348, BCELoss = 0.1189, ExpLogLoss = 1.9160, audio_precision = 0.6767, audio_recall = 0.2728, 
+2025-04-03 20:59:20,793 INFO **********************************************		 Train results (accuracy and recall): 0.6919	0.2900.
+2025-04-03 20:59:20,793 INFO epoch: *******************************************14
+2025-04-03 20:59:22,993 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6586	0.2680	0.3809.
+**********************************************		 Best results (accuracy and recall F1-score): 0.6586	0.2680	0.3809.
+2025-04-03 20:59:23,018 INFO -----------------------------
+2025-04-03 20:59:23,019 INFO evaluate loss:2.1377028618101597
+2025-04-03 20:59:23,019 INFO -----------------------------
+2025-04-03 20:59:23,245 INFO Epoch 15, Batch 0, lr = 0.00040, audio_event_loss = 1.9663, BCELoss = 0.1153, ExpLogLoss = 1.8510, audio_precision = 0.7178, audio_recall = 0.2901, 
+2025-04-03 20:59:23,410 INFO Epoch 15, Batch 10, lr = 0.00040, audio_event_loss = 1.9562, BCELoss = 0.1157, ExpLogLoss = 1.8404, audio_precision = 0.6804, audio_recall = 0.2890, 
+2025-04-03 20:59:23,547 INFO Epoch 15, Batch 20, lr = 0.00040, audio_event_loss = 1.9565, BCELoss = 0.1154, ExpLogLoss = 1.8410, audio_precision = 0.7297, audio_recall = 0.2693, 
+2025-04-03 20:59:23,645 INFO **********************************************		 Train results (accuracy and recall): 0.7092	0.2780.
+2025-04-03 20:59:23,646 INFO epoch: *******************************************15
+2025-04-03 20:59:25,826 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 20:59:25,852 INFO -----------------------------
+2025-04-03 20:59:25,852 INFO evaluate loss:2.1274630875805958
+2025-04-03 20:59:25,852 INFO -----------------------------
+2025-04-03 20:59:26,068 INFO Epoch 16, Batch 0, lr = 0.00020, audio_event_loss = 1.9247, BCELoss = 0.1149, ExpLogLoss = 1.8097, audio_precision = 0.7066, audio_recall = 0.2607, 
+2025-04-03 20:59:26,197 INFO Epoch 16, Batch 10, lr = 0.00020, audio_event_loss = 1.9545, BCELoss = 0.1158, ExpLogLoss = 1.8387, audio_precision = 0.7146, audio_recall = 0.2928, 
+2025-04-03 20:59:26,287 INFO Epoch 16, Batch 20, lr = 0.00020, audio_event_loss = 1.9946, BCELoss = 0.1168, ExpLogLoss = 1.8778, audio_precision = 0.7226, audio_recall = 0.2724, 
+2025-04-03 20:59:26,377 INFO **********************************************		 Train results (accuracy and recall): 0.7193	0.2783.
+2025-04-03 20:59:26,378 INFO epoch: *******************************************16
+2025-04-03 20:59:28,535 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6579	0.2731	0.3860.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 20:59:28,560 INFO -----------------------------
+2025-04-03 20:59:28,560 INFO evaluate loss:2.122713980718966
+2025-04-03 20:59:28,560 INFO -----------------------------
+2025-04-03 20:59:28,784 INFO Epoch 17, Batch 0, lr = 0.00020, audio_event_loss = 1.8643, BCELoss = 0.1114, ExpLogLoss = 1.7529, audio_precision = 0.7338, audio_recall = 0.2679, 
+2025-04-03 20:59:29,014 INFO Epoch 17, Batch 10, lr = 0.00020, audio_event_loss = 1.8736, BCELoss = 0.1127, ExpLogLoss = 1.7609, audio_precision = 0.7000, audio_recall = 0.2955, 
+2025-04-03 20:59:29,098 INFO Epoch 17, Batch 20, lr = 0.00020, audio_event_loss = 1.8958, BCELoss = 0.1138, ExpLogLoss = 1.7820, audio_precision = 0.6958, audio_recall = 0.2948, 
+2025-04-03 20:59:29,204 INFO **********************************************		 Train results (accuracy and recall): 0.6916	0.2801.
+2025-04-03 20:59:29,205 INFO epoch: *******************************************17
+2025-04-03 20:59:31,412 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6676	0.2694	0.3839.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 20:59:31,438 INFO -----------------------------
+2025-04-03 20:59:31,438 INFO evaluate loss:2.0881407250317223
+2025-04-03 20:59:31,438 INFO -----------------------------
+2025-04-03 20:59:31,664 INFO Epoch 18, Batch 0, lr = 0.00020, audio_event_loss = 1.9966, BCELoss = 0.1170, ExpLogLoss = 1.8796, audio_precision = 0.6665, audio_recall = 0.2558, 
+2025-04-03 20:59:31,846 INFO Epoch 18, Batch 10, lr = 0.00020, audio_event_loss = 1.9251, BCELoss = 0.1146, ExpLogLoss = 1.8105, audio_precision = 0.6976, audio_recall = 0.2761, 
+2025-04-03 20:59:31,933 INFO Epoch 18, Batch 20, lr = 0.00020, audio_event_loss = 1.8625, BCELoss = 0.1127, ExpLogLoss = 1.7498, audio_precision = 0.7209, audio_recall = 0.2670, 
+2025-04-03 20:59:32,026 INFO **********************************************		 Train results (accuracy and recall): 0.7203	0.2811.
+2025-04-03 20:59:32,026 INFO epoch: *******************************************18
+2025-04-03 20:59:34,212 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6907	0.2618	0.3797.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 20:59:34,238 INFO -----------------------------
+2025-04-03 20:59:34,239 INFO evaluate loss:2.093233717011863
+2025-04-03 20:59:34,239 INFO -----------------------------
+2025-04-03 20:59:34,475 INFO Epoch 19, Batch 0, lr = 0.00020, audio_event_loss = 1.9228, BCELoss = 0.1139, ExpLogLoss = 1.8089, audio_precision = 0.7601, audio_recall = 0.2938, 
+2025-04-03 20:59:34,697 INFO Epoch 19, Batch 10, lr = 0.00020, audio_event_loss = 1.8403, BCELoss = 0.1113, ExpLogLoss = 1.7290, audio_precision = 0.7364, audio_recall = 0.2795, 
+2025-04-03 20:59:34,844 INFO Epoch 19, Batch 20, lr = 0.00020, audio_event_loss = 1.9009, BCELoss = 0.1140, ExpLogLoss = 1.7869, audio_precision = 0.7396, audio_recall = 0.2937, 
+2025-04-03 20:59:34,939 INFO **********************************************		 Train results (accuracy and recall): 0.7216	0.2804.
+2025-04-03 20:59:34,940 INFO epoch: *******************************************19
+2025-04-03 20:59:37,124 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6902	0.2745	0.3928.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 20:59:37,149 INFO -----------------------------
+2025-04-03 20:59:37,149 INFO evaluate loss:2.095427347145103
+2025-04-03 20:59:37,149 INFO -----------------------------
+2025-04-03 20:59:37,368 INFO Epoch 20, Batch 0, lr = 0.00020, audio_event_loss = 1.9238, BCELoss = 0.1151, ExpLogLoss = 1.8087, audio_precision = 0.6757, audio_recall = 0.2684, 
+2025-04-03 20:59:37,566 INFO Epoch 20, Batch 10, lr = 0.00020, audio_event_loss = 1.9453, BCELoss = 0.1162, ExpLogLoss = 1.8291, audio_precision = 0.7069, audio_recall = 0.2479, 
+2025-04-03 20:59:37,663 INFO Epoch 20, Batch 20, lr = 0.00020, audio_event_loss = 1.8841, BCELoss = 0.1137, ExpLogLoss = 1.7704, audio_precision = 0.7314, audio_recall = 0.2678, 
+2025-04-03 20:59:37,766 INFO **********************************************		 Train results (accuracy and recall): 0.7339	0.2697.
+2025-04-03 20:59:37,767 INFO epoch: *******************************************20
+2025-04-03 20:59:39,944 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6942	0.2730	0.3919.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 20:59:39,971 INFO -----------------------------
+2025-04-03 20:59:39,971 INFO evaluate loss:2.07858722891711
+2025-04-03 20:59:39,971 INFO -----------------------------
+2025-04-03 20:59:40,206 INFO Epoch 21, Batch 0, lr = 0.00020, audio_event_loss = 1.8245, BCELoss = 0.1110, ExpLogLoss = 1.7134, audio_precision = 0.7711, audio_recall = 0.2934, 
+2025-04-03 20:59:40,290 INFO Epoch 21, Batch 10, lr = 0.00020, audio_event_loss = 1.9217, BCELoss = 0.1160, ExpLogLoss = 1.8057, audio_precision = 0.7025, audio_recall = 0.2792, 
+2025-04-03 20:59:40,377 INFO Epoch 21, Batch 20, lr = 0.00020, audio_event_loss = 1.8391, BCELoss = 0.1116, ExpLogLoss = 1.7274, audio_precision = 0.7268, audio_recall = 0.2909, 
+2025-04-03 20:59:40,471 INFO **********************************************		 Train results (accuracy and recall): 0.7237	0.2806.
+2025-04-03 20:59:40,471 INFO epoch: *******************************************21
+2025-04-03 20:59:42,693 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6937	0.2549	0.3728.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 20:59:42,718 INFO -----------------------------
+2025-04-03 20:59:42,718 INFO evaluate loss:2.0859254455398832
+2025-04-03 20:59:42,718 INFO -----------------------------
+2025-04-03 20:59:42,957 INFO Epoch 22, Batch 0, lr = 0.00020, audio_event_loss = 1.8852, BCELoss = 0.1136, ExpLogLoss = 1.7716, audio_precision = 0.7321, audio_recall = 0.2709, 
+2025-04-03 20:59:43,136 INFO Epoch 22, Batch 10, lr = 0.00020, audio_event_loss = 1.8804, BCELoss = 0.1132, ExpLogLoss = 1.7672, audio_precision = 0.7399, audio_recall = 0.2546, 
+2025-04-03 20:59:43,232 INFO Epoch 22, Batch 20, lr = 0.00020, audio_event_loss = 1.8536, BCELoss = 0.1130, ExpLogLoss = 1.7405, audio_precision = 0.7306, audio_recall = 0.2669, 
+2025-04-03 20:59:43,324 INFO **********************************************		 Train results (accuracy and recall): 0.7300	0.2712.
+2025-04-03 20:59:43,325 INFO epoch: *******************************************22
+2025-04-03 20:59:45,559 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6944	0.2773	0.3963.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 20:59:45,586 INFO -----------------------------
+2025-04-03 20:59:45,586 INFO evaluate loss:2.0714188298411735
+2025-04-03 20:59:45,586 INFO -----------------------------
+2025-04-03 20:59:45,827 INFO Epoch 23, Batch 0, lr = 0.00020, audio_event_loss = 1.8397, BCELoss = 0.1130, ExpLogLoss = 1.7266, audio_precision = 0.7268, audio_recall = 0.2954, 
+2025-04-03 20:59:45,923 INFO Epoch 23, Batch 10, lr = 0.00020, audio_event_loss = 1.8970, BCELoss = 0.1148, ExpLogLoss = 1.7822, audio_precision = 0.7034, audio_recall = 0.2607, 
+2025-04-03 20:59:46,055 INFO Epoch 23, Batch 20, lr = 0.00020, audio_event_loss = 1.8017, BCELoss = 0.1113, ExpLogLoss = 1.6904, audio_precision = 0.7717, audio_recall = 0.2855, 
+2025-04-03 20:59:46,181 INFO **********************************************		 Train results (accuracy and recall): 0.7230	0.2742.
+2025-04-03 20:59:46,182 INFO epoch: *******************************************23
+2025-04-03 20:59:48,401 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6667	0.2460	0.3594.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 20:59:48,426 INFO -----------------------------
+2025-04-03 20:59:48,427 INFO evaluate loss:2.051026745812109
+2025-04-03 20:59:48,427 INFO -----------------------------
+2025-04-03 20:59:48,658 INFO Epoch 24, Batch 0, lr = 0.00020, audio_event_loss = 1.8901, BCELoss = 0.1137, ExpLogLoss = 1.7764, audio_precision = 0.6871, audio_recall = 0.2815, 
+2025-04-03 20:59:48,843 INFO Epoch 24, Batch 10, lr = 0.00020, audio_event_loss = 1.8232, BCELoss = 0.1127, ExpLogLoss = 1.7105, audio_precision = 0.6967, audio_recall = 0.2832, 
+2025-04-03 20:59:48,928 INFO Epoch 24, Batch 20, lr = 0.00020, audio_event_loss = 1.8698, BCELoss = 0.1134, ExpLogLoss = 1.7564, audio_precision = 0.7174, audio_recall = 0.2673, 
+2025-04-03 20:59:49,021 INFO **********************************************		 Train results (accuracy and recall): 0.7225	0.2751.
+2025-04-03 20:59:49,022 INFO epoch: *******************************************24
+2025-04-03 20:59:51,200 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6843	0.2766	0.3939.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 20:59:51,225 INFO -----------------------------
+2025-04-03 20:59:51,225 INFO evaluate loss:2.0355223188258726
+2025-04-03 20:59:51,225 INFO -----------------------------
+2025-04-03 20:59:51,474 INFO Epoch 25, Batch 0, lr = 0.00020, audio_event_loss = 1.8334, BCELoss = 0.1117, ExpLogLoss = 1.7217, audio_precision = 0.7676, audio_recall = 0.2779, 
+2025-04-03 20:59:51,655 INFO Epoch 25, Batch 10, lr = 0.00020, audio_event_loss = 1.8517, BCELoss = 0.1120, ExpLogLoss = 1.7398, audio_precision = 0.7433, audio_recall = 0.3054, 
+2025-04-03 20:59:51,773 INFO Epoch 25, Batch 20, lr = 0.00020, audio_event_loss = 1.8225, BCELoss = 0.1130, ExpLogLoss = 1.7095, audio_precision = 0.6772, audio_recall = 0.2499, 
+2025-04-03 20:59:51,884 INFO **********************************************		 Train results (accuracy and recall): 0.7163	0.2790.
+2025-04-03 20:59:51,885 INFO epoch: *******************************************25
+2025-04-03 20:59:54,062 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6920	0.2685	0.3869.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 20:59:54,087 INFO -----------------------------
+2025-04-03 20:59:54,087 INFO evaluate loss:2.0450722771637087
+2025-04-03 20:59:54,087 INFO -----------------------------
+2025-04-03 20:59:54,317 INFO Epoch 26, Batch 0, lr = 0.00010, audio_event_loss = 1.8499, BCELoss = 0.1133, ExpLogLoss = 1.7365, audio_precision = 0.7184, audio_recall = 0.2735, 
+2025-04-03 20:59:54,506 INFO Epoch 26, Batch 10, lr = 0.00010, audio_event_loss = 1.8622, BCELoss = 0.1140, ExpLogLoss = 1.7482, audio_precision = 0.7452, audio_recall = 0.2827, 
+2025-04-03 20:59:54,617 INFO Epoch 26, Batch 20, lr = 0.00010, audio_event_loss = 1.7866, BCELoss = 0.1109, ExpLogLoss = 1.6757, audio_precision = 0.7234, audio_recall = 0.2784, 
+2025-04-03 20:59:54,713 INFO **********************************************		 Train results (accuracy and recall): 0.7287	0.2815.
+2025-04-03 20:59:54,713 INFO epoch: *******************************************26
+2025-04-03 20:59:56,944 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6940	0.2709	0.3897.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 20:59:56,969 INFO -----------------------------
+2025-04-03 20:59:56,970 INFO evaluate loss:2.044199695741158
+2025-04-03 20:59:56,970 INFO -----------------------------
+2025-04-03 20:59:57,213 INFO Epoch 27, Batch 0, lr = 0.00010, audio_event_loss = 1.8126, BCELoss = 0.1124, ExpLogLoss = 1.7002, audio_precision = 0.7231, audio_recall = 0.2843, 
+2025-04-03 20:59:57,440 INFO Epoch 27, Batch 10, lr = 0.00010, audio_event_loss = 1.8329, BCELoss = 0.1126, ExpLogLoss = 1.7203, audio_precision = 0.7174, audio_recall = 0.2649, 
+2025-04-03 20:59:57,535 INFO Epoch 27, Batch 20, lr = 0.00010, audio_event_loss = 1.8560, BCELoss = 0.1146, ExpLogLoss = 1.7414, audio_precision = 0.6801, audio_recall = 0.2934, 
+2025-04-03 20:59:57,633 INFO **********************************************		 Train results (accuracy and recall): 0.7181	0.2890.
+2025-04-03 20:59:57,634 INFO epoch: *******************************************27
+2025-04-03 20:59:59,810 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6895	0.2715	0.3896.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 20:59:59,836 INFO -----------------------------
+2025-04-03 20:59:59,836 INFO evaluate loss:2.041288146157189
+2025-04-03 20:59:59,836 INFO -----------------------------
+2025-04-03 21:00:00,065 INFO Epoch 28, Batch 0, lr = 0.00010, audio_event_loss = 1.7652, BCELoss = 0.1106, ExpLogLoss = 1.6545, audio_precision = 0.7508, audio_recall = 0.3060, 
+2025-04-03 21:00:00,246 INFO Epoch 28, Batch 10, lr = 0.00010, audio_event_loss = 1.8477, BCELoss = 0.1127, ExpLogLoss = 1.7350, audio_precision = 0.7724, audio_recall = 0.2837, 
+2025-04-03 21:00:00,357 INFO Epoch 28, Batch 20, lr = 0.00010, audio_event_loss = 1.7949, BCELoss = 0.1119, ExpLogLoss = 1.6830, audio_precision = 0.7090, audio_recall = 0.2824, 
+2025-04-03 21:00:00,462 INFO **********************************************		 Train results (accuracy and recall): 0.7244	0.2787.
+2025-04-03 21:00:00,463 INFO epoch: *******************************************28
+2025-04-03 21:00:02,681 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6890	0.2719	0.3899.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 21:00:02,707 INFO -----------------------------
+2025-04-03 21:00:02,707 INFO evaluate loss:2.0279892211925166
+2025-04-03 21:00:02,707 INFO -----------------------------
+2025-04-03 21:00:02,937 INFO Epoch 29, Batch 0, lr = 0.00010, audio_event_loss = 1.8050, BCELoss = 0.1125, ExpLogLoss = 1.6925, audio_precision = 0.6816, audio_recall = 0.2699, 
+2025-04-03 21:00:03,113 INFO Epoch 29, Batch 10, lr = 0.00010, audio_event_loss = 1.7496, BCELoss = 0.1098, ExpLogLoss = 1.6398, audio_precision = 0.7475, audio_recall = 0.3004, 
+2025-04-03 21:00:03,227 INFO Epoch 29, Batch 20, lr = 0.00010, audio_event_loss = 1.8865, BCELoss = 0.1158, ExpLogLoss = 1.7708, audio_precision = 0.7010, audio_recall = 0.2509, 
+2025-04-03 21:00:03,335 INFO **********************************************		 Train results (accuracy and recall): 0.7218	0.2811.
+2025-04-03 21:00:03,335 INFO epoch: *******************************************29
+2025-04-03 21:00:05,541 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6889	0.2738	0.3919.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 21:00:05,566 INFO -----------------------------
+2025-04-03 21:00:05,566 INFO evaluate loss:2.0369390107239242
+2025-04-03 21:00:05,566 INFO -----------------------------
+2025-04-03 21:00:05,795 INFO Epoch 30, Batch 0, lr = 0.00010, audio_event_loss = 1.7804, BCELoss = 0.1112, ExpLogLoss = 1.6692, audio_precision = 0.7205, audio_recall = 0.2886, 
+2025-04-03 21:00:05,964 INFO Epoch 30, Batch 10, lr = 0.00010, audio_event_loss = 1.8278, BCELoss = 0.1127, ExpLogLoss = 1.7151, audio_precision = 0.7202, audio_recall = 0.2752, 
+2025-04-03 21:00:06,046 INFO Epoch 30, Batch 20, lr = 0.00010, audio_event_loss = 1.7764, BCELoss = 0.1114, ExpLogLoss = 1.6650, audio_precision = 0.7225, audio_recall = 0.2855, 
+2025-04-03 21:00:06,146 INFO **********************************************		 Train results (accuracy and recall): 0.7235	0.2798.
+2025-04-03 21:00:06,147 INFO epoch: *******************************************30
+2025-04-03 21:00:08,362 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6902	0.2739	0.3922.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 21:00:08,388 INFO -----------------------------
+2025-04-03 21:00:08,388 INFO evaluate loss:2.030242539037854
+2025-04-03 21:00:08,388 INFO -----------------------------
+2025-04-03 21:00:08,630 INFO Epoch 31, Batch 0, lr = 0.00010, audio_event_loss = 1.8440, BCELoss = 0.1138, ExpLogLoss = 1.7302, audio_precision = 0.7420, audio_recall = 0.2892, 
+2025-04-03 21:00:08,780 INFO Epoch 31, Batch 10, lr = 0.00010, audio_event_loss = 1.8247, BCELoss = 0.1130, ExpLogLoss = 1.7117, audio_precision = 0.7347, audio_recall = 0.2672, 
+2025-04-03 21:00:08,882 INFO Epoch 31, Batch 20, lr = 0.00010, audio_event_loss = 1.7844, BCELoss = 0.1117, ExpLogLoss = 1.6727, audio_precision = 0.7323, audio_recall = 0.2864, 
+2025-04-03 21:00:08,976 INFO **********************************************		 Train results (accuracy and recall): 0.7324	0.2731.
+2025-04-03 21:00:08,977 INFO epoch: *******************************************31
+2025-04-03 21:00:11,211 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6878	0.2720	0.3898.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 21:00:11,237 INFO -----------------------------
+2025-04-03 21:00:11,237 INFO evaluate loss:2.026826411590815
+2025-04-03 21:00:11,237 INFO -----------------------------
+2025-04-03 21:00:11,489 INFO Epoch 32, Batch 0, lr = 0.00010, audio_event_loss = 1.7775, BCELoss = 0.1114, ExpLogLoss = 1.6661, audio_precision = 0.7151, audio_recall = 0.2629, 
+2025-04-03 21:00:11,645 INFO Epoch 32, Batch 10, lr = 0.00010, audio_event_loss = 1.7697, BCELoss = 0.1113, ExpLogLoss = 1.6584, audio_precision = 0.7279, audio_recall = 0.2763, 
+2025-04-03 21:00:11,762 INFO Epoch 32, Batch 20, lr = 0.00010, audio_event_loss = 1.8292, BCELoss = 0.1138, ExpLogLoss = 1.7154, audio_precision = 0.7281, audio_recall = 0.2709, 
+2025-04-03 21:00:11,858 INFO **********************************************		 Train results (accuracy and recall): 0.7264	0.2786.
+2025-04-03 21:00:11,858 INFO epoch: *******************************************32
+2025-04-03 21:00:14,037 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6734	0.2407	0.3546.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 21:00:14,063 INFO -----------------------------
+2025-04-03 21:00:14,063 INFO evaluate loss:2.025818463643814
+2025-04-03 21:00:14,063 INFO -----------------------------
+2025-04-03 21:00:14,273 INFO Epoch 33, Batch 0, lr = 0.00010, audio_event_loss = 1.7737, BCELoss = 0.1103, ExpLogLoss = 1.6634, audio_precision = 0.7360, audio_recall = 0.2960, 
+2025-04-03 21:00:14,453 INFO Epoch 33, Batch 10, lr = 0.00010, audio_event_loss = 1.8067, BCELoss = 0.1121, ExpLogLoss = 1.6946, audio_precision = 0.7455, audio_recall = 0.2859, 
+2025-04-03 21:00:14,556 INFO Epoch 33, Batch 20, lr = 0.00010, audio_event_loss = 1.7855, BCELoss = 0.1122, ExpLogLoss = 1.6733, audio_precision = 0.7227, audio_recall = 0.2691, 
+2025-04-03 21:00:14,652 INFO **********************************************		 Train results (accuracy and recall): 0.7286	0.2772.
+2025-04-03 21:00:14,652 INFO epoch: *******************************************33
+2025-04-03 21:00:16,842 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6908	0.2723	0.3906.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 21:00:16,868 INFO -----------------------------
+2025-04-03 21:00:16,868 INFO evaluate loss:2.013120419285949
+2025-04-03 21:00:16,869 INFO -----------------------------
+2025-04-03 21:00:17,111 INFO Epoch 34, Batch 0, lr = 0.00010, audio_event_loss = 1.8200, BCELoss = 0.1131, ExpLogLoss = 1.7069, audio_precision = 0.7190, audio_recall = 0.2691, 
+2025-04-03 21:00:17,354 INFO Epoch 34, Batch 10, lr = 0.00010, audio_event_loss = 1.7739, BCELoss = 0.1121, ExpLogLoss = 1.6618, audio_precision = 0.7223, audio_recall = 0.2545, 
+2025-04-03 21:00:17,449 INFO Epoch 34, Batch 20, lr = 0.00010, audio_event_loss = 1.7815, BCELoss = 0.1117, ExpLogLoss = 1.6698, audio_precision = 0.7437, audio_recall = 0.2819, 
+2025-04-03 21:00:17,543 INFO **********************************************		 Train results (accuracy and recall): 0.7280	0.2661.
+2025-04-03 21:00:17,544 INFO epoch: *******************************************34
+2025-04-03 21:00:19,750 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6712	0.2295	0.3420.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 21:00:19,776 INFO -----------------------------
+2025-04-03 21:00:19,776 INFO evaluate loss:2.015207025980071
+2025-04-03 21:00:19,776 INFO -----------------------------
+2025-04-03 21:00:20,014 INFO Epoch 35, Batch 0, lr = 0.00010, audio_event_loss = 1.7975, BCELoss = 0.1118, ExpLogLoss = 1.6856, audio_precision = 0.7261, audio_recall = 0.2714, 
+2025-04-03 21:00:20,213 INFO Epoch 35, Batch 10, lr = 0.00010, audio_event_loss = 1.8752, BCELoss = 0.1155, ExpLogLoss = 1.7597, audio_precision = 0.7216, audio_recall = 0.2732, 
+2025-04-03 21:00:20,305 INFO Epoch 35, Batch 20, lr = 0.00010, audio_event_loss = 1.7412, BCELoss = 0.1111, ExpLogLoss = 1.6301, audio_precision = 0.7301, audio_recall = 0.2746, 
+2025-04-03 21:00:20,404 INFO **********************************************		 Train results (accuracy and recall): 0.7273	0.2818.
+2025-04-03 21:00:20,405 INFO epoch: *******************************************35
+2025-04-03 21:00:22,594 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6878	0.2739	0.3918.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 21:00:22,620 INFO -----------------------------
+2025-04-03 21:00:22,620 INFO evaluate loss:2.0177022521560355
+2025-04-03 21:00:22,620 INFO -----------------------------
+2025-04-03 21:00:22,830 INFO Epoch 36, Batch 0, lr = 0.00005, audio_event_loss = 1.7240, BCELoss = 0.1092, ExpLogLoss = 1.6148, audio_precision = 0.7235, audio_recall = 0.2951, 
+2025-04-03 21:00:22,918 INFO Epoch 36, Batch 10, lr = 0.00005, audio_event_loss = 1.7932, BCELoss = 0.1125, ExpLogLoss = 1.6807, audio_precision = 0.7347, audio_recall = 0.2920, 
+2025-04-03 21:00:23,004 INFO Epoch 36, Batch 20, lr = 0.00005, audio_event_loss = 1.8272, BCELoss = 0.1137, ExpLogLoss = 1.7135, audio_precision = 0.7014, audio_recall = 0.2681, 
+2025-04-03 21:00:23,105 INFO **********************************************		 Train results (accuracy and recall): 0.7268	0.2776.
+2025-04-03 21:00:23,105 INFO epoch: *******************************************36
+2025-04-03 21:00:25,289 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6739	0.2402	0.3542.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 21:00:25,314 INFO -----------------------------
+2025-04-03 21:00:25,314 INFO evaluate loss:2.0131223892745003
+2025-04-03 21:00:25,314 INFO -----------------------------
+2025-04-03 21:00:25,557 INFO Epoch 37, Batch 0, lr = 0.00005, audio_event_loss = 1.7317, BCELoss = 0.1098, ExpLogLoss = 1.6219, audio_precision = 0.7555, audio_recall = 0.2664, 
+2025-04-03 21:00:25,754 INFO Epoch 37, Batch 10, lr = 0.00005, audio_event_loss = 1.8066, BCELoss = 0.1137, ExpLogLoss = 1.6929, audio_precision = 0.7080, audio_recall = 0.2641, 
+2025-04-03 21:00:25,828 INFO Epoch 37, Batch 20, lr = 0.00005, audio_event_loss = 1.7449, BCELoss = 0.1103, ExpLogLoss = 1.6346, audio_precision = 0.7577, audio_recall = 0.2935, 
+2025-04-03 21:00:25,917 INFO **********************************************		 Train results (accuracy and recall): 0.7240	0.2815.
+2025-04-03 21:00:25,918 INFO epoch: *******************************************37
+2025-04-03 21:00:28,191 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6729	0.2406	0.3544.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 21:00:28,217 INFO -----------------------------
+2025-04-03 21:00:28,217 INFO evaluate loss:2.0091137761484563
+2025-04-03 21:00:28,217 INFO -----------------------------
+2025-04-03 21:00:28,432 INFO Epoch 38, Batch 0, lr = 0.00005, audio_event_loss = 1.7966, BCELoss = 0.1124, ExpLogLoss = 1.6842, audio_precision = 0.7101, audio_recall = 0.2967, 
+2025-04-03 21:00:28,638 INFO Epoch 38, Batch 10, lr = 0.00005, audio_event_loss = 1.8424, BCELoss = 0.1143, ExpLogLoss = 1.7281, audio_precision = 0.7030, audio_recall = 0.2712, 
+2025-04-03 21:00:28,729 INFO Epoch 38, Batch 20, lr = 0.00005, audio_event_loss = 1.7635, BCELoss = 0.1116, ExpLogLoss = 1.6519, audio_precision = 0.7188, audio_recall = 0.2835, 
+2025-04-03 21:00:28,827 INFO **********************************************		 Train results (accuracy and recall): 0.7226	0.2801.
+2025-04-03 21:00:28,827 INFO epoch: *******************************************38
+2025-04-03 21:00:30,989 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6730	0.2407	0.3545.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 21:00:31,016 INFO -----------------------------
+2025-04-03 21:00:31,016 INFO evaluate loss:2.0065182546068523
+2025-04-03 21:00:31,016 INFO -----------------------------
+2025-04-03 21:00:31,244 INFO Epoch 39, Batch 0, lr = 0.00005, audio_event_loss = 1.6924, BCELoss = 0.1092, ExpLogLoss = 1.5831, audio_precision = 0.7334, audio_recall = 0.2766, 
+2025-04-03 21:00:31,443 INFO Epoch 39, Batch 10, lr = 0.00005, audio_event_loss = 1.8025, BCELoss = 0.1127, ExpLogLoss = 1.6898, audio_precision = 0.7446, audio_recall = 0.2893, 
+2025-04-03 21:00:31,574 INFO Epoch 39, Batch 20, lr = 0.00005, audio_event_loss = 1.7423, BCELoss = 0.1110, ExpLogLoss = 1.6313, audio_precision = 0.7168, audio_recall = 0.2642, 
+2025-04-03 21:00:31,668 INFO **********************************************		 Train results (accuracy and recall): 0.7315	0.2743.
+2025-04-03 21:00:31,668 INFO epoch: *******************************************39
+2025-04-03 21:00:33,874 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6717	0.2271	0.3394.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 21:00:33,899 INFO -----------------------------
+2025-04-03 21:00:33,899 INFO evaluate loss:2.004193579700487
+2025-04-03 21:00:33,899 INFO -----------------------------
+2025-04-03 21:00:34,126 INFO Epoch 40, Batch 0, lr = 0.00005, audio_event_loss = 1.8113, BCELoss = 0.1137, ExpLogLoss = 1.6975, audio_precision = 0.7260, audio_recall = 0.2660, 
+2025-04-03 21:00:34,297 INFO Epoch 40, Batch 10, lr = 0.00005, audio_event_loss = 1.7504, BCELoss = 0.1114, ExpLogLoss = 1.6390, audio_precision = 0.7361, audio_recall = 0.2872, 
+2025-04-03 21:00:34,409 INFO Epoch 40, Batch 20, lr = 0.00005, audio_event_loss = 1.7563, BCELoss = 0.1108, ExpLogLoss = 1.6455, audio_precision = 0.7357, audio_recall = 0.2823, 
+2025-04-03 21:00:34,510 INFO **********************************************		 Train results (accuracy and recall): 0.7234	0.2771.
+2025-04-03 21:00:34,511 INFO epoch: *******************************************40
+2025-04-03 21:00:36,668 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6730	0.2382	0.3519.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 21:00:36,697 INFO -----------------------------
+2025-04-03 21:00:36,697 INFO evaluate loss:2.0028648179301265
+2025-04-03 21:00:36,697 INFO -----------------------------
+2025-04-03 21:00:36,934 INFO Epoch 41, Batch 0, lr = 0.00005, audio_event_loss = 1.7905, BCELoss = 0.1128, ExpLogLoss = 1.6776, audio_precision = 0.6908, audio_recall = 0.2580, 
+2025-04-03 21:00:37,110 INFO Epoch 41, Batch 10, lr = 0.00005, audio_event_loss = 1.7326, BCELoss = 0.1104, ExpLogLoss = 1.6222, audio_precision = 0.7043, audio_recall = 0.2870, 
+2025-04-03 21:00:37,221 INFO Epoch 41, Batch 20, lr = 0.00005, audio_event_loss = 1.8122, BCELoss = 0.1130, ExpLogLoss = 1.6993, audio_precision = 0.7763, audio_recall = 0.2772, 
+2025-04-03 21:00:37,316 INFO **********************************************		 Train results (accuracy and recall): 0.7303	0.2735.
+2025-04-03 21:00:37,317 INFO epoch: *******************************************41
+2025-04-03 21:00:39,505 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6730	0.2382	0.3519.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 21:00:39,530 INFO -----------------------------
+2025-04-03 21:00:39,530 INFO evaluate loss:2.0001243738046455
+2025-04-03 21:00:39,530 INFO -----------------------------
+2025-04-03 21:00:39,764 INFO Epoch 42, Batch 0, lr = 0.00005, audio_event_loss = 1.7593, BCELoss = 0.1123, ExpLogLoss = 1.6469, audio_precision = 0.7124, audio_recall = 0.2565, 
+2025-04-03 21:00:39,942 INFO Epoch 42, Batch 10, lr = 0.00005, audio_event_loss = 1.7422, BCELoss = 0.1107, ExpLogLoss = 1.6314, audio_precision = 0.7396, audio_recall = 0.2843, 
+2025-04-03 21:00:40,076 INFO Epoch 42, Batch 20, lr = 0.00005, audio_event_loss = 1.7512, BCELoss = 0.1106, ExpLogLoss = 1.6405, audio_precision = 0.7234, audio_recall = 0.2864, 
+2025-04-03 21:00:40,182 INFO **********************************************		 Train results (accuracy and recall): 0.7261	0.2812.
+2025-04-03 21:00:40,183 INFO epoch: *******************************************42
+2025-04-03 21:00:42,370 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6730	0.2407	0.3545.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 21:00:42,396 INFO -----------------------------
+2025-04-03 21:00:42,396 INFO evaluate loss:1.9950253812789047
+2025-04-03 21:00:42,396 INFO -----------------------------
+2025-04-03 21:00:42,626 INFO Epoch 43, Batch 0, lr = 0.00005, audio_event_loss = 1.7475, BCELoss = 0.1119, ExpLogLoss = 1.6356, audio_precision = 0.7287, audio_recall = 0.2839, 
+2025-04-03 21:00:42,785 INFO Epoch 43, Batch 10, lr = 0.00005, audio_event_loss = 1.7805, BCELoss = 0.1130, ExpLogLoss = 1.6675, audio_precision = 0.6903, audio_recall = 0.2904, 
+2025-04-03 21:00:42,863 INFO Epoch 43, Batch 20, lr = 0.00005, audio_event_loss = 1.7526, BCELoss = 0.1110, ExpLogLoss = 1.6416, audio_precision = 0.7442, audio_recall = 0.2838, 
+2025-04-03 21:00:42,960 INFO **********************************************		 Train results (accuracy and recall): 0.7210	0.2815.
+2025-04-03 21:00:42,960 INFO epoch: *******************************************43
+2025-04-03 21:00:45,153 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6730	0.2382	0.3519.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 21:00:45,178 INFO -----------------------------
+2025-04-03 21:00:45,179 INFO evaluate loss:1.9985540542214848
+2025-04-03 21:00:45,179 INFO -----------------------------
+2025-04-03 21:00:45,417 INFO Epoch 44, Batch 0, lr = 0.00005, audio_event_loss = 1.7736, BCELoss = 0.1121, ExpLogLoss = 1.6616, audio_precision = 0.7135, audio_recall = 0.2633, 
+2025-04-03 21:00:45,537 INFO Epoch 44, Batch 10, lr = 0.00005, audio_event_loss = 1.7254, BCELoss = 0.1105, ExpLogLoss = 1.6149, audio_precision = 0.7182, audio_recall = 0.2568, 
+2025-04-03 21:00:45,605 INFO Epoch 44, Batch 20, lr = 0.00005, audio_event_loss = 1.7339, BCELoss = 0.1103, ExpLogLoss = 1.6236, audio_precision = 0.7384, audio_recall = 0.2857, 
+2025-04-03 21:00:45,699 INFO **********************************************		 Train results (accuracy and recall): 0.7252	0.2748.
+2025-04-03 21:00:45,699 INFO epoch: *******************************************44
+2025-04-03 21:00:47,927 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6739	0.2406	0.3546.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 21:00:47,953 INFO -----------------------------
+2025-04-03 21:00:47,953 INFO evaluate loss:1.9962655775334779
+2025-04-03 21:00:47,953 INFO -----------------------------
+2025-04-03 21:00:48,166 INFO Epoch 45, Batch 0, lr = 0.00005, audio_event_loss = 1.8350, BCELoss = 0.1145, ExpLogLoss = 1.7205, audio_precision = 0.7282, audio_recall = 0.2853, 
+2025-04-03 21:00:48,413 INFO Epoch 45, Batch 10, lr = 0.00005, audio_event_loss = 1.7111, BCELoss = 0.1103, ExpLogLoss = 1.6008, audio_precision = 0.7031, audio_recall = 0.2819, 
+2025-04-03 21:00:48,645 INFO Epoch 45, Batch 20, lr = 0.00005, audio_event_loss = 1.8180, BCELoss = 0.1141, ExpLogLoss = 1.7039, audio_precision = 0.7371, audio_recall = 0.2572, 
+2025-04-03 21:00:48,820 INFO **********************************************		 Train results (accuracy and recall): 0.7216	0.2780.
+2025-04-03 21:00:48,821 INFO epoch: *******************************************45
+2025-04-03 21:00:51,008 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6721	0.2406	0.3543.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 21:00:51,034 INFO -----------------------------
+2025-04-03 21:00:51,034 INFO evaluate loss:1.9919170498005812
+2025-04-03 21:00:51,034 INFO -----------------------------
+2025-04-03 21:00:51,254 INFO Epoch 46, Batch 0, lr = 0.00005, audio_event_loss = 1.7380, BCELoss = 0.1113, ExpLogLoss = 1.6267, audio_precision = 0.7193, audio_recall = 0.2953, 
+2025-04-03 21:00:51,424 INFO Epoch 46, Batch 10, lr = 0.00005, audio_event_loss = 1.7180, BCELoss = 0.1101, ExpLogLoss = 1.6079, audio_precision = 0.7393, audio_recall = 0.3008, 
+2025-04-03 21:00:51,538 INFO Epoch 46, Batch 20, lr = 0.00005, audio_event_loss = 1.7722, BCELoss = 0.1129, ExpLogLoss = 1.6593, audio_precision = 0.7003, audio_recall = 0.2704, 
+2025-04-03 21:00:51,634 INFO **********************************************		 Train results (accuracy and recall): 0.7199	0.2874.
+2025-04-03 21:00:51,635 INFO epoch: *******************************************46
+2025-04-03 21:00:53,782 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6690	0.2406	0.3539.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 21:00:53,808 INFO -----------------------------
+2025-04-03 21:00:53,808 INFO evaluate loss:2.0015659079480903
+2025-04-03 21:00:53,808 INFO -----------------------------
+2025-04-03 21:00:54,044 INFO Epoch 47, Batch 0, lr = 0.00005, audio_event_loss = 1.7970, BCELoss = 0.1127, ExpLogLoss = 1.6843, audio_precision = 0.7272, audio_recall = 0.2893, 
+2025-04-03 21:00:54,234 INFO Epoch 47, Batch 10, lr = 0.00005, audio_event_loss = 1.7378, BCELoss = 0.1108, ExpLogLoss = 1.6270, audio_precision = 0.7339, audio_recall = 0.2938, 
+2025-04-03 21:00:54,342 INFO Epoch 47, Batch 20, lr = 0.00005, audio_event_loss = 1.7106, BCELoss = 0.1099, ExpLogLoss = 1.6007, audio_precision = 0.7060, audio_recall = 0.2724, 
+2025-04-03 21:00:54,443 INFO **********************************************		 Train results (accuracy and recall): 0.7286	0.2830.
+2025-04-03 21:00:54,444 INFO epoch: *******************************************47
+2025-04-03 21:00:56,655 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6727	0.2398	0.3535.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 21:00:56,680 INFO -----------------------------
+2025-04-03 21:00:56,680 INFO evaluate loss:1.9943525074208674
+2025-04-03 21:00:56,680 INFO -----------------------------
+2025-04-03 21:00:56,942 INFO Epoch 48, Batch 0, lr = 0.00005, audio_event_loss = 1.8065, BCELoss = 0.1138, ExpLogLoss = 1.6928, audio_precision = 0.7266, audio_recall = 0.2755, 
+2025-04-03 21:00:57,166 INFO Epoch 48, Batch 10, lr = 0.00005, audio_event_loss = 1.6925, BCELoss = 0.1094, ExpLogLoss = 1.5831, audio_precision = 0.7281, audio_recall = 0.2989, 
+2025-04-03 21:00:57,302 INFO Epoch 48, Batch 20, lr = 0.00005, audio_event_loss = 1.8016, BCELoss = 0.1143, ExpLogLoss = 1.6873, audio_precision = 0.7043, audio_recall = 0.2737, 
+2025-04-03 21:00:57,396 INFO **********************************************		 Train results (accuracy and recall): 0.7183	0.2825.
+2025-04-03 21:00:57,397 INFO epoch: *******************************************48
+2025-04-03 21:00:59,591 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6730	0.2407	0.3545.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 21:00:59,617 INFO -----------------------------
+2025-04-03 21:00:59,617 INFO evaluate loss:1.988190824223408
+2025-04-03 21:00:59,617 INFO -----------------------------
+2025-04-03 21:00:59,862 INFO Epoch 49, Batch 0, lr = 0.00005, audio_event_loss = 1.7295, BCELoss = 0.1104, ExpLogLoss = 1.6191, audio_precision = 0.7381, audio_recall = 0.2833, 
+2025-04-03 21:01:00,024 INFO Epoch 49, Batch 10, lr = 0.00005, audio_event_loss = 1.7336, BCELoss = 0.1117, ExpLogLoss = 1.6220, audio_precision = 0.7189, audio_recall = 0.2746, 
+2025-04-03 21:01:00,135 INFO Epoch 49, Batch 20, lr = 0.00005, audio_event_loss = 1.7328, BCELoss = 0.1102, ExpLogLoss = 1.6226, audio_precision = 0.7450, audio_recall = 0.2919, 
+2025-04-03 21:01:00,236 INFO **********************************************		 Train results (accuracy and recall): 0.7272	0.2847.
+2025-04-03 21:01:00,236 INFO epoch: *******************************************49
+2025-04-03 21:01:02,389 INFO **********************************************		 Evaluation results (accuracy and recall F1-score): 0.6730	0.2407	0.3545.
+**********************************************		 Best results (accuracy and recall F1-score): 0.7055	0.2752	0.3959.
+2025-04-03 21:01:02,415 INFO -----------------------------
+2025-04-03 21:01:02,415 INFO evaluate loss:1.9887130668416193
+2025-04-03 21:01:02,415 INFO -----------------------------

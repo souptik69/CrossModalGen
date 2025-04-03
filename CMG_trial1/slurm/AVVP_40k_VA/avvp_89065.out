@@ -1,0 +1,13 @@
+Updating:  n_epoch: 100 (default) ----> 50
+Updating:  test_batch_size: 16 (default) ----> 64
+Updating:  lr: 0.001 (default) ----> 0.0004
+Updating:  snapshot_pref: ./exp/debug/123 (default) ----> /project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/AVVPExp100k/V2A/
+Updating:  clip_gradient: 0.8 (default) ----> 0.5
+Updating:  print_freq: 20 (default) ----> 1
+total 25 positive classes in AVVP, 1 negative classes in AVVP
+1661 samples are used for train
+total 25 positive classes in AVVP, 1 negative classes in AVVP
+1846 samples are used for val
+
+======> Result will be saved at:  /project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/AVVPExp100k/V2A/
+AVVP training complete!
