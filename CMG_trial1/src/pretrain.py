@@ -55,8 +55,8 @@ def AVPSLoss(av_simm, soft_label):
 
 # bert_embedding = BertEmbedding()
 
-with open('/project/ag-jafra/Souptik/VGGSoundAVEL/CMG/cnt.pkl', 'rb') as fp:
-    id2idx = pickle.load(fp)
+# with open('/project/ag-jafra/Souptik/VGGSoundAVEL/CMG/cnt.pkl', 'rb') as fp:
+#     id2idx = pickle.load(fp)
 
 tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 model = BertModel.from_pretrained('bert-base-uncased')
@@ -183,14 +183,21 @@ def collate_func_AVT(samples):
             idx = tokenizer.convert_tokens_to_ids(token)
             
             # Filter using the same logic as the original
-            if idx in id2idx and idx != 0:
+
+            # if idx in id2idx and idx != 0:
+            #     words_emb.append(emb)
+            #     words.append(id2idx[idx])
+
+            # No fietring
+
+            if idx != 0:
                 words_emb.append(emb)
-                words.append(id2idx[idx])
+                words.append(idx)
+
         
         query.append(np.asarray(words_emb))
         query_words.append(words)
 
-    # The rest of the function follows the original logic
     query_len = []
     for i, sample in enumerate(query):
         # query_len.append(min(len(sample), 10))
@@ -260,8 +267,8 @@ def main():
         from dataset.VGGSOUND_dataset import VGGSoundDataset_AT as AVEDataset
     elif args.dataset_name =='vggsound_AVT':
         from dataset.VGGSOUND_dataset import VGGSoundDataset_AVT as AVEDataset
-    elif args.dataset_name =='vggsound179k' or args.dataset_name =='vggsound81k':
-        from dataset.VGGSOUND_dataset179k import VGGSoundDataset as AVEDataset     
+    # elif args.dataset_name =='vggsound179k' or args.dataset_name =='vggsound81k':
+    #     from dataset.VGGSOUND_dataset179k import VGGSoundDataset as AVEDataset     
     else:
         raise NotImplementedError
     

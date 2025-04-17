@@ -2,11 +2,14 @@ envs/
 
 Slurm/
 
+
 Misc/specific_transformers_results
 
 Misc/transformers_test_results
 
 CMG_trial1/Models
+
+CMG_trial1/slurm
 
 CMG_trial1/src/configs/__pycache__
 
@@ -17,3 +20,5 @@ CMG_trial1/src/model/__pycache__
 CMG_trial1/src/utils/__pycache__
 
 Misc/transformers_specific_embeddings
+
+Misc/embeddings_unfiltered
