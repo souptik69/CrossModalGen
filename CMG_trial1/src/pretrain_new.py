@@ -1,0 +1,524 @@
+import logging
+import os
+import time
+import random
+import json
+from tqdm import tqdm
+import sys
+import torch
+from itertools import chain
+import torch.nn as nn
+from torch.nn.utils import clip_grad_norm_
+from torch.utils.data import DataLoader
+from tensorboardX import SummaryWriter
+from torch.optim.lr_scheduler import StepLR, MultiStepLR
+import numpy as np
+from configs.opts import parser
+from model.main_model_new import AVT_VQVAE_Encoder, AVT_VQVAE_Decoder
+# from model.CLUB import CLUBSample_group
+from model.CPC import Cross_CPC, Cross_CPC_AVT
+from utils import AverageMeter, Prepare_logger, get_and_save_args
+from utils.container import metricsContainer
+from utils.Recorder import Recorder
+import torch.nn.functional as F
+from transformers import BertTokenizer, BertModel
+import pickle
+
+# =================================  seed config ============================
+SEED = 43
+random.seed(SEED)
+np.random.seed(seed=SEED)
+torch.manual_seed(seed=SEED)
+torch.cuda.manual_seed(seed=SEED)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+
+# =============================================================================
+def transpose(x):
+    return x.transpose(-2, -1)
+
+def normalize(*xs):
+    return [None if x is None else F.normalize(x, dim=-1) for x in xs]
+
+def AVPSLoss(av_simm, soft_label):
+    """audio-visual pair similarity loss for fully supervised setting,
+    please refer to Eq.(8, 9) in our paper.
+    """
+    # av_simm: [bs, 10]
+    relu_av_simm = F.relu(av_simm)
+    sum_av_simm = torch.sum(relu_av_simm, dim=-1, keepdim=True)
+    avg_av_simm = relu_av_simm / (sum_av_simm + 1e-8)
+    loss = nn.MSELoss()(avg_av_simm, soft_label)
+    return loss
+
+tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+model = BertModel.from_pretrained('bert-base-uncased')
+
+
+def collate_func_AVT(samples):
+    bsz = len(samples)
+    
+    # Get text prompts from samples
+    text_prompts = [sample['text_fea'] for sample in samples]
+    
+    # Process using Transformers
+    query = []
+    query_words = []
+    
+    for text in text_prompts:
+        # Tokenize
+        inputs = tokenizer(text, return_tensors="pt", add_special_tokens=True)
+        
+        # Get embeddings
+        with torch.no_grad():
+            outputs = model(**inputs)
+            # Get the last hidden state for each token
+            embeddings = outputs.last_hidden_state.squeeze(0).numpy()
+        
+        # Get token IDs and convert back to tokens
+        token_ids = inputs.input_ids[0].tolist()
+        tokens = tokenizer.convert_ids_to_tokens(token_ids)
+        
+        # Remove special tokens [CLS] and [SEP]
+        non_special_tokens = tokens[1:-1]
+        non_special_embeddings = embeddings[1:-1]
+        
+        # Filter tokens based on id2idx
+        words = []
+        words_emb = []
+        
+        for token, emb in zip(non_special_tokens, non_special_embeddings):
+            # Get the token ID from the tokenizer
+            idx = tokenizer.convert_tokens_to_ids(token)
+            
+            # Filter using the same logic as the original
+
+            # if idx in id2idx and idx != 0:
+            #     words_emb.append(emb)
+            #     words.append(id2idx[idx])
+
+            # No fietring
+
+            if idx != 0:
+                words_emb.append(emb)
+                words.append(idx)
+
+        
+        query.append(np.asarray(words_emb))
+        query_words.append(words)
+
+    query_len = []
+    for i, sample in enumerate(query):
+        # query_len.append(min(len(sample), 10))
+        query_len.append(10)  # max_num_words:10
+    
+    query1 = np.zeros([bsz, max(query_len), 768]).astype(np.float32)
+    query_idx = np.zeros([bsz, max(query_len)]).astype(np.float32)
+    
+    for i, sample in enumerate(query):
+        keep = min(sample.shape[0], query1.shape[1])
+        """
+        There may be cases where the sample length is 0, 
+        for example if your text happens to not be seen before in this BERT model. 
+        If that happens, you can 
+        1) clean the text before it enters BERT, 
+        2) add an if statement here, 
+        3) discard idx and directly import all embeddings after.
+        """
+        query1[i, :keep] = sample[:keep]
+        query_idx[i, :keep] = query_words[i][:keep]
+    
+    query_len = np.asarray(query_len)
+    query, query_len = torch.from_numpy(query1).float(), torch.from_numpy(query_len).long()
+    query_idx = torch.from_numpy(query_idx).long()
+
+    return {
+        'query': query,
+        'audio_fea': torch.from_numpy(np.asarray([sample['audio_fea'] for sample in samples])).float(),
+        'video_fea': torch.from_numpy(np.asarray([sample['video_fea'] for sample in samples])).float(),
+        'avel_label': torch.from_numpy(np.asarray([sample['avel_label'] for sample in samples])).float()
+    }
+
+def main():
+    # utils variable
+    global args, logger, dataset_configs
+    # statistics variable
+    global best_accuracy, best_accuracy_epoch
+    best_accuracy, best_accuracy_epoch = 0, 0
+    # configs
+    dataset_configs = get_and_save_args(parser)
+    parser.set_defaults(**dataset_configs)
+    args = parser.parse_args()
+    # select GPUs
+    # os.environ['CUDA_DEVICE_ORDER'] = "PCI_BUS_ID"
+    os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
+
+    '''Create snapshot_pred dir for copying code and saving models '''
+    if not os.path.exists(args.snapshot_pref):
+        os.makedirs(args.snapshot_pref)
+
+    if os.path.isfile(args.resume):
+        args.snapshot_pref = os.path.dirname(args.resume)
+
+    logger = Prepare_logger(args, eval=args.evaluate)
+
+    if not args.evaluate:
+        logger.info(f'\nCreating folder: {args.snapshot_pref}')
+        logger.info('\nRuntime args\n\n{}\n'.format(json.dumps(vars(args), indent=4)))
+    else:
+        logger.info(f'\nLog file will be save in a {args.snapshot_pref}/Eval.log.')
+
+
+
+    '''dataset selection'''
+    if args.dataset_name == 'ave':
+        from dataset.AVE_dataset import AVEDataset as AVEDataset
+    elif args.dataset_name =='vggsound':
+        from dataset.VGGSOUND_dataset import VGGSoundDataset as AVEDataset 
+    elif args.dataset_name =='vggsound_AT':
+        from dataset.VGGSOUND_dataset import VGGSoundDataset_AT as AVEDataset
+    elif args.dataset_name =='vggsound_AVT':
+        from dataset.VGGSOUND_dataset import VGGSoundDataset_AVT_new as AVEDataset 
+    else:
+        raise NotImplementedError
+    
+
+
+    '''Dataloader selection'''
+    if args.dataset_name == 'ave':
+        data_root = 'data'
+        train_dataloader = DataLoader(
+            AVEDataset(data_root, split='train'),
+            batch_size=args.batch_size,
+            shuffle=True,
+            num_workers=8,
+            pin_memory=True
+        )
+        val_dataloader = DataLoader(
+            AVEDataset(data_root, split='val'),
+            batch_size=args.batch_size,
+            shuffle=False,
+            num_workers=8,
+            pin_memory=True
+        )
+        test_dataloader = DataLoader(
+            AVEDataset(data_root, split='test'),
+            batch_size=args.batch_size,
+            shuffle=False,
+            num_workers=8,
+            pin_memory=True
+        )
+
+
+
+    elif args.dataset_name == 'vggsound':
+        meta_csv_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data/vggsound-avel100k-common.csv'
+        audio_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/audio80k_features_new'
+        video_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/video80k_features_keras'
+        avc_label_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/100klabels'
+        train_dataloader = DataLoader(
+            AVEDataset(meta_csv_path, audio_fea_base_path, video_fea_base_path, avc_label_base_path, split='train'),
+            batch_size=args.batch_size,
+            shuffle=True,
+            num_workers=8,
+            pin_memory=True
+        )
+
+    elif args.dataset_name == 'vggsound_AT':
+        meta_csv_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data/vggsound-avel100k-common.csv'
+        audio_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/audio80k_features_new'
+        train_dataloader = DataLoader(
+            AVEDataset(meta_csv_path, audio_fea_base_path, split='train'),
+            batch_size=args.batch_size,
+            shuffle=True,
+            num_workers=8,
+            pin_memory=True,
+            collate_fn=collate_func_AT
+        )
+
+
+    elif args.dataset_name == 'vggsound_AVT':
+        meta_csv_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data/vggsound-avel100k-new.csv'
+        audio_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/audio80k_features_new'
+        video_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/video80k_features_keras'
+        avc_label_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/100klabels'
+        train_dataloader = DataLoader(
+            AVEDataset(meta_csv_path, audio_fea_base_path, video_fea_base_path, avc_label_base_path, split='train'),
+            batch_size=args.batch_size,
+            shuffle=True,
+            num_workers=8,
+            pin_memory=False,
+            collate_fn=collate_func_AVT
+        )
+
+    else:
+        raise NotImplementedError
+
+    '''model setting'''
+    video_dim = 512
+    text_dim = 768
+    audio_dim = 128
+    text_lstm_dim = 128
+    video_output_dim = 2048
+    text_output_dim = 256
+    audio_output_dim = 256
+    n_embeddings = 400
+    embedding_dim = 256
+    start_epoch = -1
+    model_resume = False
+    total_step = 0
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    Text_ar_lstm = nn.LSTM(text_dim, text_lstm_dim, num_layers=2, batch_first=True, bidirectional=True)
+
+    if args.dataset_name == 'vggsound_AVT':
+        Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, audio_output_dim, video_output_dim, text_output_dim, n_embeddings, embedding_dim)
+
+
+    if args.dataset_name == 'vggsound_AVT':
+        CPC = Cross_CPC_AVT(embedding_dim, hidden_dim=256, context_dim=256, num_layers=2)
+    else:
+        CPC = Cross_CPC(embedding_dim, hidden_dim=256, context_dim=256, num_layers=2)
+    
+    if args.dataset_name == 'vggsound_AVT':
+        Decoder = AVT_VQVAE_Decoder(audio_dim, video_dim, text_lstm_dim*2, audio_output_dim, video_output_dim, text_output_dim)
+
+    Text_ar_lstm.double()
+    Encoder.double()
+    CPC.double()
+    Decoder.double()
+
+    '''optimizer setting'''
+    Text_ar_lstm.to(device)
+    Encoder.to(device)
+    CPC.to(device)
+    Decoder.to(device)
+    optimizer = torch.optim.Adam(chain(Text_ar_lstm.parameters(), \
+                                       Encoder.parameters(), CPC.parameters(), Decoder.parameters()), lr=args.lr)
+    scheduler = MultiStepLR(optimizer, milestones=[10, 20, 30], gamma=0.5)
+    
+    '''loss'''
+    criterion = nn.BCEWithLogitsLoss().cuda()
+    criterion_event = nn.CrossEntropyLoss().cuda()
+
+    if model_resume is True:
+        path_checkpoints = ""
+        print(path_checkpoints)
+        checkpoints = torch.load(path_checkpoints)
+        Encoder.load_state_dict(checkpoints['Encoder_parameters'])
+        CPC.load_state_dict(checkpoints['CPC_parameters'])
+        Decoder.load_state_dict(checkpoints['Decoder_parameters'])
+        optimizer.load_state_dict(checkpoints['optimizer'])
+        Text_ar_lstm.load_state_dict(checkpoints['Text_ar_lstm_parameters'])
+        start_epoch = checkpoints['epoch']
+        total_step = checkpoints['total_step']
+        logger.info("Resume from number {}-th model.".format(start_epoch))
+
+    
+    '''Training and Evaluation'''
+    for epoch in range(start_epoch+1, args.n_epoch):
+        loss, total_step = train_epoch(CPC, Encoder,Text_ar_lstm, Decoder, train_dataloader, criterion, criterion_event,
+                                       optimizer, epoch, total_step, args)
+        
+        
+        save_path = os.path.join(args.model_save_path, 'DCID-model-{}.pt'.format(epoch))
+        save_models(CPC, Encoder, Text_ar_lstm, Decoder, optimizer, epoch, total_step, save_path)
+        logger.info(f"epoch: ******************************************* {epoch}")
+        logger.info(f"loss: {loss}")
+        scheduler.step()
+
+
+def _export_log(epoch, total_step, batch_idx, lr, loss_meter):
+    msg = 'Epoch {}, Batch {}, lr = {:.5f}, '.format(epoch, batch_idx, lr)
+    for k, v in loss_meter.items():
+        msg += '{} = {:.4f}, '.format(k, v)
+    logger.info(msg)
+    sys.stdout.flush()
+    loss_meter.update({"batch": total_step})
+
+def to_eval(all_models):
+    for m in all_models:
+        m.eval()
+
+
+def to_train(all_models):
+    for m in all_models:
+        m.train()
+
+# If resuming training is not required, downstream tasks only need to save the encoder & epoch & Text_ar_lstm, as these are the only components needed for inference.
+def save_models(CPC, Encoder,Text_ar_lstm, Decoder, optimizer, epoch_num, total_step, path):
+    state_dict = {
+        'Encoder_parameters': Encoder.state_dict(),
+        'CPC_parameters': CPC.state_dict(),
+        'Text_ar_lstm_parameters': Text_ar_lstm.state_dict(),
+        'Decoder_parameters': Decoder.state_dict(),
+        'optimizer': optimizer.state_dict(),
+        'epoch': epoch_num,
+        'total_step': total_step
+    }
+    torch.save(state_dict, path)
+    logging.info('save model to {}'.format(path))
+
+def train_epoch_check(train_dataloader, epoch, total_step, args):
+    train_dataloader = tqdm(train_dataloader)
+    for n_iter, batch_data in enumerate(train_dataloader):
+        
+        '''Feed input to model'''
+        visual_feature, audio_feature = batch_data
+        visual_feature.cuda()
+        audio_feature.cuda()
+        
+    return torch.zeros(1)   
+
+
+def train_epoch(CPC,Encoder,Text_ar_lstm, Decoder,train_dataloader, criterion, criterion_event, optimizer, epoch, total_step, args):
+    batch_time = AverageMeter()
+    data_time = AverageMeter()
+    losses = AverageMeter()
+    train_acc = AverageMeter()
+    end_time = time.time()
+    models = [CPC,Encoder,Text_ar_lstm, Decoder]
+    to_train(models)
+    # Note: here we set the model to a double type precision,
+    # since the extracted features are in a double type.
+    # This will also lead to the size of the model double increases.
+
+    Encoder.cuda()
+    Text_ar_lstm.cuda()
+    Decoder.cuda()
+    CPC.cuda()
+    optimizer.zero_grad()
+    # mi_iters = 5
+
+
+    for n_iter, batch_data in enumerate(train_dataloader):
+
+        data_time.update(time.time() - end_time)
+        '''Feed input to model'''
+        
+        # vggsound_AVT
+        query, audio_feature, video_feature, labels = batch_data['query'], batch_data['audio_fea'], batch_data['video_fea'], batch_data['avel_label']
+        
+        query = query.double().cuda()
+        audio_feature = audio_feature.to(torch.float64)
+
+        labels = labels.double().cuda()
+        labels_foreground = labels[:, :, :-1]  
+        labels_BCE, labels_evn = labels_foreground.max(-1)
+        labels_event, _ = labels_evn.max(-1)
+
+        #Explicit video feature conversion
+        # video_feature = video_feature.to(torch.float64)
+
+        
+        batch_dim = query.size()[0]
+        hidden_dim = 128
+        num_layers = 2
+        text_hidden = (torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda(),
+                  torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda())
+        text_feature, text_hidden = Text_ar_lstm(query, text_hidden)
+        
+        text_feature = text_feature.cuda().to(torch.float64)
+        audio_feature = audio_feature.cuda().to(torch.float64)
+        video_feature = video_feature.cuda().to(torch.float64)
+        
+
+        audio_semantic_result, video_semantic_result, text_semantic_result, \
+        audio_modal, video_spatial, audio_vq, video_vq, text_vq, audio_embedding_loss, \
+        video_embedding_loss, text_embedding_loss, cmcm_loss, equal_num\
+        = Encoder(audio_feature, video_feature, text_feature, epoch)
+        
+
+        accuracy1, accuracy2, accuracy3, accuracy4, accuracy5, accuracy6, accuracy7, accuracy8, accuracy9,\
+        cpc_loss, audio_recon_loss, video_recon_loss, text_recon_loss, \
+        audio_class_loss, video_class_loss, text_class_loss \
+        = mi_second_forward(CPC, audio_feature, video_feature, text_feature, Decoder,epoch,
+                      audio_semantic_result, video_semantic_result, text_semantic_result,
+                      audio_modal, video_spatial, audio_vq, video_vq, text_vq, labels_event, criterion_event)
+
+        if n_iter % 20 == 0:
+            logger.info("equal_num is {} in {}-th iteration.".format(equal_num, n_iter))
+
+        loss_items = {
+            "audio_recon_loss": audio_recon_loss.item(),
+            "audio_embed_loss": audio_embedding_loss.item(),
+            "text_recon_loss": text_recon_loss.item(),
+            "text_embed_loss": text_embedding_loss.item(),
+            "video_recon_loss": video_recon_loss.item(),
+            "video_embed_loss": video_embedding_loss.item(),
+            "acc_av": accuracy1.item(),
+            "acc_at": accuracy2.item(),
+            "acc_vt": accuracy3.item(),
+            "acc_va": accuracy4.item(),
+            "acc_ta": accuracy5.item(),
+            "acc_tv": accuracy6.item(),
+            "acc_aa": accuracy7.item(),
+            "acc_vv": accuracy8.item(),
+            "acc_tt": accuracy9.item(),
+            "cpc_loss": cpc_loss.item(),
+            "cmcm_loss": cmcm_loss.item(),
+            "audio_class_loss": audio_class_loss.item(),
+            "video_class_loss": video_class_loss.item(),
+            "text_class_loss": text_class_loss.item(),
+        }
+
+        metricsContainer.update("loss", loss_items)
+        loss = audio_recon_loss + video_recon_loss + text_recon_loss + audio_embedding_loss +  video_embedding_loss\
+                + text_embedding_loss+ cpc_loss + cmcm_loss + audio_class_loss + video_class_loss + text_class_loss
+
+        if n_iter % 20 == 0:
+            _export_log(epoch=epoch, total_step=total_step+n_iter, batch_idx=n_iter, lr=0.0004, loss_meter=metricsContainer.calculate_average("loss"))
+        
+        loss.backward()
+
+        '''Clip Gradient'''
+        if args.clip_gradient is not None:
+            for model in models:
+                total_norm = clip_grad_norm_(model.parameters(), args.clip_gradient)
+
+        '''Update parameters'''
+        optimizer.step()
+        optimizer.zero_grad()
+
+        losses.update(loss.item(), text_feature.size(0) * 10)
+        batch_time.update(time.time() - end_time)
+        end_time = time.time()
+
+        # '''Add loss of a iteration in Tensorboard'''
+        # writer.add_scalar('Train_data/loss', losses.val, epoch * len(train_dataloader) + n_iter + 1)
+
+        # '''Add loss of an epoch in Tensorboard'''
+        # writer.add_scalar('Train_epoch_data/epoch_loss', losses.avg, epoch)
+
+    return losses.avg, n_iter + total_step
+
+
+def mi_second_forward(CPC, audio_feature, video_feature, text_feature, Decoder,epoch,
+                      audio_semantic_result, video_semantic_result, text_semantic_result,
+                      audio_modal, video_spatial, audio_vq, video_vq, text_vq, labels_event, criterion_event):
+    
+
+    
+    """Cross_CPC"""
+    accuracy1, accuracy2, accuracy3, accuracy4, \
+    accuracy5, accuracy6, accuracy7, accuracy8, accuracy9, \
+    cpc_loss = CPC(audio_semantic_result, video_semantic_result, text_semantic_result)
+
+    audio_recon_loss, video_recon_loss, text_recon_loss, audio_class, video_class, text_class \
+        = Decoder(audio_feature, video_feature, text_feature, audio_modal, video_spatial, text_semantic_result, audio_vq, video_vq, text_vq)
+    
+    video_class_loss = criterion_event(video_class, labels_event.cuda())
+    audio_class_loss = criterion_event(audio_class, labels_event.cuda())
+    text_class_loss = criterion_event(text_class, labels_event.cuda())
+
+
+    return accuracy1, accuracy2, accuracy3, accuracy4, accuracy5, accuracy6, accuracy7, accuracy8, accuracy9, cpc_loss,  \
+           audio_recon_loss, video_recon_loss, text_recon_loss, audio_class_loss, video_class_loss, text_class_loss
+
+def save_checkpoint(state_dict, top1, task, epoch):
+    model_name = f'{args.snapshot_pref}/model_epoch_{epoch}_top1_{top1:.3f}_task_{task}_best_model.pth.tar'
+    torch.save(state_dict, model_name)
+    
+
+if __name__ == '__main__':
+    main()
