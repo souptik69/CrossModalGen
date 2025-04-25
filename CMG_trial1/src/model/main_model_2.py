@@ -642,8 +642,8 @@ class Cross_VQEmbeddingEMA_AVT(nn.Module):
         a_flat = audio_semantic.detach().reshape(-1, D)  # [B, T, D] -> [BxT, D]
         v_flat = video_semantic.detach().reshape(-1, D)  # [B, T, D] -> [BxT, D]
         t_flat = text_semantic.detach().reshape(-1, D)  # [B, T, D] -> [BxT, D]
-
-        # M:512  B:batchsize  T:10
+ 
+        # M:400  B:batchsize  T:10
         # b * mat + a * (mat1@mat2) ([M,] + [BxT,1]) - 2*([BxT,D]@[D,M]) =
         a_distances = torch.addmm(torch.sum(self.embedding ** 2, dim=1) +
                                   torch.sum(a_flat ** 2, dim=1, keepdim=True),

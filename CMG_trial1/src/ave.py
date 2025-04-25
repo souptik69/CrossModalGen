@@ -113,8 +113,8 @@ def main():
     criterion_event = nn.CrossEntropyLoss().cuda()
 
     if model_resume is True:
-        # path_checkpoints = "/project/ag-jafra/Souptik/VGGSoundAVEL/CMG_Models/AVT_100k_pretrain/checkpoint/DCID-model-5.pt"
-        path_checkpoints = "/project/ag-jafra/Souptik/VGGSoundAVEL/CMG_Models/AVT_40k_pretrain/checkpoint/DCID-model-3.pt"
+        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/AVT100k_unfiltered/checkpoint/DCID-model-5.pt"
+        # path_checkpoints = "/project/ag-jafra/Souptik/VGGSoundAVEL/CMG_Models/AVT_40k_pretrain/checkpoint/DCID-model-3.pt"
         checkpoints = torch.load(path_checkpoints)
         Encoder.load_state_dict(checkpoints['Encoder_parameters'])
         start_epoch = checkpoints['epoch']

@@ -157,7 +157,7 @@ def main():
     if model_resume is True:
         
         # 100k
-        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/AVTPretrain100k/checkpoint/DCID-model-5.pt"
+        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/AVT100k_unfiltered/checkpoint/DCID-model-5.pt"
         
         # # 100k audio ReLU
         # path_checkpoints = "/project/ag-jafra/Souptik/VGGSoundAVEL/CMG_Models/AVT_audio100k/checkpoint/DCID-model-5.pt"
