@@ -24,6 +24,8 @@ class InternalTemporalRelationModule(nn.Module):
 
         self.affine_matrix = nn.Linear(input_dim, d_model)
         self.relu = nn.ReLU(inplace=True)
+        
+        self.affine_matrix_1 = nn.Linear(d_model, d_model)
         # add relu here?
 
     def forward(self, feature):
@@ -31,7 +33,8 @@ class InternalTemporalRelationModule(nn.Module):
         feature1 = self.affine_matrix(feature)
         feature2 = self.encoder(feature1)
 
-        feature_transposed = feature1.transpose(0, 1)
+        # feature_transposed = feature1.transpose(0, 1)
+        feature_transposed = self.relu(self.affine_matrix_1(feature1)).transpose(0, 1).contiguous()
 
         return feature2, feature_transposed
 
@@ -111,6 +114,13 @@ class Video_Semantic_Encoder(nn.Module):
             nn.ReLU(inplace=True)
         )
 
+        self.video_pool = nn.AvgPool2d(kernel_size=3, stride=1)
+        self.feed_forward = nn.Sequential(
+            nn.Linear(video_output_dim, video_output_dim // 2),
+            nn.ReLU(),
+            nn.Linear(video_output_dim // 2, video_dim)
+        )
+
     def forward(self, video_feat):
         batch, length, h, w, v_dim = video_feat.size()
         video_feat = video_feat.reshape(batch * length, h, w, v_dim)
@@ -139,9 +149,14 @@ class Video_Semantic_Encoder(nn.Module):
         transformed_features = self.spatial_conv_stack(spatially_attended_reshaped) #[batch*time, 2048, 3,3 ]
         _, channel_dim, out_height, out_width = transformed_features.size() 
         spatial_preserved_features = transformed_features.permute(0, 2, 3, 1).contiguous() #[batch*time, 3, 3, 2048]
+
+        mine_result = self.video_pool(transformed_features) #[batch*time, 2048, 1, 1]
+        mine_result = mine_result.permute(0, 2, 3, 1).reshape(batch, length, -1) #[batch, time, 2048]
+        mine_result = self.feed_forward(mine_result) #[batch, time , 512]
+
         spatial_preserved_features = spatial_preserved_features.view(batch, length, out_height, out_width, channel_dim) #[batch, time, 3, 3, 2048]
 
-        return self_att_feat, spatial_preserved_features
+        return self_att_feat, spatial_preserved_features, mine_result
 
 
 class AVT_VQVAE_Encoder(nn.Module):
@@ -158,9 +173,10 @@ class AVT_VQVAE_Encoder(nn.Module):
         self.video_self_att = InternalTemporalRelationModule(input_dim=video_dim, d_model=self.hidden_dim)
 
         # Using Linear Layer + ReLU instead of Temporal self attention on text Bert Embeddings
-        # self.text_self_att = InternalTemporalRelationModule(input_dim=text_dim, d_model=self.hidden_dim)
-        self.text_linear_att = nn.Linear(text_dim, self.hidden_dim)
-        self.relu = nn.ReLU()
+        # self.text_linear_att = nn.Linear(text_dim, self.hidden_dim)
+        # self.relu = nn.ReLU()
+
+        self.text_self_att = InternalTemporalRelationModule(input_dim=text_dim, d_model=self.hidden_dim)
 
         self.audio_self_att = InternalTemporalRelationModule(input_dim=audio_dim, d_model=self.hidden_dim)
 
@@ -174,7 +190,7 @@ class AVT_VQVAE_Encoder(nn.Module):
 
     def Video_VQ_Encoder(self, video_feat):
         video_feat = video_feat.cuda()
-        video_semantic_result, video_spatial = self.video_semantic_encoder(video_feat)
+        video_semantic_result, video_spatial, video_mine = self.video_semantic_encoder(video_feat)
         video_semantic_result = video_semantic_result.transpose(0, 1).contiguous()
         video_semantic_result_1, video_modal = self.video_self_att(video_semantic_result)
         video_semantic_result_1 = video_semantic_result_1.transpose(0, 1).contiguous()  # [batch, length, hidden_dim]
@@ -184,12 +200,13 @@ class AVT_VQVAE_Encoder(nn.Module):
     def Text_VQ_Encoder(self, text_feat):
         text_feat = text_feat.cuda()
 
-        # text_semantic_result = text_feat.transpose(0, 1).contiguous()
-        # text_semantic_result = self.text_self_att(text_semantic_result)# [length, batch, hidden_dim]
-        # text_semantic_result = text_semantic_result.transpose(0, 1).contiguous()  # [batch, length, hidden_dim]
+        text_feat = text_feat.transpose(0, 1).contiguous()
+        text_semantic_result, text_modal = self.text_self_att(text_feat)# [length, batch, hidden_dim]
+        text_semantic_result = text_semantic_result.transpose(0, 1).contiguous()  # [batch, length, hidden_dim]
 
         # try without self attention on text
-        text_semantic_result = self.relu(self.text_linear_att(text_feat))   
+        # text_semantic_result = self.relu(self.text_linear_att(text_feat)) 
+          
         text_vq = self.Cross_quantizer.Text_vq_embedding(text_semantic_result)
         return text_vq
 
@@ -198,29 +215,29 @@ class AVT_VQVAE_Encoder(nn.Module):
         text_feat = text_feat.cuda()
         audio_feat = audio_feat.cuda()
         
-        video_semantic_result, video_spatial = self.video_semantic_encoder(video_feat)
+        video_semantic_result, video_spatial, video_mine = self.video_semantic_encoder(video_feat)
         video_semantic_result = video_semantic_result.transpose(0, 1).contiguous()
         video_semantic_result_1, video_modal = self.video_self_att(video_semantic_result)
         video_semantic_result_1 = video_semantic_result_1.transpose(0, 1).contiguous()  # [batch, length, hidden_dim]
         
-        # text_semantic_result = text_feat.transpose(0, 1).contiguous()
-        # text_semantic_result = self.text_self_att(text_semantic_result)# [length, batch, hidden_dim]
-        # text_semantic_result = text_semantic_result.transpose(0, 1).contiguous()  # [batch, length, hidden_dim]
+        text_feat = text_feat.transpose(0, 1).contiguous()
+        text_semantic_result, text_modal = self.text_self_att(text_feat)# [length, batch, hidden_dim]
+        text_semantic_result = text_semantic_result.transpose(0, 1).contiguous()  # [batch, length, hidden_dim]
 
-        # try without self attention on text
-        text_semantic_result = self.relu(self.text_linear_att(text_feat))
+        # # try without self attention on text
+        # text_semantic_result = self.relu(self.text_linear_att(text_feat))
 
         
         audio_feat = audio_feat.transpose(0, 1).contiguous()
         audio_semantic_result, audio_modal = self.audio_self_att(audio_feat)# [length, batch, hidden_dim]
         audio_semantic_result = audio_semantic_result.transpose(0, 1).contiguous()  # [batch, length, hidden_dim]
-        audio_modal = self.relu(audio_modal)
+        # audio_modal = self.relu(audio_modal)
         
         audio_vq, video_vq, text_vq, audio_embedding_loss, video_embedding_loss, text_embedding_loss, audio_perplexity, video_perplexity, text_perplexity, cmcm_loss, equal_num \
             = self.Cross_quantizer(audio_semantic_result, video_semantic_result_1, text_semantic_result, epoch)
 
         return audio_semantic_result, video_semantic_result_1, text_semantic_result, \
-               audio_modal, video_spatial, \
+               audio_modal, video_spatial, video_mine, text_modal, \
                audio_vq, video_vq, text_vq, audio_embedding_loss, video_embedding_loss, text_embedding_loss, cmcm_loss, equal_num
 
 
@@ -542,10 +559,10 @@ class Text_Decoder(nn.Module):
         self.text_rec = nn.Linear(input_dim * 2, output_dim)
         self.text_linear = nn.Linear(vq_dim, input_dim)
 
-    def forward(self, text_semantic_result, text_vq):
+    def forward(self, text_modal, text_vq):
         text_vq_result = self.text_linear(text_vq)
-        text_semantic_result = torch.cat([text_vq_result, text_semantic_result], dim=2)
-        text_decoder_result = self.text_rec(text_semantic_result)
+        text_modal = torch.cat([text_vq_result, text_modal], dim=2)
+        text_decoder_result = self.text_rec(text_modal)
         return text_decoder_result
 
 
@@ -593,12 +610,12 @@ class AVT_VQVAE_Decoder(nn.Module):
         self.text_semantic_decoder = Semantic_Decoder(self.hidden_dim, class_num=141)
         self.audio_semantic_decoder = Semantic_Decoder(self.hidden_dim, class_num=141)
 
-    def forward(self, audio_feat, video_feat, text_feat, audio_modal, video_spatial, text_semantic_result, audio_vq, video_vq, text_vq):
+    def forward(self, audio_feat, video_feat, text_feat, audio_modal, video_spatial, text_modal, audio_vq, video_vq, text_vq):
         video_feat = video_feat.cuda()
         text_feat = text_feat.cuda()
         audio_feat = audio_feat.cuda()
         video_recon_result = self.Video_decoder(video_spatial, video_vq)
-        text_recon_result = self.Text_decoder(text_semantic_result, text_vq)
+        text_recon_result = self.Text_decoder(text_modal, text_vq)
         audio_recon_result = self.Audio_decoder(audio_modal, audio_vq)
         video_recon_loss = F.mse_loss(video_recon_result, video_feat)
         text_recon_loss = F.mse_loss(text_recon_result, text_feat)
