@@ -38,6 +38,8 @@ def Prepare_logger(args, eval=False):
     formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
+    
+    # os.makedirs(os.path.dirname(logfile), exist_ok=True)
 
     return logger
 

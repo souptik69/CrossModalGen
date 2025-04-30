@@ -278,10 +278,10 @@ class AVT_VQVAE_Encoder(nn.Module):
         self.Cross_quantizer = Cross_VQEmbeddingEMA_AVT(n_embeddings, self.hidden_dim)
         self.video_semantic_encoder = Video_Semantic_Encoder(video_dim)
         self.video_self_att = InternalTemporalRelationModule(input_dim=video_dim, d_model=self.hidden_dim)
+        self.text_self_att = InternalTemporalRelationModule(input_dim=text_dim, d_model=self.hidden_dim)
 
         # Using Linear Layer instead of Temporal self attention on text Bert Embeddings
-        # self.text_self_att = InternalTemporalRelationModule(input_dim=text_dim, d_model=self.hidden_dim)
-        self.text_linear_att = nn.Linear(text_dim, self.hidden_dim)
+        # self.text_linear_att = nn.Linear(text_dim, self.hidden_dim)
 
         self.audio_self_att = InternalTemporalRelationModule(input_dim=audio_dim, d_model=self.hidden_dim)
 
@@ -304,12 +304,13 @@ class AVT_VQVAE_Encoder(nn.Module):
     def Text_VQ_Encoder(self, text_feat):
         text_feat = text_feat.cuda()
 
-        # text_semantic_result = text_feat.transpose(0, 1).contiguous()
-        # text_semantic_result = self.text_self_att(text_semantic_result)# [length, batch, hidden_dim]
-        # text_semantic_result = text_semantic_result.transpose(0, 1).contiguous()  # [batch, length, hidden_dim]
+        text_semantic_result = text_feat.transpose(0, 1).contiguous()
+        text_semantic_result = self.text_self_att(text_semantic_result)# [length, batch, hidden_dim]
+        text_semantic_result = text_semantic_result.transpose(0, 1).contiguous()  # [batch, length, hidden_dim]
 
-        # try without self attention on text
-        text_semantic_result = self.text_linear_att(text_feat)   
+        # # try without self attention on text
+        # text_semantic_result = self.text_linear_att(text_feat)   
+
         text_vq = self.Cross_quantizer.Text_vq_embedding(text_semantic_result)
         return text_vq
 
@@ -323,12 +324,12 @@ class AVT_VQVAE_Encoder(nn.Module):
         video_semantic_result = self.video_self_att(video_semantic_result)
         video_semantic_result = video_semantic_result.transpose(0, 1).contiguous()  # [batch, length, hidden_dim]
         
-        # text_semantic_result = text_feat.transpose(0, 1).contiguous()
-        # text_semantic_result = self.text_self_att(text_semantic_result)# [length, batch, hidden_dim]
-        # text_semantic_result = text_semantic_result.transpose(0, 1).contiguous()  # [batch, length, hidden_dim]
+        text_semantic_result = text_feat.transpose(0, 1).contiguous()
+        text_semantic_result = self.text_self_att(text_semantic_result)# [length, batch, hidden_dim]
+        text_semantic_result = text_semantic_result.transpose(0, 1).contiguous()  # [batch, length, hidden_dim]
 
         # try without self attention on text
-        text_semantic_result = self.text_linear_att(text_feat)
+        # text_semantic_result = self.text_linear_att(text_feat)
 
         
         audio_semantic_result = audio_feat.transpose(0, 1).contiguous()

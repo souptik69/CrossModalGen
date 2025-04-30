@@ -55,8 +55,8 @@ def AVPSLoss(av_simm, soft_label):
 
 # bert_embedding = BertEmbedding()
 
-# with open('/project/ag-jafra/Souptik/VGGSoundAVEL/CMG/cnt.pkl', 'rb') as fp:
-#     id2idx = pickle.load(fp)
+with open('/project/ag-jafra/Souptik/VGGSoundAVEL/CMG/cnt.pkl', 'rb') as fp:
+    id2idx = pickle.load(fp)
 
 tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 model = BertModel.from_pretrained('bert-base-uncased')
@@ -64,42 +64,42 @@ model = BertModel.from_pretrained('bert-base-uncased')
 # with open('../../cnt.pkl', 'rb') as fp:
 #     id2idx = pickle.load(fp)
     
-def collate_func_AT(samples):
-        bsz = len(samples)
-        result = bert_embedding([sample['text_fea'] for sample in samples])
-        query = []
-        query_words = []
-        for a, b in result:
-            words = []
-            words_emb = []
-            for word, emb in zip(a, b):
-                idx = bert_embedding.vocab.token_to_idx[word]
-                if idx in id2idx and idx != 0:
-                    words_emb.append(emb)
-                    words.append(id2idx[idx])
-            query.append(np.asarray(words_emb))
-            query_words.append(words)
+# def collate_func_AT(samples):
+#         bsz = len(samples)
+#         result = bert_embedding([sample['text_fea'] for sample in samples])
+#         query = []
+#         query_words = []
+#         for a, b in result:
+#             words = []
+#             words_emb = []
+#             for word, emb in zip(a, b):
+#                 idx = bert_embedding.vocab.token_to_idx[word]
+#                 if idx in id2idx and idx != 0:
+#                     words_emb.append(emb)
+#                     words.append(id2idx[idx])
+#             query.append(np.asarray(words_emb))
+#             query_words.append(words)
 
-        query_len = []
-        for i, sample in enumerate(query):
-            # query_len.append(min(len(sample), 10))#max_num_words:10
-            query_len.append(10)#max_num_words:10
-        query1 = np.zeros([bsz, max(query_len), 768]).astype(np.float32)
-        query_idx = np.zeros([bsz, max(query_len)]).astype(np.float32)
-        for i, sample in enumerate(query):
-            keep = min(sample.shape[0], query1.shape[1])
-            query1[i, :keep] = sample[:keep]
-            query_idx[i, :keep] = query_words[i][:keep]
-        query_len = np.asarray(query_len)
-        query, query_len = torch.from_numpy(query1).float(), torch.from_numpy(query_len).long()
-        query_idx = torch.from_numpy(query_idx).long()
+#         query_len = []
+#         for i, sample in enumerate(query):
+#             # query_len.append(min(len(sample), 10))#max_num_words:10
+#             query_len.append(10)#max_num_words:10
+#         query1 = np.zeros([bsz, max(query_len), 768]).astype(np.float32)
+#         query_idx = np.zeros([bsz, max(query_len)]).astype(np.float32)
+#         for i, sample in enumerate(query):
+#             keep = min(sample.shape[0], query1.shape[1])
+#             query1[i, :keep] = sample[:keep]
+#             query_idx[i, :keep] = query_words[i][:keep]
+#         query_len = np.asarray(query_len)
+#         query, query_len = torch.from_numpy(query1).float(), torch.from_numpy(query_len).long()
+#         query_idx = torch.from_numpy(query_idx).long()
     
-        return {
-            'query': query,
-            'query_idx': query_idx,
-            'query_len': query_len,
-            'audio_fea': torch.from_numpy(np.asarray([sample['audio_fea'] for sample in samples])).float()
-        }
+#         return {
+#             'query': query,
+#             'query_idx': query_idx,
+#             'query_len': query_len,
+#             'audio_fea': torch.from_numpy(np.asarray([sample['audio_fea'] for sample in samples])).float()
+#         }
 
 
 # def collate_func_AVT(samples):
@@ -184,15 +184,15 @@ def collate_func_AVT(samples):
             
             # Filter using the same logic as the original
 
-            # if idx in id2idx and idx != 0:
-            #     words_emb.append(emb)
-            #     words.append(id2idx[idx])
+            if idx in id2idx and idx != 0:
+                words_emb.append(emb)
+                words.append(id2idx[idx])
 
             # No fietring
 
-            if idx != 0:
-                words_emb.append(emb)
-                words.append(idx)
+            # if idx != 0:
+            #     words_emb.append(emb)
+            #     words.append(idx)
 
         
         query.append(np.asarray(words_emb))
@@ -226,7 +226,8 @@ def collate_func_AVT(samples):
     return {
         'query': query,
         'audio_fea': torch.from_numpy(np.asarray([sample['audio_fea'] for sample in samples])).float(),
-        'video_fea': torch.from_numpy(np.asarray([sample['video_fea'] for sample in samples])).float()
+        'video_fea': torch.from_numpy(np.asarray([sample['video_fea'] for sample in samples])).float(),
+        'avel_label': torch.from_numpy(np.asarray([sample['avel_label'] for sample in samples])).float()
     }
 
 def main():
@@ -266,7 +267,7 @@ def main():
     elif args.dataset_name =='vggsound_AT':
         from dataset.VGGSOUND_dataset import VGGSoundDataset_AT as AVEDataset
     elif args.dataset_name =='vggsound_AVT':
-        from dataset.VGGSOUND_dataset import VGGSoundDataset_AVT as AVEDataset
+        from dataset.VGGSOUND_dataset import VGGSoundDataset_AVT_new as AVEDataset
     # elif args.dataset_name =='vggsound179k' or args.dataset_name =='vggsound81k':
     #     from dataset.VGGSOUND_dataset179k import VGGSoundDataset as AVEDataset     
     else:
@@ -312,25 +313,26 @@ def main():
             num_workers=8,
             pin_memory=True
         )
-    elif args.dataset_name == 'vggsound_AT':
-        meta_csv_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data/vggsound-avel100k-common.csv'
-        audio_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/audio80k_features_new'
-        train_dataloader = DataLoader(
-            AVEDataset(meta_csv_path, audio_fea_base_path, split='train'),
-            batch_size=args.batch_size,
-            shuffle=True,
-            num_workers=8,
-            pin_memory=True,
-            collate_fn=collate_func_AT
-        )
+    # elif args.dataset_name == 'vggsound_AT':
+    #     meta_csv_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data/vggsound-avel100k-common.csv'
+    #     audio_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/audio80k_features_new'
+    #     train_dataloader = DataLoader(
+    #         AVEDataset(meta_csv_path, audio_fea_base_path, split='train'),
+    #         batch_size=args.batch_size,
+    #         shuffle=True,
+    #         num_workers=8,
+    #         pin_memory=True,
+    #         collate_fn=collate_func_AT
+    #     )
 
 
     elif args.dataset_name == 'vggsound_AVT':
         meta_csv_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data/vggsound-avel100k-new.csv'
         audio_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/audio80k_features_new'
         video_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/video80k_features_keras'
+        avc_label_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/100klabels'
         train_dataloader = DataLoader(
-            AVEDataset(meta_csv_path, audio_fea_base_path, video_fea_base_path, split='train'),
+            AVEDataset(meta_csv_path, audio_fea_base_path, video_fea_base_path, avc_label_base_path, split='train'),
             batch_size=args.batch_size,
             shuffle=True,
             num_workers=8,
@@ -575,13 +577,19 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Audio_mi_net, Video_mi_net, Text_mi_ne
         
         # Adjust the input as needed according to the requirements of the model being trained.
         # vggsound_AVT
-        query, audio_feature, video_feature = batch_data['query'], batch_data['audio_fea'], batch_data['video_fea']
+        query, audio_feature, video_feature, labels = batch_data['query'], batch_data['audio_fea'], batch_data['video_fea'], batch_data['avel_label']
         
         # vggsound_AV
         # visual_feature, audio_feature, labels = batch_data    # vggsound40k  
         # visual_feature, audio_feature = batch_data            # vggsound179k or vggsound81k
         query = query.double().cuda()
         audio_feature = audio_feature.to(torch.float64)
+
+        labels = labels.double().cuda()
+        labels_foreground = labels[:, :, :-1]  
+        labels_BCE, labels_evn = labels_foreground.max(-1)
+        labels_event, _ = labels_evn.max(-1)
+
 
         #Explicit video feature conversion
         # video_feature = video_feature.to(torch.float64)
@@ -617,11 +625,11 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Audio_mi_net, Video_mi_net, Text_mi_ne
         mi_audio_loss, mi_video_loss, mi_text_loss, \
         accuracy1, accuracy2, accuracy3, accuracy4, accuracy5, accuracy6, accuracy7, accuracy8, accuracy9,\
         cpc_loss, audio_recon_loss, video_recon_loss, text_recon_loss, \
-        audio_class, video_class, text_class \
+        audio_class, video_class, text_class, audio_class_loss, video_class_loss, text_class_loss \
         = mi_second_forward(CPC, audio_feature, video_feature, text_feature, Encoder, Audio_mi_net, Video_mi_net, Text_mi_net, Decoder,epoch,
                       audio_semantic_result, video_semantic_result, text_semantic_result,
                       audio_encoder_result, video_encoder_result, video_club_feature, text_encoder_result,
-                      audio_vq, video_vq, text_vq)
+                      audio_vq, video_vq, text_vq, labels_event, criterion_event)
 
         if n_iter % 20 == 0:
             logger.info("equal_num is {} in {}-th iteration.".format(equal_num, n_iter))
@@ -649,12 +657,15 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Audio_mi_net, Video_mi_net, Text_mi_ne
             "acc_vv": accuracy8.item(),
             "acc_tt": accuracy9.item(),
             "cpc_loss": cpc_loss.item(),
-            "cmcm_loss": cmcm_loss.item()
+            "cmcm_loss": cmcm_loss.item(),
+            "audio_class_loss": audio_class_loss.item(),
+            "video_class_loss": video_class_loss.item(),
+            "text_class_loss": text_class_loss.item()
         }
 
         metricsContainer.update("loss", loss_items)
         loss = audio_recon_loss + video_recon_loss + text_recon_loss + audio_embedding_loss +  video_embedding_loss\
-                + text_embedding_loss+ mi_audio_loss + mi_video_loss + mi_text_loss + cpc_loss + cmcm_loss
+                + text_embedding_loss+ mi_audio_loss + mi_video_loss + mi_text_loss + cpc_loss + cmcm_loss + audio_class_loss + video_class_loss + text_class_loss
 
         if n_iter % 20 == 0:
             _export_log(epoch=epoch, total_step=total_step+n_iter, batch_idx=n_iter, lr=0.0004, loss_meter=metricsContainer.calculate_average("loss"))
@@ -728,7 +739,7 @@ def VQ_video_forward(audio_feature, visual_feature, Encoder, optimizer,epoch):
 def mi_second_forward(CPC, audio_feature, video_feature, text_feature, Encoder, Audio_mi_net, Video_mi_net, Text_mi_net, Decoder,epoch,
                       audio_semantic_result, video_semantic_result, text_semantic_result,
                       audio_encoder_result, video_encoder_result, video_club_feature, text_encoder_result,
-                      audio_vq, video_vq, text_vq):
+                      audio_vq, video_vq, text_vq, labels_event, criterion_event):
     # audio_semantic_result, video_semantic_result, text_semantic_result, \
     # audio_encoder_result, video_encoder_result, video_club_feature, text_encoder_result, \
     # audio_vq, video_vq, text_vq, audio_embedding_loss, video_embedding_loss, text_embedding_loss, cmcm_loss, equal_num \
@@ -746,9 +757,14 @@ def mi_second_forward(CPC, audio_feature, video_feature, text_feature, Encoder, 
     audio_recon_loss, video_recon_loss, text_recon_loss, audio_class, video_class, text_class \
         = Decoder(audio_feature, video_feature, text_feature, audio_encoder_result, video_encoder_result, text_encoder_result, audio_vq, video_vq, text_vq)
     
+    video_class_loss = criterion_event(video_class, labels_event.cuda())
+    audio_class_loss = criterion_event(audio_class, labels_event.cuda())
+    text_class_loss = criterion_event(text_class, labels_event.cuda())
+
+
     return mi_audio_loss, mi_video_loss, mi_text_loss, \
            accuracy1, accuracy2, accuracy3, accuracy4, accuracy5, accuracy6, accuracy7, accuracy8, accuracy9, cpc_loss,  \
-           audio_recon_loss, video_recon_loss, text_recon_loss, audio_class, video_class, text_class
+           audio_recon_loss, video_recon_loss, text_recon_loss, audio_class, video_class, text_class, audio_class_loss, video_class_loss, text_class_loss
 
 def compute_accuracy_supervised(event_scores, labels):
     labels_foreground = labels[:, :, :-1]

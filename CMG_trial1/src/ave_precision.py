@@ -14,9 +14,11 @@ from tensorboardX import SummaryWriter
 from torch.optim.lr_scheduler import StepLR, MultiStepLR
 import numpy as np
 from configs.opts import parser
-from model.main_model_2 import AV_VQVAE_Encoder as AV_VQVAE_Encoder
-from model.main_model_2 import AV_VQVAE_Decoder as AV_VQVAE_Decoder
-from model.main_model_2 import Semantic_Decoder,AVT_VQVAE_Encoder
+# from model.main_model_new import AV_VQVAE_Encoder as AV_VQVAE_Encoder
+# from model.main_model_new import AV_VQVAE_Decoder as AV_VQVAE_Decoder
+
+from model.main_model_new import Semantic_Decoder,AVT_VQVAE_Encoder
+# from model.main_model_NEW import Semantic_Decoder,AVT_VQVAE_Encoder
 from utils import AverageMeter, Prepare_logger, get_and_save_args
 from utils.container import metricsContainer
 from utils.Recorder import Recorder
@@ -115,16 +117,21 @@ def main():
     if model_resume is True:
         # path_checkpoints = "/project/ag-jafra/Souptik/VGGSoundAVEL/CMG_Models/AVT_100k_pretrain/checkpoint/DCID-model-5.pt"
         # path_checkpoints = "/project/ag-jafra/Souptik/VGGSoundAVEL/CMG_Models/AVT_audio100k/checkpoint/DCID-model-5.pt"
-        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/AVT100k_unfiltered/checkpoint/DCID-model-5.pt"
+        # path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/AVT100k_unfiltered/checkpoint/DCID-model-5.pt"
+
+
+        # path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/AVT_100k_NEW/checkpoint/DCID-model-5.pt"
+        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/AVT_100k_CLUB/checkpoint/DCID-model-5.pt"
+
         checkpoints = torch.load(path_checkpoints)
         Encoder.load_state_dict(checkpoints['Encoder_parameters'])
         start_epoch = checkpoints['epoch']
         logger.info("Resume from number {}-th model.".format(start_epoch))
 
     '''Tensorboard and Code backup'''
-    writer = SummaryWriter(args.snapshot_pref)
-    recorder = Recorder(args.snapshot_pref, ignore_folder="Exps/")
-    recorder.writeopt(args)
+    # writer = SummaryWriter(args.snapshot_pref)
+    # recorder = Recorder(args.snapshot_pref, ignore_folder="Exps/")
+    # recorder.writeopt(args)
 
     '''Training and Evaluation'''
 
@@ -243,11 +250,11 @@ def train_epoch(Encoder, Decoder, train_dataloader, criterion, criterion_event, 
         batch_time.update(time.time() - end_time)
         end_time = time.time()
 
-        '''Add loss of a iteration in Tensorboard'''
-        writer.add_scalar('Train_data/loss', losses.val, epoch * len(train_dataloader) + n_iter + 1)
+        # '''Add loss of a iteration in Tensorboard'''
+        # writer.add_scalar('Train_data/loss', losses.val, epoch * len(train_dataloader) + n_iter + 1)
 
-        '''Add loss of an epoch in Tensorboard'''
-        writer.add_scalar('Train_epoch_data/epoch_loss', losses.avg, epoch)
+        # '''Add loss of an epoch in Tensorboard'''
+        # writer.add_scalar('Train_epoch_data/epoch_loss', losses.avg, epoch)
 
     return losses.avg, n_iter + total_step
 

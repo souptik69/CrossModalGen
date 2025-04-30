@@ -256,11 +256,13 @@ class VGGSoundDataset_AVT(Dataset):
         df_train = all_df[all_df['split'] == 'train']
         df_test = all_df[all_df['split'] == 'test']
         df_val = all_df[all_df['split'] == 'val']
-        self.split_df = pd.concat([df_train,df_test,df_val])
+        # self.split_df = pd.concat([df_train,df_test,df_val])
+        self.split_df = pd.concat([df_train,df_val])
+        
 
         print(f'{len(self.split_df)}/{len(all_df)} samples are used for {split}')
         self.all_categories = generate_category_list()
-        print(f'total {len(self.all_categories)} classes in Vggsound40K_AVT')
+        print(f'total {len(self.all_categories)} classes in Vggsound100K_AVT train and val')
 
     def __getitem__(self, index):
         one_video_df = self.split_df.iloc[index]
