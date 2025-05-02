@@ -117,7 +117,7 @@ class Video_Semantic_Encoder(nn.Module):
 
         return self_att_feat
 
-""" class_num AVE:28  VGGSOUND:141  UCF_VGGSOUND:16 """
+""" class_num AVE:28  VGGSOUND:141+1  UCF_VGGSOUND:16 """
 class Semantic_Decoder(nn.Module):
     def __init__(self, input_dim, class_num):
         super(Semantic_Decoder, self).__init__()
@@ -509,9 +509,9 @@ class AVT_VQVAE_Decoder(nn.Module):
         self.Video_decoder = Video_Decoder(video_output_dim, video_dim, self.hidden_dim)
         self.Audio_decoder = Audio_Decoder(audio_output_dim, audio_dim, self.hidden_dim)
         self.Text_decoder = Text_Decoder(text_output_dim, text_dim, self.hidden_dim)
-        self.video_semantic_decoder = Semantic_Decoder(self.hidden_dim, class_num=141)
-        self.text_semantic_decoder = Semantic_Decoder(self.hidden_dim, class_num=141)
-        self.audio_semantic_decoder = Semantic_Decoder(self.hidden_dim, class_num=141)
+        self.video_semantic_decoder = Semantic_Decoder(self.hidden_dim, class_num=142)
+        self.text_semantic_decoder = Semantic_Decoder(self.hidden_dim, class_num=142)
+        self.audio_semantic_decoder = Semantic_Decoder(self.hidden_dim, class_num=142)
 
     def forward(self, audio_feat, video_feat, text_feat, audio_encoder_result, video_encoder_result, text_encoder_result, audio_vq, video_vq, text_vq):
         video_feat = video_feat.cuda()
@@ -539,8 +539,8 @@ class AT_VQVAE_Decoder(nn.Module):
         self.audio_output_dim = audio_output_dim
         self.Audio_decoder = Audio_Decoder(audio_output_dim, audio_dim, self.hidden_dim)
         self.Text_decoder = Text_Decoder(text_output_dim, text_dim, self.hidden_dim)
-        self.text_semantic_decoder = Semantic_Decoder(self.hidden_dim, class_num=141)
-        self.audio_semantic_decoder = Semantic_Decoder(self.hidden_dim, class_num=141)
+        self.text_semantic_decoder = Semantic_Decoder(self.hidden_dim, class_num=142)
+        self.audio_semantic_decoder = Semantic_Decoder(self.hidden_dim, class_num=142)
 
     def forward(self, text_feat, audio_feat, text_encoder_result, audio_encoder_result, text_vq, audio_vq):
         text_feat = text_feat.cuda()
@@ -564,8 +564,8 @@ class AV_VQVAE_Decoder(nn.Module):
         self.audio_output_dim = audio_output_dim
         self.Audio_decoder = Audio_Decoder(audio_output_dim, audio_dim, self.hidden_dim)
         self.Video_decoder = Video_Decoder(video_output_dim, video_dim, self.hidden_dim)
-        self.video_semantic_decoder = Semantic_Decoder(self.hidden_dim, class_num=141)
-        self.audio_semantic_decoder = Semantic_Decoder(self.hidden_dim, class_num=141)
+        self.video_semantic_decoder = Semantic_Decoder(self.hidden_dim, class_num=142)
+        self.audio_semantic_decoder = Semantic_Decoder(self.hidden_dim, class_num=142)
 
     def forward(self, video_feat, audio_feat, video_encoder_result, audio_encoder_result, video_vq, audio_vq):
         video_feat = video_feat.cuda()

@@ -1,0 +1,141 @@
+playing acoustic guitar: 762
+playing marimba: 749
+engine accelerating: 749
+people crowd: 742
+helicopter: 738
+playing flute: 726
+fireworks banging: 725
+chainsawing trees: 724
+female speech: 722
+playing banjo: 710
+rowboat: 709
+male speech: 707
+race car: 705
+motorboat: 703
+playing drum kit: 702
+playing saxophone: 702
+driving buses: 698
+male singing: 696
+playing bass guitar: 695
+female singing: 693
+ocean burbling: 691
+bird chirping: 690
+playing violin: 688
+playing cello: 683
+pigeon: 678
+railroad car: 678
+driving motorcycle: 677
+playing accordion: 675
+police car (siren): 666
+toilet flushing: 653
+tap dancing: 651
+ambulance siren: 651
+child speech: 648
+orchestra: 640
+playing harp: 640
+playing cymbal: 633
+playing table tennis: 625
+playing piano: 619
+skidding: 617
+playing electric guitar: 613
+playing trombone: 612
+vehicle horn: 610
+wind noise: 604
+printer printing: 594
+horse clip-clop: 587
+subway: 587
+playing bassoon: 570
+basketball bounce: 554
+playing squash: 553
+people clapping: 552
+playing clarinet: 547
+car engine knocking: 545
+people burping: 544
+singing bowl: 536
+playing harpsichord: 532
+playing hammond organ: 527
+playing volleyball: 510
+beat boxing: 510
+chicken crowing: 507
+lawn mowing: 506
+playing badminton: 503
+people sniggering: 502
+slot machine: 500
+playing synthesizer: 493
+people whistling: 491
+machine gun shooting: 491
+playing snare drum: 491
+playing bagpipes: 479
+goose honking: 479
+dog barking: 477
+arc welding: 468
+skiing: 466
+playing glockenspiel: 465
+bowling impact: 464
+playing french horn: 464
+skateboarding: 462
+civil defense siren: 451
+fire truck siren: 450
+church bell ringing: 450
+airplane flyby: 448
+people screaming: 446
+crow cawing: 445
+frog croaking: 445
+playing trumpet: 445
+playing erhu: 440
+playing electronic organ: 434
+people whispering: 422
+playing theremin: 421
+people booing: 418
+stream burbling: 416
+yodelling: 415
+playing bass drum: 414
+train horning: 414
+cattle mooing: 409
+police radio chatter: 406
+playing steel guitar: 400
+child singing: 399
+tractor digging: 397
+playing didgeridoo: 396
+dog howling: 391
+missile launch: 391
+playing vibraphone: 391
+vacuum cleaner cleaning floors: 390
+playing tabla: 388
+people cheering: 386
+playing ukulele: 378
+mynah bird singing: 378
+turkey gobbling: 374
+singing choir: 371
+playing cornet: 370
+volcano explosion: 368
+playing tambourine: 367
+lathe spinning: 365
+lions roaring: 364
+scuba diving: 362
+pheasant crowing: 362
+playing harmonica: 361
+sharpen knife: 360
+rope skipping: 359
+cap gun shooting: 356
+gibbon howling: 350
+planing timber: 348
+owl hooting: 341
+tapping guitar: 340
+electric shaver: 340
+woodpecker pecking tree: 337
+playing bongo: 334
+playing double bass: 324
+cat purring: 324
+cricket chirping: 312
+playing mandolin: 310
+dog growling: 303
+ice cream truck: 303
+canary calling: 302
+people marching: 301
+cattle: 295
+baby laughter: 292
+typing on typewriter: 288
+lighting firecrackers: 286
+playing sitar: 280
+roller coaster running: 278

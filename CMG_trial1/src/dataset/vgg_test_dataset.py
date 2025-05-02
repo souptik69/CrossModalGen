@@ -37,11 +37,18 @@ class VGGSoundDataset_AVT_test(Dataset):
         df_train = all_df[all_df['split'] == 'train']
         df_test = all_df[all_df['split'] == 'test']
         df_val = all_df[all_df['split'] == 'val']
+        # df_test_filtered = df_test[df_test['category'] != 'airplane flyby']
         self.split_df = pd.concat([df_test])
+
+        # print(f'Original test set size: {len(df_test)}')
+        # print(f'Test set size after excluding "airplane flyby": {len(df_test_filtered)}')
+        # print(f'{len(self.split_df)}/{len(all_df)} samples are used for {split}')
+    
+
 
         print(f'{len(self.split_df)}/{len(all_df)} samples are used for {split}')
         self.all_categories = generate_category_list()
-        print(f'total {len(self.all_categories)} classes in Vggsound40K_AVT')
+        print(f'total {len(self.all_categories)} classes in Vggsound100K_AVT')
 
     def __getitem__(self, index):
         one_video_df = self.split_df.iloc[index]

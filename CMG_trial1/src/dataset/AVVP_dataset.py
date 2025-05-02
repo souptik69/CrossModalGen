@@ -6,6 +6,7 @@ from torch.utils.data import Dataset
 import pickle
 import zipfile
 from io import BytesIO
+import pickle5 as pickle1
 
 def generate_category_list():
     file_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/data/data/AVVP/data/AVVP_Categories.txt'
@@ -197,3 +198,140 @@ class AVVPDatasetEval(Dataset):
 
     def __len__(self,):
         return len(self.split_df)
+
+
+class AVVPTestDataset(Dataset):
+    """
+    Dataset class for testing the AVVP models without onset/offset information.
+    Uses the simplified test CSV format with just filenames and event labels.
+    """
+    def __init__(self, meta_csv_path, audio_fea_base_path, video_fea_base_path, modality='both'):
+        """
+        Initialize the AVVP test dataset.
+        
+        Args:
+            meta_csv_path: Path to the test CSV file
+            audio_fea_base_path: Path to the audio feature zip files
+            video_fea_base_path: Path to the video feature zip files
+            modality: Which modality to load ('audio', 'video', or 'both')
+        """
+        super(AVVPTestDataset, self).__init__()
+        self.modality = modality
+        self.audio_fea_base_path = audio_fea_base_path
+        self.video_fea_base_path = video_fea_base_path
+        
+        # Load the CSV file
+        self.split_df = pd.read_csv(meta_csv_path, sep='\t')
+        
+        # Load all categories
+        self.all_categories = generate_category_list()
+        print(f'AVVP test dataset initialized with {len(self.all_categories)} categories')
+        print(f'Found {len(self.split_df)} test samples')
+
+    def __getitem__(self, index):
+        """Get a sample from the dataset"""
+        # Get data for this sample
+        one_video_df = self.split_df.iloc[index]
+        video_id = one_video_df['filename']
+        
+        # Parse the event labels string into a list
+        if pd.isna(one_video_df['event_labels']):
+            categorys = []
+        else:
+            categorys = one_video_df['event_labels'].split(',')
+        
+        # Load features
+        audio_fea = None
+        video_fea = None
+        
+        if self.modality in ['audio', 'both']:
+            audio_fea = self._load_fea(self.audio_fea_base_path, video_id[:11])
+            # Ensure we have exactly 10 timesteps for audio
+            if audio_fea.shape[0] < 10:
+                cur_t = audio_fea.shape[0]
+                add_arr = np.tile(audio_fea[-1, :], (10-cur_t, 1))
+                audio_fea = np.concatenate([audio_fea, add_arr], axis=0)
+            elif audio_fea.shape[0] > 10:
+                audio_fea = audio_fea[:10, :]
+        
+        if self.modality in ['video', 'both']:
+            video_fea = self._load_fea(self.video_fea_base_path, video_id[:11])
+            # Ensure we have exactly 10 timesteps for video
+            if video_fea.shape[0] < 10:
+                cur_t = video_fea.shape[0]
+                add_arr = np.tile(video_fea[-1, :], (10-cur_t, 1))
+                video_fea = np.concatenate([video_fea, add_arr], axis=0)
+            elif video_fea.shape[0] > 10:
+                video_fea = video_fea[:10, :]
+        
+        # Create one-hot encoded labels
+        # For test data without onset/offset, we assume the event is present in the entire video
+        avel_label = self._obtain_avel_label(categorys)
+        
+        return {
+            'video_id': video_id,
+            'audio_fea': torch.from_numpy(audio_fea) if audio_fea is not None else None,
+            'video_fea': torch.from_numpy(video_fea) if video_fea is not None else None,
+            'label': torch.from_numpy(avel_label),
+            'categories': categorys
+        }
+        
+    def _load_fea(self, fea_base_path, video_id):
+        """Load features from zip file"""
+        fea_path = os.path.join(fea_base_path, "%s.zip" % video_id)
+        
+        class NumpyCompatUnpickler(pickle1.Unpickler):
+            def find_class(self, module, name):
+                if module.startswith('numpy') and name == '_reconstruct':
+                    return np.core.multiarray._reconstruct
+                # Redirect numpy._core to numpy
+                if module.startswith('numpy._core'):
+                    module = 'numpy'
+                return super().find_class(module, name)
+                
+        with zipfile.ZipFile(fea_path, mode='r') as zfile:
+            for name in zfile.namelist():
+                if '.pkl' not in name:
+                    continue
+                with zfile.open(name, mode='r') as fea_file:
+                    content = BytesIO(fea_file.read())
+                    try:
+                        fea = pickle.load(content)
+                    except:
+                        content.seek(0)
+                        fea = NumpyCompatUnpickler(content).load()
+        return fea
+    
+    def _obtain_avel_label(self, categorys):
+        """
+        Convert category list to one-hot encoded tensor.
+        For test data without onset/offset, assume events are present throughout the video.
+        
+        Args:
+            categorys: List of category names for this sample
+            
+        Returns:
+            One-hot encoded tensor of shape [10, num_categories+1]
+        """
+        T, category_num = 10, len(self.all_categories)
+        label = np.zeros((T, category_num + 1))  # Add one slot for 'background'
+        
+        # Initially set all to background
+        label[:, -1] = np.ones(T)
+        
+        # Set the active categories
+        for category in categorys:
+            if category in self.all_categories:  # Skip categories not in our list
+                class_id = self.all_categories.index(category)
+                label[:, class_id] = 1  # Mark this category as present for all timesteps
+                label[:, -1] = 0  # If any category is present, it's not background
+        
+        return label
+    
+    def __len__(self):
+        """Return the number of samples in the dataset"""
+        return len(self.split_df)
+    
+    def get_categories(self):
+        """Return the list of categories"""
+        return self.all_categories

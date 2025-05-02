@@ -24,6 +24,7 @@ import torch.nn.functional as F
 # from bert_embedding import BertEmbedding
 from transformers import BertTokenizer, BertModel
 import pickle
+from collections import Counter
 
 # =================================  seed config ============================
 SEED = 43
@@ -585,10 +586,27 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Audio_mi_net, Video_mi_net, Text_mi_ne
         query = query.double().cuda()
         audio_feature = audio_feature.to(torch.float64)
 
+        # labels = labels.double().cuda()
+        # # labels_foreground = labels[:, :, :-1]  
+        # # labels_BCE, labels_evn = labels_foreground.max(-1)
+        # # labels_event, _ = labels_evn.max(-1)
+        # labels_BCE, labels_evn = labels.max(-1)
+        # labels_event = torch.mode(labels_evn, dim=1).values
+
         labels = labels.double().cuda()
-        labels_foreground = labels[:, :, :-1]  
-        labels_BCE, labels_evn = labels_foreground.max(-1)
-        labels_event, _ = labels_evn.max(-1)
+        labels_BCE, labels_evn = labels.max(-1)  # Shape: [batch, 10]
+        batch_foreground_classes = []
+        for i in range(labels_evn.size(0)):  # For each sample in the batch
+            frame_classes = labels_evn[i]
+            bg_index = labels.size(2) - 1  # Background is the last class
+            fg_classes = [idx.item() for idx in frame_classes if idx.item() != bg_index]
+            if fg_classes:
+                most_common_fg = Counter(fg_classes).most_common(1)[0][0]
+                batch_foreground_classes.append(most_common_fg)
+            else:
+                batch_foreground_classes.append(bg_index)
+        labels_event = torch.tensor(batch_foreground_classes, device=labels.device)
+
 
 
         #Explicit video feature conversion

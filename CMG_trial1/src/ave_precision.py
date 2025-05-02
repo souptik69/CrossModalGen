@@ -17,7 +17,7 @@ from configs.opts import parser
 # from model.main_model_new import AV_VQVAE_Encoder as AV_VQVAE_Encoder
 # from model.main_model_new import AV_VQVAE_Decoder as AV_VQVAE_Decoder
 
-from model.main_model_new import Semantic_Decoder,AVT_VQVAE_Encoder
+from model.main_model_2 import Semantic_Decoder,AVT_VQVAE_Encoder
 # from model.main_model_NEW import Semantic_Decoder,AVT_VQVAE_Encoder
 from utils import AverageMeter, Prepare_logger, get_and_save_args
 from utils.container import metricsContainer
@@ -121,7 +121,7 @@ def main():
 
 
         # path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/AVT_100k_NEW/checkpoint/DCID-model-5.pt"
-        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/AVT_100k_CLUB/checkpoint/DCID-model-5.pt"
+        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/AVT_100k_Test/checkpoint/DCID-model-5.pt"
 
         checkpoints = torch.load(path_checkpoints)
         Encoder.load_state_dict(checkpoints['Encoder_parameters'])
@@ -146,6 +146,8 @@ def main():
             logger.info("-----------------------------")
             logger.info(f"evaluate loss:{loss}")
             logger.info("-----------------------------")
+            if epoch == args.n_epoch - 1:
+                save_final_model(Encoder, Decoder, optimizer, epoch, total_step, args)
         scheduler.step()
 
 
@@ -160,6 +162,26 @@ def _export_log(epoch, total_step, batch_idx, lr, loss_meter):
 def to_eval(all_models):
     for m in all_models:
         m.eval()
+
+def save_final_model(Encoder, Decoder, optimizer, epoch_num, total_step, args):
+    # Create model directory if it doesn't exist
+    model_dir = os.path.join(args.snapshot_pref, "final_model")
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
+    
+    # Save the combined model (capable of both AV and VA tasks)
+    state_dict = {
+        'Encoder_parameters': Encoder.state_dict(),
+        'Decoder_parameters': Decoder.state_dict(),
+        'optimizer': optimizer.state_dict(),
+        'epoch': epoch_num,
+        'total_step': total_step,
+        # No specific model_type here as this is a single model handling both
+    }
+    
+    model_path = os.path.join(model_dir, f"AVT_model_epoch_{epoch_num}.pt")
+    torch.save(state_dict, model_path)
+    logging.info(f'Saved final model to {model_path}')
 
 
 def to_train(all_models):

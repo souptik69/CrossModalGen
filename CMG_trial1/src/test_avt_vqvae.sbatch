@@ -2,23 +2,23 @@
 
 #SBATCH --job-name=AVT_100k_test
 #SBATCH --partition=leinegpu
-#SBATCH --nodelist=leinevmgpu008
+#SBATCH --nodelist=leinevmgpu006
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=1
 #SBATCH --cpus-per-task=32
 #SBATCH --mem-per-cpu=5G 
 #SBATCH --time=48:00:00
-#SBATCH --output=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/AVT_100k_Eval/test_%j.out
-#SBATCH --error=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/AVT_100k_Eval/test_%j.err
+#SBATCH --output=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/AVT_100k_Eval_classloss/test_%j.out
+#SBATCH --error=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/AVT_100k_Eval_classloss/test_%j.err
 
 # Set source directory
 SRCDIR=/project/ag-jafra/Souptik/CMG_New/Experiments
 
 # Create output directories for logs
-mkdir -p $SRCDIR/CMG_trial1/slurm/AVT_100k_Eval
+mkdir -p $SRCDIR/CMG_trial1/slurm/AVT_100k_Eval_classloss
 
 # Set result output directory
-OUTPUT_DIR=$SRCDIR/CMG_trial1/Results/AVT_100k_Test
+OUTPUT_DIR=$SRCDIR/CMG_trial1/Results/AVT_100k_classloss
 mkdir -p $OUTPUT_DIR
 mkdir -p $OUTPUT_DIR/visualizations
 mkdir -p $OUTPUT_DIR/statistics
