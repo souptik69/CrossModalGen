@@ -71,27 +71,62 @@ def setup_logger(output_dir):
     
     return logger
 
-def create_confusion_matrix_plot(cm, class_names, modality, output_dir, k=10):
-    """
-    Create and save a confusion matrix visualization for top-k confused classes
+# def create_confusion_matrix_plot(cm, class_names, modality, output_dir, k=10):
+#     """
+#     Create and save a confusion matrix visualization for top-k confused classes
     
-    Args:
-        cm: Confusion matrix
-        class_names: List of class names
-        modality: String indicating modality (A2V or V2A)
-        output_dir: Directory to save the plot
-        k: Number of top confused classes to show
-    """
-    # Find the most confused classes
-    np.fill_diagonal(cm, 0)  # Ignore correct classifications
+#     Args:
+#         cm: Confusion matrix
+#         class_names: List of class names
+#         modality: String indicating modality (A2V or V2A)
+#         output_dir: Directory to save the plot
+#         k: Number of top confused classes to show
+#     """
+#     # Find the most confused classes
+#     np.fill_diagonal(cm, 0)  # Ignore correct classifications
+    
+#     # Get sum of misclassifications for each class (row-wise)
+#     class_error_totals = np.sum(cm, axis=1)
+    
+#     # Get top k classes with highest misclassification
+#     top_confused_indices = np.argsort(class_error_totals)[-k:]
+    
+#     # Extract the relevant subset of the confusion matrix
+#     cm_subset = cm[top_confused_indices][:, top_confused_indices]
+#     names_subset = [class_names[i] for i in top_confused_indices]
+    
+#     # Create the figure
+#     plt.figure(figsize=(16, 14))
+#     sns.heatmap(cm_subset, annot=True, fmt="d", cmap="YlGnBu",
+#                 xticklabels=names_subset, yticklabels=names_subset)
+#     plt.title(f'Top {k} Most Confused Classes - {modality} Model')
+#     plt.ylabel('True Class')
+#     plt.xlabel('Predicted Class')
+#     plt.xticks(rotation=45, ha="right")
+#     plt.tight_layout()
+    
+#     # Save the figure
+#     plt.savefig(os.path.join(output_dir, f'top{k}_confusion_matrix.png'), 
+#                 dpi=300, bbox_inches='tight')
+#     plt.close()
+
+
+
+def create_confusion_matrix_plot(cm, class_names, modality, output_dir, k=20):
+    """Create and save a confusion matrix visualization for top-k confused classes"""
+    # Make a copy of the confusion matrix to avoid modifying the original
+    cm_working = cm.copy()
     
     # Get sum of misclassifications for each class (row-wise)
-    class_error_totals = np.sum(cm, axis=1)
+    # First, zero out the diagonal for calculating misclassification totals
+    np.fill_diagonal(cm_working, 0)
+    class_error_totals = np.sum(cm_working, axis=1)
     
     # Get top k classes with highest misclassification
     top_confused_indices = np.argsort(class_error_totals)[-k:]
     
-    # Extract the relevant subset of the confusion matrix
+    # Extract the relevant subset of the confusion matrix FROM THE ORIGINAL cm
+    # This is the key change - we use the original cm, not the cm_working with zeroed diagonal
     cm_subset = cm[top_confused_indices][:, top_confused_indices]
     names_subset = [class_names[i] for i in top_confused_indices]
     
@@ -99,16 +134,18 @@ def create_confusion_matrix_plot(cm, class_names, modality, output_dir, k=10):
     plt.figure(figsize=(16, 14))
     sns.heatmap(cm_subset, annot=True, fmt="d", cmap="YlGnBu",
                 xticklabels=names_subset, yticklabels=names_subset)
-    plt.title(f'Top {k} Most Confused Classes - {modality} Model')
+    plt.title(f'Top {k} Most Confused Classes - {modality} Modality')
     plt.ylabel('True Class')
     plt.xlabel('Predicted Class')
     plt.xticks(rotation=45, ha="right")
     plt.tight_layout()
     
     # Save the figure
+    # plt.savefig(os.path.join(output_dir, f'{modality}_top{k}_confusion_matrix.png'), dpi=300, bbox_inches='tight')
     plt.savefig(os.path.join(output_dir, f'top{k}_confusion_matrix.png'), 
-                dpi=300, bbox_inches='tight')
+                 dpi=300, bbox_inches='tight')
     plt.close()
+
 
 def create_per_class_accuracy_plot(accuracies, class_names, modality, output_dir, k=10):
     """

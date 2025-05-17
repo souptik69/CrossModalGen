@@ -4,7 +4,6 @@ import time
 import random
 import json
 from tqdm import tqdm
-import sys
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
@@ -16,20 +15,18 @@ import pandas as pd
 import argparse
 from model.main_model_2 import AVT_VQVAE_Encoder, Semantic_Decoder_AVVP
 
-
 # Import the dataset class
-from dataset.AVVP_dataset import AVVPTestDataset
+from dataset.AVVP_dataset import AVVPDataset
 
 # Set up argument parser
 parser = argparse.ArgumentParser(description='Test A2V or V2A model on AVVP dataset')
 parser.add_argument('--gpu', default='0', type=str, help='GPU ID to use')
-parser.add_argument('--batch_size', default=64, type=int, help='Batch size for testing')
+parser.add_argument('--batch_size', default=64, type=int, help='Batch size for testing (use 1 for variable length)')
 parser.add_argument('--output_dir', default='results', type=str, help='Output directory for results')
 parser.add_argument('--model_path', default='', type=str, help='Path to model checkpoint')
 parser.add_argument('--model_type', default='', type=str, choices=['A2V', 'V2A'], help='Type of model to test (A2V or V2A)')
 parser.add_argument('--meta_csv_path', default='', type=str, help='Path to the test CSV file')
-parser.add_argument('--audio_fea_path', default='', type=str, help='Path to audio features')
-parser.add_argument('--video_fea_path', default='', type=str, help='Path to video features')
+parser.add_argument('--fea_path', default='', type=str, help='Path to features (audio or video)')
 
 # Set random seeds for reproducibility
 SEED = 43
@@ -39,41 +36,6 @@ torch.manual_seed(seed=SEED)
 torch.cuda.manual_seed(seed=SEED)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
-
-def collate_avvp_fn(batch):
-    """
-    Custom collate function for AVVP dataset that handles None values.
-    
-    Args:
-        batch: List of samples from the dataset
-        
-    Returns:
-        Collated batch with proper handling of None values
-    """
-    # Extract data
-    video_ids = [item['video_id'] for item in batch]
-    labels = torch.stack([item['label'] for item in batch])
-    categories = [item['categories'] for item in batch]
-    
-    # Handle audio features (might be None in V2A mode)
-    # if batch[0]['audio_fea'] is not None:
-    audio_features = torch.stack([item['audio_fea'] for item in batch])
-    # else:
-    #     audio_features = None
-    
-    # Handle video features (might be None in A2V mode)
-    # if batch[0]['video_fea'] is not None:
-    video_features = torch.stack([item['video_fea'] for item in batch])
-    # else:
-    #     video_features = None
-    
-    return {
-        'video_id': video_ids,
-        'audio_fea': audio_features,
-        'video_fea': video_features,
-        'label': labels,
-        'categories': categories
-    }
 
 def setup_logger(output_dir):
     """Set up logging configuration"""
@@ -109,35 +71,73 @@ def setup_logger(output_dir):
     
     return logger
 
+# def create_confusion_matrix_plot(cm, class_names, modality, output_dir, k=15):
+#     """Create and save a confusion matrix visualization for top-k confused classes"""
+#     # Find the most confused classes
+#     np.fill_diagonal(cm, 0)  # Ignore correct classifications
+    
+#     # Get sum of misclassifications for each class (row-wise)
+#     class_error_totals = np.sum(cm, axis=1)
+    
+#     # Get top k classes with highest misclassification (skip those with no samples)
+#     valid_indices = np.where(class_error_totals > 0)[0]
+#     k = min(k, len(valid_indices))
+#     top_confused_indices = valid_indices[np.argsort(class_error_totals[valid_indices])[-k:]]
+    
+#     # Extract the relevant subset of the confusion matrix
+#     cm_subset = cm[top_confused_indices][:, top_confused_indices]
+#     names_subset = [class_names[i] for i in top_confused_indices]
+    
+#     # Create the figure
+#     plt.figure(figsize=(20, 18))
+#     sns.heatmap(cm_subset, annot=True, fmt="d", cmap="YlGnBu",
+#                 xticklabels=names_subset, yticklabels=names_subset)
+#     plt.title(f'Top {k} Most Confused Classes - {modality} Model')
+#     plt.ylabel('True Class')
+#     plt.xlabel('Predicted Class')
+#     plt.xticks(rotation=45, ha="right")
+#     plt.tight_layout()
+    
+#     # Save the figure
+#     plt.savefig(os.path.join(output_dir, f'top{k}_confusion_matrix.png'), 
+#                 dpi=300, bbox_inches='tight')
+#     plt.close()
+
 def create_confusion_matrix_plot(cm, class_names, modality, output_dir, k=15):
-    """
-    Create and save a confusion matrix visualization for top-k confused classes
-    
-    Args:
-        cm: Confusion matrix
-        class_names: List of class names
-        modality: String indicating modality (A2V or V2A)
-        output_dir: Directory to save the plot
-        k: Number of top confused classes to show
-    """
+    """Create and save a confusion matrix visualization for top-k confused classes"""
     # Find the most confused classes
-    np.fill_diagonal(cm, 0)  # Ignore correct classifications
-    
+    # np.fill_diagonal(cm, 0)  # Ignore correct classifications
+    cm_working = cm.copy()
+
     # Get sum of misclassifications for each class (row-wise)
-    class_error_totals = np.sum(cm, axis=1)
+    # class_error_totals = np.sum(cm, axis=1)
+    np.fill_diagonal(cm_working, 0)
+    class_error_totals = np.sum(cm_working, axis=1)
     
     # Get top k classes with highest misclassification (skip those with no samples)
     valid_indices = np.where(class_error_totals > 0)[0]
     k = min(k, len(valid_indices))
+    
+    if len(valid_indices) == 0:
+        print(f"No confusion data available for {modality} model. Skipping confusion matrix plot.")
+        return
+        
     top_confused_indices = valid_indices[np.argsort(class_error_totals[valid_indices])[-k:]]
     
     # Extract the relevant subset of the confusion matrix
     cm_subset = cm[top_confused_indices][:, top_confused_indices]
     names_subset = [class_names[i] for i in top_confused_indices]
     
+    # Convert to integer if values are floats
+    if np.issubdtype(cm_subset.dtype, np.floating):
+        cm_subset = cm_subset.astype(int)
+        fmt = "d"  # Integer format
+    else:
+        fmt = ".2f"  # Float format with 2 decimal places
+    
     # Create the figure
     plt.figure(figsize=(20, 18))
-    sns.heatmap(cm_subset, annot=True, fmt="d", cmap="YlGnBu",
+    sns.heatmap(cm_subset, annot=True, fmt=fmt, cmap="YlGnBu",
                 xticklabels=names_subset, yticklabels=names_subset)
     plt.title(f'Top {k} Most Confused Classes - {modality} Model')
     plt.ylabel('True Class')
@@ -151,18 +151,7 @@ def create_confusion_matrix_plot(cm, class_names, modality, output_dir, k=15):
     plt.close()
 
 def create_per_class_accuracy_plot(accuracies, class_names, sample_counts, modality, output_dir, k=15, min_samples=5):
-    """
-    Create and save bar plots for top and bottom k classes by accuracy
-    
-    Args:
-        accuracies: Array of per-class accuracies
-        class_names: List of class names
-        sample_counts: Array of sample counts per class
-        modality: String indicating modality (A2V or V2A)
-        output_dir: Directory to save the plots
-        k: Number of top/bottom classes to show
-        min_samples: Minimum number of samples required to include a class
-    """
+    """Create and save bar plots for top and bottom k classes by accuracy"""
     # Filter classes with minimum number of samples
     valid_indices = np.where(sample_counts >= min_samples)[0]
     valid_accuracies = accuracies[valid_indices]
@@ -184,7 +173,7 @@ def create_per_class_accuracy_plot(accuracies, class_names, sample_counts, modal
     if k_bottom > 0:
         plt.figure(figsize=(14, k_bottom * 0.6))
         bottom_k = df_sorted.head(k_bottom)
-        g = sns.barplot(x='accuracy', y='class', data=bottom_k, palette="YlOrRd_r")
+        sns.barplot(x='accuracy', y='class', data=bottom_k, palette="YlOrRd_r")
         plt.title(f'Bottom {k_bottom} Classes by Accuracy - {modality} Model')
         plt.xlabel('Accuracy')
         plt.xlim(0, 1.0)
@@ -203,7 +192,7 @@ def create_per_class_accuracy_plot(accuracies, class_names, sample_counts, modal
     if k_top > 0:
         plt.figure(figsize=(14, k_top * 0.6))
         top_k = df_sorted.tail(k_top).iloc[::-1]  # Reverse to show highest on top
-        g = sns.barplot(x='accuracy', y='class', data=top_k, palette="YlGn")
+        sns.barplot(x='accuracy', y='class', data=top_k, palette="YlGn")
         plt.title(f'Top {k_top} Classes by Accuracy - {modality} Model')
         plt.xlabel('Accuracy')
         plt.xlim(0, 1.0)
@@ -218,16 +207,7 @@ def create_per_class_accuracy_plot(accuracies, class_names, sample_counts, modal
         plt.close()
 
 def create_most_misclassified_pairs_plot(cm, class_names, modality, output_dir, k=15):
-    """
-    Identify and visualize the most common misclassification pairs
-    
-    Args:
-        cm: Confusion matrix
-        class_names: List of class names
-        modality: String indicating modality (A2V or V2A)
-        output_dir: Directory to save the plot
-        k: Number of top misclassification pairs to show
-    """
+    """Identify and visualize the most common misclassification pairs"""
     # Copy the confusion matrix to avoid modifying the original
     cm_copy = cm.copy()
     np.fill_diagonal(cm_copy, 0)  # Remove correct classifications
@@ -277,8 +257,8 @@ def compute_accuracy_supervised_sigmoid(model_pred, labels):
     Compute precision and recall for multi-label classification
     
     Args:
-        model_pred: Model predictions after sigmoid
-        labels: Ground truth labels
+        model_pred: Model predictions after sigmoid [BxT, C]
+        labels: Ground truth labels [BxT, C]
         
     Returns:
         precision, recall
@@ -303,21 +283,7 @@ def compute_accuracy_supervised_sigmoid(model_pred, labels):
     return precision, recall
 
 def test_model(args, model_path, test_loader, categories, model_type, device, logger):
-    """
-    Test a model and generate visualizations
-    
-    Args:
-        args: Command line arguments
-        model_path: Path to model checkpoint
-        test_loader: DataLoader for test dataset
-        categories: List of category names
-        model_type: String indicating model type (A2V or V2A)
-        device: Device to run testing on
-        logger: Logger object
-        
-    Returns:
-        precision, recall, f1_score
-    """
+    """Test a model and generate visualizations"""
     # Create output directories
     vis_dir = os.path.join(args.output_dir, 'visualizations')
     stats_dir = os.path.join(args.output_dir, 'statistics')
@@ -329,9 +295,6 @@ def test_model(args, model_path, test_loader, categories, model_type, device, lo
     
     # Load model
     checkpoint = torch.load(model_path)
-    
-    # Import model classes dynamically to avoid dependency issues
-    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
     
     # Initialize model components
     video_dim = 512
@@ -348,7 +311,7 @@ def test_model(args, model_path, test_loader, categories, model_type, device, lo
     encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, 
                                audio_output_dim, video_output_dim, text_output_dim, 
                                n_embeddings, embedding_dim)
-    decoder = Semantic_Decoder_AVVP(input_dim=embedding_dim, class_num=num_classes)
+    decoder = Semantic_Decoder_AVVP(input_dim=embedding_dim, class_num=26)
     
     # Load weights
     encoder.load_state_dict(checkpoint['Encoder_parameters'])
@@ -361,13 +324,7 @@ def test_model(args, model_path, test_loader, categories, model_type, device, lo
     decoder.eval()
     
     # Initialize metrics
-    all_preds = []
-    all_true_labels = []
     all_video_ids = []
-    class_correct = np.zeros(num_classes)
-    class_total = np.zeros(num_classes)
-    
-    # For multi-label evaluation
     all_precisions = []
     all_recalls = []
     sample_losses = []
@@ -385,83 +342,74 @@ def test_model(args, model_path, test_loader, categories, model_type, device, lo
     
     with torch.no_grad():
         for batch_idx, batch_data in enumerate(tqdm(test_loader, desc=f"Testing {model_type}")):
-            # Get data
-            video_ids = batch_data['video_id']
-            labels = batch_data['label'].double().to(device)
+            # feature = batch_data['feature'].double().to(device)
+            # label = batch_data['label'].double().to(device)
+            # video_id = batch_data['video_id'][0]  # Get the first (and only) video_id
+            # category = batch_data['category'][0]  # Get the first (and only) category
+
+            feature, label, video_id = batch_data
+            feature = feature.to(torch.float64)
+            feature.cuda()
+
+            label = label.double().cuda().to(device)
+            B, T, C = label.size()
+            label_flat = label.reshape(-1, C)# [B, T, C] -> [BxT, C] e.g.[80*10, 26]
+            label_flat = label_flat.to(torch.float32)
+            bs = feature.size(0)
+
             
             # Process according to model type
             if model_type == 'A2V':
-                # Audio to Video: use audio features to predict
-                # audio_feature = batch_data['audio_fea'].double().to(device)
-                # B, T, _ = audio_feature.shape
-                
-                # # Pass through encoder and decoder
-                # audio_vq = encoder.Audio_VQ_Encoder(audio_feature)
-                # e_dim = audio_vq.size()[2]
-                # audio_vq = audio_vq.reshape(-1, e_dim)
-                # logits = decoder(audio_vq)
 
+                video_vq = encoder.Video_VQ_Encoder(feature)
 
-                video_feature = batch_data['video_fea'].double().to(device)
-                B, T, _ = video_feature.shape
-                
-                # Pass through encoder and decoder
-                video_vq = encoder.Video_VQ_Encoder(video_feature)
-                e_dim = video_vq.size()[2]
-                video_vq = video_vq.reshape(-1, e_dim)
-                logits = decoder(video_vq)
-                
-                # Reshape logits back to [batch, time, classes]
-                logits = logits.reshape(B, T, -1)
+                B, T, e_dim = video_vq.size()
+                video_vq_flat = video_vq.reshape(-1, e_dim)
+
+                logits = decoder(video_vq_flat)
+
+                # logits = logits.reshape(B, T, -1)
+
             else:  # V2A
-                # Video to Audio: use video features to predict
-                # video_feature = batch_data['video_fea'].double().to(device)
-                # B, T, _ = video_feature.shape
-                
-                # # Pass through encoder and decoder
-                # video_vq = encoder.Video_VQ_Encoder(video_feature)
-                # e_dim = video_vq.size()[2]
-                # video_vq = video_vq.reshape(-1, e_dim)
-                # logits = decoder(video_vq)
-                
-                audio_feature = batch_data['audio_fea'].double().to(device)
-                B, T, _ = audio_feature.shape
-                
-                # Pass through encoder and decoder
-                audio_vq = encoder.Audio_VQ_Encoder(audio_feature)
-                e_dim = audio_vq.size()[2]
-                audio_vq = audio_vq.reshape(-1, e_dim)
-                logits = decoder(audio_vq)
-                # Reshape logits back to [batch, time, classes]
-                logits = logits.reshape(B, T, -1)
+               
+
+                audio_vq = encoder.Audio_VQ_Encoder(feature)
+
+                B, T, e_dim = audio_vq.size()
+                audio_vq_flat = audio_vq.reshape(-1, e_dim)
+
+                logits = decoder(audio_vq_flat)
+
+                # logits = logits.reshape(B, T, -1)
             
             # Apply sigmoid to get probabilities
             probs = sigmoid(logits)
             
-            # Compute precision and recall for this batch
+            # Compute precision and recall
+            precision, recall = compute_accuracy_supervised_sigmoid(
+                probs, 
+                label_flat.float().to(device)
+            )
+            
+            if precision.item() > 0 or recall.item() > 0:
+                all_precisions.append(precision.item())
+                all_recalls.append(recall.item())
+            
+            # Store video ID
+            all_video_ids.append(video_id)
+            
+            # Get predictions for per-class metrics
+            preds_binary = (probs > 0.5).float()
+
+            probs_reshaped = probs.reshape(B, T, -1)
+            preds_binary_reshaped = preds_binary.reshape(B, T, -1)
+            
+            # Track per-class metrics (excluding background class)
             for b in range(B):
-                # Get predictions and ground truth for this sample
-                sample_probs = probs[b]  # [T, C]
-                sample_labels = labels[b]  # [T, C]
-                
-                # Compute precision and recall across all frames
-                precision, recall = compute_accuracy_supervised_sigmoid(sample_probs, sample_labels)
-                
-                if precision.item() > 0 or recall.item() > 0:
-                    all_precisions.append(precision.item())
-                    all_recalls.append(recall.item())
-                
-                # Store video ID
-                all_video_ids.append(video_ids[b])
-                
-                # Store sample info with per-class metrics
-                preds_binary = (sample_probs > 0.5).float()
-                
-                # Track per-class metrics (excluding background class)
-                for c in range(num_classes):
-                    # For this class across all time steps
-                    class_preds = preds_binary[:, c]
-                    class_labels = sample_labels[:, c]
+                for c in range(num_classes-1):  # Exclude background class
+                    # For this class across all time steps in this sample
+                    class_preds = preds_binary_reshaped[b, :, c]
+                    class_labels = label[b, :, c]
                     
                     # True positives: predicted 1 and ground truth is 1
                     tp = torch.sum((class_preds == 1) & (class_labels == 1)).item()
@@ -470,14 +418,16 @@ def test_model(args, model_path, test_loader, categories, model_type, device, lo
                     # False negatives: predicted 0 but ground truth is 1
                     fn = torch.sum((class_preds == 0) & (class_labels == 1)).item()
                     
+                    # Update class metrics
                     class_true_positive[c] += tp
                     class_false_positive[c] += fp
                     class_false_negative[c] += fn
                     
-                    # Store per-sample, per-class metrics
+                    # Store per-sample, per-class metrics if there's something to record
                     if tp + fp + fn > 0:
+                        sample_vid = video_id[b] if isinstance(video_id, list) or isinstance(video_id, tuple) else video_id
                         sample_losses.append({
-                            'video_id': video_ids[b],
+                            'video_id': sample_vid,
                             'class_idx': c,
                             'category': categories[c],
                             'true_positive': tp,
@@ -496,7 +446,7 @@ def test_model(args, model_path, test_loader, categories, model_type, device, lo
     class_recall = np.zeros(num_classes)
     class_f1 = np.zeros(num_classes)
     
-    for c in range(num_classes):
+    for c in range(num_classes-1):  # Exclude background class
         if class_true_positive[c] + class_false_positive[c] > 0:
             class_precision[c] = class_true_positive[c] / (class_true_positive[c] + class_false_positive[c])
         if class_true_positive[c] + class_false_negative[c] > 0:
@@ -518,30 +468,26 @@ def test_model(args, model_path, test_loader, categories, model_type, device, lo
     logger.info(f"{model_type} Overall Recall: {avg_recall:.4f}")
     logger.info(f"{model_type} Overall F1 Score: {f1_score:.4f}")
     
-    # Calculate per-class F1 for confusion matrix visualization
-    # Since this is multi-label, we'll create a "confusion matrix" based on F1 scores
-    cm = np.zeros((num_classes, num_classes))
+    # Create confusion matrix for visualization
+    cm = np.zeros((num_classes-1, num_classes-1))
     
-    # Create a confusion-like matrix where diagonal is TP and off-diagonal shows confusion
-    for c in range(num_classes):
-        cm[c, c] = class_true_positive[c]  # Diagonal is true positives
-        for c2 in range(num_classes):
+    # Fill confusion matrix based on true positives and confusions
+    for c in range(num_classes-1):
+        cm[c, c] = class_true_positive[c]  # Diagonal shows true positives
+        for c2 in range(num_classes-1):
             if c != c2:
-                # Off-diagonal is based on false positives shared between classes
-                # The idea is to estimate how often one class is confused with another
+                # Count how often classes are confused with each other
                 confusions = 0
                 for loss_item in sample_losses:
                     if loss_item['class_idx'] == c and loss_item['false_negative'] > 0:
-                        # For each sample where class c was missed
                         for loss_item2 in sample_losses:
                             if loss_item2['video_id'] == loss_item['video_id'] and loss_item2['class_idx'] == c2 and loss_item2['false_positive'] > 0:
-                                # If we falsely detected c2 in this sample, that's a confusion
                                 confusions += 1
                 cm[c, c2] = confusions
     
-    # Generate classification report-like data
+    # Generate class statistics
     class_stats = []
-    for i in range(num_classes):
+    for i in range(num_classes-1):
         stat = {
             'category': categories[i],
             'support': int(class_true_positive[i] + class_false_negative[i]),
@@ -554,49 +500,53 @@ def test_model(args, model_path, test_loader, categories, model_type, device, lo
         }
         class_stats.append(stat)
     
-    # Save classification report
+    # Save statistics
     class_stats_df = pd.DataFrame(class_stats)
     class_stats_df.to_csv(os.path.join(stats_dir, 'class_statistics.csv'), index=False)
     
-    # Save per-sample metrics
     sample_df = pd.DataFrame(sample_losses)
-    sample_df.to_csv(os.path.join(stats_dir, 'sample_metrics.csv'), index=False)
+    if len(sample_df) > 0:
+        sample_df.to_csv(os.path.join(stats_dir, 'sample_metrics.csv'), index=False)
     
     # Create visualizations
     logger.info(f"Generating visualizations for {model_type} model...")
     
-    # 1. Confusion matrix
-    create_confusion_matrix_plot(cm, categories, model_type, vis_dir)
-    
-    # 2. Per-class precision plot
-    create_per_class_accuracy_plot(
-        class_precision, 
-        categories, 
-        np.array([stat['support'] for stat in class_stats]), 
-        f"{model_type}_precision", 
-        vis_dir
-    )
-    
-    # 3. Per-class recall plot
-    create_per_class_accuracy_plot(
-        class_recall, 
-        categories, 
-        np.array([stat['support'] for stat in class_stats]), 
-        f"{model_type}_recall", 
-        vis_dir
-    )
-    
-    # 4. Per-class F1 plot
-    create_per_class_accuracy_plot(
-        class_f1, 
-        categories, 
-        np.array([stat['support'] for stat in class_stats]), 
-        f"{model_type}_f1", 
-        vis_dir
-    )
-    
-    # 5. Misclassification pairs
-    create_most_misclassified_pairs_plot(cm, categories, model_type, vis_dir)
+    # Only create visualizations if we have data
+    if np.sum(cm) > 0:
+        # 1. Confusion matrix
+        create_confusion_matrix_plot(cm, categories[:-1], model_type, vis_dir)
+        
+        # 2. Per-class precision plot
+        create_per_class_accuracy_plot(
+            class_precision[:-1], 
+            categories[:-1], 
+            np.array([stat['support'] for stat in class_stats]), 
+            f"{model_type}_precision", 
+            vis_dir
+        )
+        
+        # 3. Per-class recall plot
+        create_per_class_accuracy_plot(
+            class_recall[:-1], 
+            categories[:-1], 
+            np.array([stat['support'] for stat in class_stats]), 
+            f"{model_type}_recall", 
+            vis_dir
+        )
+        
+        # 4. Per-class F1 plot
+        create_per_class_accuracy_plot(
+            class_f1[:-1], 
+            categories[:-1], 
+            np.array([stat['support'] for stat in class_stats]), 
+            f"{model_type}_f1", 
+            vis_dir
+        )
+        
+        # 5. Misclassification pairs
+        create_most_misclassified_pairs_plot(cm, categories[:-1], model_type, vis_dir)
+    else:
+        logger.warning(f"No data for visualizations in {model_type} model")
     
     # Create summary
     summary = {
@@ -604,13 +554,13 @@ def test_model(args, model_path, test_loader, categories, model_type, device, lo
         'recall': float(avg_recall),
         'f1_score': float(f1_score),
         'total_samples': len(all_video_ids),
-        'total_classes': num_classes,
-        'best_class_precision': categories[np.argmax(class_precision)],
-        'best_precision': float(np.max(class_precision)),
-        'best_class_recall': categories[np.argmax(class_recall)],
-        'best_recall': float(np.max(class_recall)),
-        'best_class_f1': categories[np.argmax(class_f1)],
-        'best_f1': float(np.max(class_f1))
+        'total_classes': num_classes-1,  # Exclude background class
+        'best_class_precision': categories[np.argmax(class_precision[:-1])] if np.max(class_precision[:-1]) > 0 else "None",
+        'best_precision': float(np.max(class_precision[:-1])),
+        'best_class_recall': categories[np.argmax(class_recall[:-1])] if np.max(class_recall[:-1]) > 0 else "None",
+        'best_recall': float(np.max(class_recall[:-1])),
+        'best_class_f1': categories[np.argmax(class_f1[:-1])] if np.max(class_f1[:-1]) > 0 else "None",
+        'best_f1': float(np.max(class_f1[:-1]))
     }
     
     with open(os.path.join(args.output_dir, 'summary.json'), 'w') as f:
@@ -619,9 +569,10 @@ def test_model(args, model_path, test_loader, categories, model_type, device, lo
     logger.info(f"{model_type} testing complete. Results saved to {args.output_dir}")
     
     return avg_precision, avg_recall, f1_score
+ 
 
 def main():
-    """Main function to run the testing script"""
+    """Main function for testing AVVP models"""
     # Parse arguments
     args = parser.parse_args()
     
@@ -634,47 +585,35 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logger.info(f"Using device: {device}")
     
-    # Determine which modality to load based on model type
-    modality = 'audio' if args.model_type == 'A2V' else 'video' if args.model_type == 'V2A' else 'both'
+    # Determine modality based on model type
+    modality = 'audio' if args.model_type == 'V2A' else 'video'
     
     # Load test dataset
     logger.info(f"Loading AVVP test dataset from {args.meta_csv_path}")
-    test_dataset = AVVPTestDataset(
-        args.meta_csv_path,
-        args.audio_fea_path,
-        args.video_fea_path,
-        modality=modality
-    )
-    
-    # test_loader = DataLoader(
-    #     test_dataset,
-    #     batch_size=args.batch_size,
-    #     shuffle=False,
-    #     num_workers=8,
-    #     pin_memory=False
-    # )
+    test_dataset = AVVPDataset(args.meta_csv_path, args.fea_path, split='test', modality= modality)
 
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=args.batch_size,
+    
+    # Create dataloader with batch_size=1 to handle variable length sequences
+    test_dataloader = DataLoader(
+        AVVPDataset(args.meta_csv_path, args.fea_path, split='test', modality= modality),
+        batch_size=args.batch_size,  # Use batch_size=1 to handle variable length sequences
         shuffle=False,
         num_workers=8,
-        pin_memory=False,
-        collate_fn=collate_avvp_fn  # Use custom collate function
+        pin_memory=False
     )
     
     logger.info(f"Test dataset loaded with {len(test_dataset)} samples")
     
-    # Get categories
+    # Get categories and add background class
     categories = test_dataset.get_categories()
     categories.append("background")
-    logger.info(f"Found {len(categories)} categories in the AVVP dataset")
+    logger.info(f"Found {len(categories)} categories in the AVVP dataset (including background)")
     
     # Test the model
     precision, recall, f1_score = test_model(
         args, 
         args.model_path, 
-        test_loader, 
+        test_dataloader, 
         categories, 
         args.model_type, 
         device, 

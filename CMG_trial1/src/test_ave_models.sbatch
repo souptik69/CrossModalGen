@@ -8,18 +8,18 @@
 #SBATCH --cpus-per-task=32
 #SBATCH --mem-per-cpu=5G 
 #SBATCH --time=24:00:00
-#SBATCH --output=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/AVE_Test_Eval/test_%j.out
-#SBATCH --error=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/AVE_Test_Eval/test_%j.err
+#SBATCH --output=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/AVE_Test_Eval_2/test_%j.out
+#SBATCH --error=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/AVE_Test_Eval_2/test_%j.err
 
 # Set source directory
 SRCDIR=/project/ag-jafra/Souptik/CMG_New/Experiments
 
 # Create output directories for logs
-mkdir -p $SRCDIR/CMG_trial1/slurm/AVE_Test_Eval
+mkdir -p $SRCDIR/CMG_trial1/slurm/AVE_Test_Eval_2
 
 # Set result output directories - separate for each model
-OUTPUT_DIR_A2V=$SRCDIR/CMG_trial1/Results/AVE_Test_Eval/A2V
-OUTPUT_DIR_V2A=$SRCDIR/CMG_trial1/Results/AVE_Test_Eval/V2A
+OUTPUT_DIR_A2V=$SRCDIR/CMG_trial1/Results/AVE_Test_Eval_2/A2V
+OUTPUT_DIR_V2A=$SRCDIR/CMG_trial1/Results/AVE_Test_Eval_2/V2A
 
 # Create output directories
 mkdir -p $OUTPUT_DIR_A2V/visualizations
@@ -68,7 +68,7 @@ python $SRCDIR/CMG_trial1/src/test_ave_models.py \
 
 # Create a combined summary comparing both models
 echo "Creating combined summary..."
-COMBINED_DIR=$SRCDIR/CMG_trial1/Results/AVE_Test_Eval/combined
+COMBINED_DIR=$SRCDIR/CMG_trial1/Results/AVE_Test_Eval_2/combined
 mkdir -p $COMBINED_DIR
 
 # Extract accuracies from individual summaries

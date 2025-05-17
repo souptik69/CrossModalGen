@@ -1,17 +1,17 @@
 # ======================================= Learning configs ==================================
-n_epoch: 50
+n_epoch: 100
 batch_size: 64
-test_batch_size: 64
-lr: 0.0004
+test_batch_size: 16
+lr: 0.001
 mi_lr: 0.001
 loss_weights: 0.5
-clip_gradient: 0.5
+clip_gradient: 0.8
 start_epoch: 0
 weight_decay: 5e-4
 
   # ======================================= Print and snapshot configs ==================================
-snapshot_pref: /project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/AVVP_Test/V2A/
-print_freq: 1
+snapshot_pref: /project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Results/AVT_100k_2/logs
+print_freq: 10
 eval_freq: 1
 
 
