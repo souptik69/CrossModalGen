@@ -52,13 +52,13 @@ class Cross_CPC(nn.Module):
         video_forward_seq = video_vq[:,:t_samples+1,:] # e.g. size 80*t_samples*256
         audio_forward_seq = audio_vq[:,:t_samples+1,:] # e.g. size 80*t_samples*256
         # Autoregressive LSTM for video
-        video_hidden = (torch.zeros(self.num_layers, batch_dim, self.hidden_dim, device = video_vq.device).float(),
-                  torch.zeros(self.num_layers, batch_dim, self.hidden_dim, device = video_vq.device).float())
+        video_hidden = (torch.zeros(self.num_layers, batch_dim, self.hidden_dim, device = video_vq.device).double(),
+                  torch.zeros(self.num_layers, batch_dim, self.hidden_dim, device = video_vq.device).double())
         video_context, video_hidden = self.video_ar_lstm(video_forward_seq, video_hidden)
         
         # Autoregressive LSTM for audio
-        audio_hidden = (torch.zeros(self.num_layers, batch_dim, self.hidden_dim, device = audio_vq.device).float(),
-                  torch.zeros(self.num_layers, batch_dim, self.hidden_dim, device = audio_vq.device).float())
+        audio_hidden = (torch.zeros(self.num_layers, batch_dim, self.hidden_dim, device = audio_vq.device).double(),
+                  torch.zeros(self.num_layers, batch_dim, self.hidden_dim, device = audio_vq.device).double())
         audio_context, audio_hidden = self.audio_ar_lstm(audio_forward_seq, audio_hidden)
         
         video_context = video_context[:,t_samples,:].reshape(batch_dim,self.context_dim) # c_t e.g. size 80*512

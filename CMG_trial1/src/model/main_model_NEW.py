@@ -633,3 +633,41 @@ class AVT_VQVAE_Decoder(nn.Module):
 
 
 
+######        Used in main_model_novel.py ,might be later (??)    ######
+
+
+# class Video_Decoder(nn.Module):
+#     def __init__(self, video_dim=512, hidden_dim=256):
+#         super(Video_Decoder, self).__init__()
+
+#         self.video_linear = nn.Linear(hidden_dim, hidden_dim)
+#         self.initial_projection = nn.Linear(hidden_dim * 2, video_dim)
+
+#         kernel = 3
+#         stride = 1
+#         self.inverse_conv_block = nn.Sequential(
+#             # 1x1 → 3x3
+#             nn.ConvTranspose2d(video_dim, video_dim // 2, kernel_size=kernel, stride=stride, padding=0),
+#             ResidualStack(video_dim // 2, video_dim // 2, video_dim // 2, 1),
+#             # 3x3 → 5x5
+#             nn.ConvTranspose2d(video_dim // 2, video_dim // 2, kernel_size=kernel, stride=stride, padding=0),
+#             nn.ReLU(),
+#             # 5x5 → 7x7
+#             nn.ConvTranspose2d(video_dim // 2, video_dim, kernel_size=kernel, stride=stride, padding=0)
+#         )
+
+#         self.reshape_layer = nn.Conv2d(video_dim, video_dim, kernel_size=1, stride=1)
+        
+#     def forward(self, video_semantic_result, video_vq):
+#         batch, timesteps, _ = video_semantic_result.size()
+#         video_vq_result = self.video_linear(video_vq)
+#         combined = torch.cat([video_vq_result, video_semantic_result], dim=2)  # [batch, timesteps, 512]
+#         combined_flat = combined.view(batch * timesteps, -1)  # [batch*timesteps, 512]
+#         initial_features = self.initial_projection(combined_flat)  # [batch*timesteps, video_dim=512]
+#         initial_spatial = initial_features.unsqueeze(-1).unsqueeze(-1)  # [batch*timesteps, 512, 1, 1]
+#         upsampled_features = self.inverse_conv_block(initial_spatial)  # [batch*timesteps, 512, 7, 7]
+#         refined_features = self.reshape_layer(upsampled_features)  # [batch*timesteps, video_dim=512, 7, 7]
+#         refined_features = refined_features.permute(0, 2, 3, 1)  # [batch*timesteps, 7, 7, video_dim=512]
+#         video_recon_result = refined_features.view(batch, timesteps, 7, 7, -1)
+#         return video_recon_result
+

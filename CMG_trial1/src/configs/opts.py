@@ -15,7 +15,7 @@ parser.add_argument('--evaluate', action='store_true')
 parser.add_argument('--clip_gradient', type=float)
 parser.add_argument('--loss_weights', type=float)
 parser.add_argument('--start_epoch', type=int)
-parser.add_argument('--model_save_path', default='/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/AVT_100k_classloss_foreground/checkpoint/')
+parser.add_argument('--model_save_path', default='/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/Novel_AV_Test/checkpoint/')
 # parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
 #                     help='momentum')
 parser.add_argument('--output_dir', type=str, default='./results',
