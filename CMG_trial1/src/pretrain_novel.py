@@ -22,6 +22,7 @@ from utils.Recorder import Recorder
 import torch.nn.functional as F
 import pickle
 from collections import Counter
+torch.autograd.set_detect_anomaly(True)
 
 # =================================  seed config ============================
 SEED = 43
@@ -117,6 +118,7 @@ def main():
     CPC.to(device)
     Decoder.to(device)
 
+
     optimizer = torch.optim.Adam(chain(Encoder.parameters(), CPC.parameters(), Decoder.parameters()), lr=args.lr)
     scheduler = MultiStepLR(optimizer, milestones=[10, 20, 30], gamma=0.5)
 
@@ -196,6 +198,20 @@ def train_epoch(CPC, Encoder, Decoder, train_dataloader, criterion, criterion_ev
     CPC.cuda()
     optimizer.zero_grad()
 
+    quantizer = Encoder.Cross_quantizer
+    with torch.no_grad():
+        logger.info(f"INITIALIZATION_1 - Vector 345 (first 5 video dims): {quantizer.embedding[345, :5]}")
+        logger.info(f"INITIALIZATION_1 - Vector 345 (first 5 audio dims): {quantizer.embedding[345, 256:261]}")
+        logger.info(f"INITIALIZATION_1 - Vector 346 (first 5 video dims): {quantizer.embedding[346, :5]}")
+        logger.info(f"INITIALIZATION_1 - Vector 346 (first 5 audio dims): {quantizer.embedding[346, 256:261]}")
+        logger.info(f"INITIALIZATION_1 - Vector 45 (first 5 video dims): {quantizer.embedding[45, :5]}")
+        logger.info(f"INITIALIZATION_1 - Vector 45 (first 5 audio dims): {quantizer.embedding[45, 256:261]}")
+        # logger.info(f"INITIALIZATION_1 - Count for vector 345: {quantizer.ema_count[345]}")
+        # logger.info(f"INITIALIZATION_1 - Count for vector 346: {quantizer.ema_count[346]}")
+        # logger.info(f"INITIALIZATION_1 - Count for vector 45: {quantizer.ema_count[45]}")
+        logger.info(f"Init Codebook min: {quantizer.embedding.min().item()}, max: {quantizer.embedding.max().item()}")
+
+
     for n_iter, batch_data in enumerate(train_dataloader):
 
         data_time.update(time.time() - end_time)
@@ -222,24 +238,131 @@ def train_epoch(CPC, Encoder, Decoder, train_dataloader, criterion, criterion_ev
         audio_feature = audio_feature.cuda().to(torch.float64)
         video_feature = video_feature.cuda().to(torch.float64)
 
-        audio_encoder_result, video_spatial, out_vq_video, video_vq, out_vq_audio, \
+        audio_semantic_result, audio_encoder_result, video_semantic_result, video_spatial, out_vq_video, video_vq, out_vq_audio, \
         audio_vq, video_embedding_loss, audio_embedding_loss, video_perplexity, audio_perplexity,\
-        equal_num, cmcm_loss, segment_loss\
+        equal_num, cmcm_loss\
         = Encoder(audio_feature, video_feature, epoch)
+
+        # audio_semantic_result, audio_encoder_result, video_semantic_result, video_spatial, out_vq_video, video_vq, out_vq_audio, \
+        # audio_vq, video_embedding_loss, audio_embedding_loss, video_perplexity, audio_perplexity,\
+        # equal_num, cmcm_loss, segment_loss\
+        # = Encoder(audio_feature, video_feature, epoch)
+
+        if n_iter == 0:
+            quantizer = Encoder.Cross_quantizer
+            with torch.no_grad():
+                logger.info(f"INITIALIZATION Epoch 0 - Vector 345 (first 5 video dims): {quantizer.embedding[345, :5]}")
+                logger.info(f"INITIALIZATION Epoch 0 - Vector 345 (first 5 audio dims): {quantizer.embedding[345, 256:261]}")
+                logger.info(f"INITIALIZATION Epoch 0 - Vector 346 (first 5 video dims): {quantizer.embedding[346, :5]}")
+                logger.info(f"INITIALIZATION Epoch 0 - Vector 346 (first 5 audio dims): {quantizer.embedding[346, 256:261]}")
+                logger.info(f"INITIALIZATION Epoch 0 - Vector 45 (first 5 video dims): {quantizer.embedding[45, :5]}")
+                logger.info(f"INITIALIZATION Epoch 0 - Vector 45 (first 5 audio dims): {quantizer.embedding[45, 256:261]}")
+                logger.info(f"INITIALIZATION Epoch 0 - Count for vector 345: {quantizer.ema_count[345]}")
+                logger.info(f"INITIALIZATION Epoch 0 - Count for vector 346: {quantizer.ema_count[346]}")
+                logger.info(f"INITIALIZATION Epoch 0 - Count for vector 45: {quantizer.ema_count[45]}")
+                logger.info(f"Init Codebook min: {quantizer.embedding.min().item()}, max: {quantizer.embedding.max().item()}")
+
+        if n_iter == 120:
+            # Get the Cross_quantizer from the encoder
+            quantizer = Encoder.Cross_quantizer
+            
+            # Log the most used vector and a couple of random vectors
+            with torch.no_grad():
+                most_used_idx = torch.argmax(quantizer.ema_count)
+                random_idx1 = (most_used_idx + 1) % 400
+                random_idx2 = (most_used_idx + 100) % 400
+                logger.info("\n===== BATCH 120 DEBUG =====")
+                logger.info(f"Most used vector ({most_used_idx}) value (first 5 video dims): {quantizer.embedding[most_used_idx, :5]}")
+                logger.info(f"Most used vector ({most_used_idx}) value (first 5 audio dims): {quantizer.embedding[most_used_idx, 256:261]}")
+                logger.info(f"Random ({random_idx1}) vector value (first 5 audio dims): {quantizer.embedding[random_idx1, :5]}")
+                logger.info(f"Random {random_idx1} vector value (first 5 audio dims): {quantizer.embedding[random_idx1, 256:261]}")
+                logger.info(f"Random {random_idx2} vector value (first 5 video dims): {quantizer.embedding[random_idx2, :5]}")
+                logger.info(f"Random {random_idx2} vector value (first 5 audio dims): {quantizer.embedding[random_idx2, 256:261]}")
+                logger.info(f"Count statistics - min: {quantizer.ema_count.min()}, max: {quantizer.ema_count.max()}, mean: {quantizer.ema_count.mean()}")
+                logger.info(f"Number of dead vectors (count < 0.01): {(quantizer.ema_count < 0.01).sum()}")
+
+        # Add similar debug for iteration 139 right before collapse
+        if n_iter == 139:
+            quantizer = Encoder.Cross_quantizer
+            
+            with torch.no_grad():
+                most_used_idx = torch.argmax(quantizer.ema_count)
+                random_idx1 = (most_used_idx + 1) % 400
+                random_idx2 = (most_used_idx + 100) % 400
+                
+                logger.info(f"\n===== BATCH ({n_iter}) DEBUG =====")
+                logger.info(f"Most used vector ({most_used_idx}) value (first 5 video dims): {quantizer.embedding[most_used_idx, :5]}")
+                logger.info(f"Most used vector ({most_used_idx}) value (first 5 audio dims): {quantizer.embedding[most_used_idx, 256:261]}")
+                logger.info(f"Random ({random_idx1}) vector value (first 5 video dims): {quantizer.embedding[random_idx1, :5]}")
+                logger.info(f"Random {random_idx1} vector value (first 5 audio dims): {quantizer.embedding[random_idx1, 256:261]}")
+                logger.info(f"Random {random_idx2} vector value (first 5 video dims): {quantizer.embedding[random_idx2, :5]}")
+                logger.info(f"Random {random_idx2} vector value (first 5 audio dims): {quantizer.embedding[random_idx2, 256:261]}")
+                logger.info(f"Count statistics - min: {quantizer.ema_count.min()}, max: {quantizer.ema_count.max()}, mean: {quantizer.ema_count.mean()}")
+                logger.info(f"Count histogram: {torch.histc(quantizer.ema_count, bins=10, min=0, max=quantizer.ema_count.max())}")
+                logger.info(f"Number of dead vectors (count < 0.01): {(quantizer.ema_count < 0.01).sum()}")
+                logger.info(f"Embedding stats - mean: {quantizer.embedding.mean()}, std: {quantizer.embedding.std()}, min: {quantizer.embedding.min()}, max: {quantizer.embedding.max()}")
+
+        
+         # Add similar debug for iteration 139 right before collapse
+        if n_iter == 1100:
+            quantizer = Encoder.Cross_quantizer
+            
+            with torch.no_grad():
+                most_used_idx = torch.argmax(quantizer.ema_count)
+                random_idx1 = (most_used_idx + 1) % 400
+                random_idx2 = (most_used_idx + 100) % 400
+
+                
+                logger.info(f"\n===== BATCH ({n_iter}) DEBUG =====")
+                logger.info(f"Most used vector ({most_used_idx}) value (first 5 video dims): {quantizer.embedding[most_used_idx, :5]}")
+                logger.info(f"Most used vector ({most_used_idx}) value (first 5 audio dims): {quantizer.embedding[most_used_idx, 256:261]}")
+                logger.info(f"Random ({random_idx1}) vector value (first 5 video dims): {quantizer.embedding[random_idx1, :5]}")
+                logger.info(f"Random {random_idx1} vector value (first 5 audio dims): {quantizer.embedding[random_idx1, 256:261]}")
+                logger.info(f"Random {random_idx2} vector value (first 5 video dims): {quantizer.embedding[random_idx2, :5]}")
+                logger.info(f"Random {random_idx2} vector value (first 5 audio dims): {quantizer.embedding[random_idx2, 256:261]}")
+                logger.info(f"Count statistics - min: {quantizer.ema_count.min()}, max: {quantizer.ema_count.max()}, mean: {quantizer.ema_count.mean()}")
+                logger.info(f"Count histogram: {torch.histc(quantizer.ema_count, bins=10, min=0, max=quantizer.ema_count.max())}")
+                logger.info(f"Number of dead vectors (count < 0.01): {(quantizer.ema_count < 0.01).sum()}")
+                logger.info(f"Embedding stats - mean: {quantizer.embedding.mean()}, std: {quantizer.embedding.std()}, min: {quantizer.embedding.min()}, max: {quantizer.embedding.max()}")
+
+
 
 
 
         accuracy1, accuracy2, accuracy3, accuracy4, cpc_loss,  \
-        audio_recon_loss, video_recon_loss, audio_class, video_class, audio_class_loss, video_class_loss\
+        audio_recon_loss, video_recon_loss, audio_class, video_class\
         = mi_first_forward(CPC, audio_feature, video_feature, Decoder,epoch,
-                        audio_encoder_result, video_spatial, out_vq_audio,
-                        audio_vq, out_vq_video, video_vq, labels_event, criterion_event)
+                        audio_encoder_result, audio_semantic_result, video_spatial, video_semantic_result,
+                        out_vq_audio, audio_vq, out_vq_video, video_vq, labels_event, criterion_event)
+        
+        # accuracy1, accuracy2, accuracy3, accuracy4, cpc_loss,  \
+        # audio_recon_loss, video_recon_loss, audio_class, video_class, audio_class_loss, video_class_loss\
+        # = mi_first_forward(CPC, audio_feature, video_feature, Decoder,epoch,
+        #                 audio_encoder_result, audio_semantic_result, video_spatial, video_semantic_result,
+        #                 out_vq_audio, audio_vq, out_vq_video, video_vq, labels_event, criterion_event)
 
      
         if n_iter % 20 == 0:
             logger.info("equal_num is {} in {}-th iteration.".format(equal_num, n_iter))
 
 
+        # loss_items = {
+        #     "audio_recon_loss": audio_recon_loss.item(),
+        #     "audio_embed_loss": audio_embedding_loss.item(),
+        #     "video_recon_loss": video_recon_loss.item(),
+        #     "video_embed_loss": video_embedding_loss.item(),
+        #     "acc_va": accuracy1.item(),
+        #     "acc_av": accuracy2.item(),
+        #     "acc_vv": accuracy3.item(),
+        #     "acc_aa": accuracy4.item(),
+        #     "cpc_loss": cpc_loss.item(),
+        #     "cmcm_loss": cmcm_loss.item(),
+        #     "segment_loss": segment_loss.item(),
+        #     "audio_class_loss": audio_class_loss.item(),
+        #     "video_class_loss": video_class_loss.item()
+        # }
+
+        
         loss_items = {
             "audio_recon_loss": audio_recon_loss.item(),
             "audio_embed_loss": audio_embedding_loss.item(),
@@ -251,10 +374,10 @@ def train_epoch(CPC, Encoder, Decoder, train_dataloader, criterion, criterion_ev
             "acc_aa": accuracy4.item(),
             "cpc_loss": cpc_loss.item(),
             "cmcm_loss": cmcm_loss.item(),
-            "segment_loss": segment_loss.item(),
-            "audio_class_loss": audio_class_loss.item(),
-            "video_class_loss": video_class_loss.item()
+            "audio_perplexity": audio_perplexity.item(),
+            "video_perplexity": video_perplexity.item()
         }
+
 
         metricsContainer.update("loss", loss_items)
 
@@ -264,8 +387,11 @@ def train_epoch(CPC, Encoder, Decoder, train_dataloader, criterion, criterion_ev
         #         + cpc_loss + cmcm_loss + segment_loss + audio_class_loss + video_class_loss
 
         # VGG downstream
-        loss = audio_recon_loss + video_recon_loss + audio_embedding_loss +  video_embedding_loss\
-                + cpc_loss + cmcm_loss + segment_loss
+        # loss =  audio_recon_loss + video_recon_loss + audio_embedding_loss +  video_embedding_loss\
+        #         + cpc_loss + cmcm_loss + segment_loss
+        
+        loss =  audio_recon_loss + video_recon_loss + audio_embedding_loss +  video_embedding_loss\
+                + cpc_loss + cmcm_loss 
 
         if n_iter % 20 == 0:
             _export_log(epoch=epoch, total_step=total_step+n_iter, batch_idx=n_iter, lr=0.0004, loss_meter=metricsContainer.calculate_average("loss"))
@@ -291,22 +417,25 @@ def train_epoch(CPC, Encoder, Decoder, train_dataloader, criterion, criterion_ev
 
 
 def mi_first_forward(CPC, audio_feature, video_feature, Decoder,epoch,
-                      audio_encoder_result, video_spatial, out_vq_audio,
+                      audio_encoder_result, audio_semantic_result, video_spatial, 
+                      video_semantic_result, out_vq_audio,
                       audio_vq, out_vq_video, video_vq, labels_event, criterion_event):
 
     
     """Cross_CPC"""
-    accuracy1, accuracy2, accuracy3, accuracy4, cpc_loss = CPC(audio_vq, video_vq)
+    accuracy1, accuracy2, accuracy3, accuracy4, cpc_loss = CPC(video_semantic_result, audio_semantic_result)
 
     audio_recon_loss, video_recon_loss, audio_class, video_class, \
         = Decoder(audio_feature, video_feature, audio_encoder_result, video_spatial, out_vq_audio, audio_vq, out_vq_video, video_vq)
     
-    video_class_loss = criterion_event(video_class, labels_event.cuda())
-    audio_class_loss = criterion_event(audio_class, labels_event.cuda())
-
+    # video_class_loss = criterion_event(video_class, labels_event.cuda())
+    # audio_class_loss = criterion_event(audio_class, labels_event.cuda())
 
     return accuracy1, accuracy2, accuracy3, accuracy4, cpc_loss,  \
-           audio_recon_loss, video_recon_loss, audio_class, video_class, audio_class_loss, video_class_loss
+           audio_recon_loss, video_recon_loss, audio_class, video_class
+
+    # return accuracy1, accuracy2, accuracy3, accuracy4, cpc_loss,  \
+    #        audio_recon_loss, video_recon_loss, audio_class, video_class, audio_class_loss, video_class_loss
 
 
 if __name__ == '__main__':

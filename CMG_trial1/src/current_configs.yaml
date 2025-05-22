@@ -10,7 +10,8 @@ start_epoch: 0
 weight_decay: 5e-4
 
   # ======================================= Print and snapshot configs ==================================
-snapshot_pref: /project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/Novel_AV_Test/
+snapshot_pref: 
+    /project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/Novel_AV_final/Hierarchical/
 print_freq: 1
 eval_freq: 1
 

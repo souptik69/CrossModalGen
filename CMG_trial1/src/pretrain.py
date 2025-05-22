@@ -569,6 +569,11 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Audio_mi_net, Video_mi_net, Text_mi_ne
     optimizer.zero_grad()
     mi_iters = 5
 
+    quantizer = Encoder.Cross_quantizer
+    with torch.no_grad():
+        logger.info(f"Init Codebook min: {quantizer.embedding.min().item()}, max: {quantizer.embedding.max().item()}")
+
+
     # train_dataloader = tqdm(train_dataloader)
 
     for n_iter, batch_data in enumerate(train_dataloader):
@@ -630,9 +635,14 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Audio_mi_net, Video_mi_net, Text_mi_ne
         
         audio_semantic_result, video_semantic_result, text_semantic_result, \
         audio_encoder_result, video_encoder_result, video_club_feature, text_encoder_result, \
-        audio_vq, video_vq, text_vq, audio_embedding_loss, video_embedding_loss, text_embedding_loss, cmcm_loss, equal_num\
+        audio_vq, video_vq, text_vq, audio_embedding_loss, video_embedding_loss, text_embedding_loss, cmcm_loss, equal_num, audio_perplexity, video_perplexity, text_perplexity\
         = Encoder(audio_feature, video_feature, text_feature, epoch)
         
+        if n_iter == 0:
+            quantizer_1 = Encoder.Cross_quantizer
+            with torch.no_grad():
+                logger.info(f"Init Codebook epoch 0 min: {quantizer_1.embedding.min().item()}, max: {quantizer_1.embedding.max().item()}")
+
         optimizer_audio_mi_net, lld_audio_loss, optimizer_video_mi_net, lld_video_loss, optimizer_text_mi_net, lld_text_loss  = \
         mi_first_forward(Audio_mi_net, Video_mi_net, Text_mi_net, optimizer_audio_mi_net,optimizer_video_mi_net,optimizer_text_mi_net, epoch, 
                          audio_vq.detach(), video_vq.detach(), text_vq.detach(),
@@ -678,12 +688,19 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Audio_mi_net, Video_mi_net, Text_mi_ne
             "cmcm_loss": cmcm_loss.item(),
             "audio_class_loss": audio_class_loss.item(),
             "video_class_loss": video_class_loss.item(),
-            "text_class_loss": text_class_loss.item()
+            "text_class_loss": text_class_loss.item(),
+            "audio_perplexity": audio_perplexity.item(),
+            "video_perplexity": video_perplexity.item(),
+            "text_perplexity": text_perplexity.item()
+
         }
 
         metricsContainer.update("loss", loss_items)
+        # loss = audio_recon_loss + video_recon_loss + text_recon_loss + audio_embedding_loss +  video_embedding_loss\
+        #         + text_embedding_loss+ mi_audio_loss + mi_video_loss + mi_text_loss + cpc_loss + cmcm_loss + audio_class_loss + video_class_loss + text_class_loss
+
         loss = audio_recon_loss + video_recon_loss + text_recon_loss + audio_embedding_loss +  video_embedding_loss\
-                + text_embedding_loss+ mi_audio_loss + mi_video_loss + mi_text_loss + cpc_loss + cmcm_loss + audio_class_loss + video_class_loss + text_class_loss
+                + text_embedding_loss+ mi_audio_loss + mi_video_loss + mi_text_loss + cpc_loss + cmcm_loss 
 
         if n_iter % 20 == 0:
             _export_log(epoch=epoch, total_step=total_step+n_iter, batch_idx=n_iter, lr=0.0004, loss_meter=metricsContainer.calculate_average("loss"))

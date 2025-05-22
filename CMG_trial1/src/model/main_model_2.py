@@ -344,7 +344,7 @@ class AVT_VQVAE_Encoder(nn.Module):
 
         return audio_semantic_result, video_semantic_result, text_semantic_result, \
                audio_encoder_result, video_encoder_result, video_club_feature, text_encoder_result, \
-               audio_vq, video_vq, text_vq, audio_embedding_loss, video_embedding_loss, text_embedding_loss, cmcm_loss, equal_num
+               audio_vq, video_vq, text_vq, audio_embedding_loss, video_embedding_loss, text_embedding_loss, cmcm_loss, equal_num, audio_perplexity, video_perplexity, text_perplexity
 
 
 class AT_VQVAE_Encoder(nn.Module):
