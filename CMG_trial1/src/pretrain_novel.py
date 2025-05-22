@@ -238,15 +238,15 @@ def train_epoch(CPC, Encoder, Decoder, train_dataloader, criterion, criterion_ev
         audio_feature = audio_feature.cuda().to(torch.float64)
         video_feature = video_feature.cuda().to(torch.float64)
 
-        audio_semantic_result, audio_encoder_result, video_semantic_result, video_spatial, out_vq_video, video_vq, out_vq_audio, \
-        audio_vq, video_embedding_loss, audio_embedding_loss, video_perplexity, audio_perplexity,\
-        equal_num, cmcm_loss\
-        = Encoder(audio_feature, video_feature, epoch)
-
         # audio_semantic_result, audio_encoder_result, video_semantic_result, video_spatial, out_vq_video, video_vq, out_vq_audio, \
         # audio_vq, video_embedding_loss, audio_embedding_loss, video_perplexity, audio_perplexity,\
-        # equal_num, cmcm_loss, segment_loss\
+        # equal_num, cmcm_loss\
         # = Encoder(audio_feature, video_feature, epoch)
+
+        audio_semantic_result, audio_encoder_result, video_semantic_result, video_spatial, out_vq_video, video_vq, out_vq_audio, \
+        audio_vq, video_embedding_loss, audio_embedding_loss, video_perplexity, audio_perplexity,\
+        equal_num, cmcm_loss, segment_loss\
+        = Encoder(audio_feature, video_feature, epoch)
 
         if n_iter == 0:
             quantizer = Encoder.Cross_quantizer
@@ -374,6 +374,7 @@ def train_epoch(CPC, Encoder, Decoder, train_dataloader, criterion, criterion_ev
             "acc_aa": accuracy4.item(),
             "cpc_loss": cpc_loss.item(),
             "cmcm_loss": cmcm_loss.item(),
+            "segment_loss": segment_loss.item(),
             "audio_perplexity": audio_perplexity.item(),
             "video_perplexity": video_perplexity.item()
         }
@@ -387,11 +388,11 @@ def train_epoch(CPC, Encoder, Decoder, train_dataloader, criterion, criterion_ev
         #         + cpc_loss + cmcm_loss + segment_loss + audio_class_loss + video_class_loss
 
         # VGG downstream
-        # loss =  audio_recon_loss + video_recon_loss + audio_embedding_loss +  video_embedding_loss\
-        #         + cpc_loss + cmcm_loss + segment_loss
-        
         loss =  audio_recon_loss + video_recon_loss + audio_embedding_loss +  video_embedding_loss\
-                + cpc_loss + cmcm_loss 
+                + cpc_loss + cmcm_loss + segment_loss
+        
+        # loss =  audio_recon_loss + video_recon_loss + audio_embedding_loss +  video_embedding_loss\
+        #         + cpc_loss + cmcm_loss 
 
         if n_iter % 20 == 0:
             _export_log(epoch=epoch, total_step=total_step+n_iter, batch_idx=n_iter, lr=0.0004, loss_meter=metricsContainer.calculate_average("loss"))
@@ -423,7 +424,9 @@ def mi_first_forward(CPC, audio_feature, video_feature, Decoder,epoch,
 
     
     """Cross_CPC"""
-    accuracy1, accuracy2, accuracy3, accuracy4, cpc_loss = CPC(video_semantic_result, audio_semantic_result)
+    # accuracy1, accuracy2, accuracy3, accuracy4, cpc_loss = CPC(video_semantic_result, audio_semantic_result)
+    ## CPC with vq ##
+    accuracy1, accuracy2, accuracy3, accuracy4, cpc_loss = CPC(video_vq, audio_vq)
 
     audio_recon_loss, video_recon_loss, audio_class, video_class, \
         = Decoder(audio_feature, video_feature, audio_encoder_result, video_spatial, out_vq_audio, audio_vq, out_vq_video, video_vq)
