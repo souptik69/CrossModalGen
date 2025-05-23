@@ -389,7 +389,7 @@ def train_epoch(CPC, Encoder, Decoder, train_dataloader, criterion, criterion_ev
 
         # VGG downstream
         loss =  audio_recon_loss + video_recon_loss + audio_embedding_loss +  video_embedding_loss\
-                + cpc_loss + cmcm_loss + segment_loss
+                + cpc_loss + cmcm_loss
         
         # loss =  audio_recon_loss + video_recon_loss + audio_embedding_loss +  video_embedding_loss\
         #         + cpc_loss + cmcm_loss 
