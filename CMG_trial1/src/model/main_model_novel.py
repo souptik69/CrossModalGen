@@ -267,10 +267,12 @@ class Audio_Decoder(nn.Module):
         self.vq_dim = vq_dim
         self.relu = nn.ReLU()
         self.audio_rec = nn.Linear(vq_dim * 2, output_dim)
+        self.audio_linear_1 = nn.Linear(vq_dim * 2, vq_dim)
         self.audio_linear = nn.Linear(vq_dim, vq_dim)
 
     def forward(self, audio_encoder_result, audio_vq):
-        audio_vq_result = self.audio_linear(audio_vq)
+        audio_vq_1 = self.audio_linear_1(audio_vq)
+        audio_vq_result = self.audio_linear(audio_vq_1)
         audio_encoder_result = torch.cat([audio_vq_result, audio_encoder_result], dim=2)
         audio_decoder_result = self.audio_rec(audio_encoder_result)
         return audio_decoder_result
@@ -291,11 +293,13 @@ class Video_Decoder(nn.Module):
             nn.ReLU(),
             nn.ConvTranspose2d(output_dim, output_dim, kernel_size=1, stride=1, padding=0)
         )
+        self.video_linear_1 = nn.Linear(vq_dim * 2, vq_dim)
         self.video_linear = nn.Linear(vq_dim, vq_dim)
 
     def forward(self, video_spatial, video_vq):
         batch, length, h1, w1, dim = video_spatial.size()
-        video_vq_result = self.video_linear(video_vq).unsqueeze(2).unsqueeze(3)
+        video_vq_1 = self.video_linear_1(video_vq)
+        video_vq_result = self.video_linear(video_vq_1).unsqueeze(2).unsqueeze(3)
         video_vq_result = video_vq_result.repeat(1, 1, h1, w1, 1).reshape(batch * length, h1, w1, -1)
         video_spatial = video_spatial.reshape(batch * length, h1, w1, dim)
         video_spatial = torch.cat([video_vq_result, video_spatial], dim=3)
@@ -324,8 +328,8 @@ class AV_VQVAE_Decoder(nn.Module):
     def forward(self, audio_feat, video_feat, audio_encoder_result, video_spatial, out_vq_audio, audio_vq, out_vq_video, video_vq):
         video_feat = video_feat.cuda()
         audio_feat = audio_feat.cuda()
-        video_recon_result = self.Video_decoder(video_spatial, video_vq)
-        audio_recon_result = self.Audio_decoder(audio_encoder_result, audio_vq)
+        video_recon_result = self.Video_decoder(video_spatial, out_vq_video)
+        audio_recon_result = self.Audio_decoder(audio_encoder_result, out_vq_audio)
         video_recon_loss = F.mse_loss(video_recon_result, video_feat)
         audio_recon_loss = F.mse_loss(audio_recon_result, audio_feat)
         video_class = self.video_semantic_decoder(out_vq_video)
@@ -976,7 +980,7 @@ class Cross_VQEmbeddingEMA_AV_hierarchical(nn.Module):
         B, T, D = video_semantic.size()  # D is 256
         v_flat = video_semantic.detach().reshape(-1, D)  # [B, T, D] -> [BxT, D]
 
-        video_embedding = self.embedding[:, :self.embedding_dim]  # [n_embeddings, 256]
+        video_embedding = self.embedding[:, :D]  # [n_embeddings, 256]
 
         v_distances = torch.addmm(torch.sum(video_embedding ** 2, dim=1) +
                                 torch.sum(v_flat ** 2, dim=1, keepdim=True),
@@ -999,7 +1003,7 @@ class Cross_VQEmbeddingEMA_AV_hierarchical(nn.Module):
         B, T, D = audio_semantic.size()  # D = 256
         a_flat = audio_semantic.detach().reshape(-1, D)  # [B, T, D] -> [BxT, D]
      
-        audio_embedding = self.embedding[:, self.embedding_dim:]  # [n_embeddings, 256]
+        audio_embedding = self.embedding[:, D:]  # [n_embeddings, 256]
 
         a_distances = torch.addmm(torch.sum(audio_embedding ** 2, dim=1) +
                                 torch.sum(a_flat ** 2, dim=1, keepdim=True),
@@ -1209,11 +1213,14 @@ class Cross_VQEmbeddingEMA_AV_hierarchical(nn.Module):
         v_quantized_segment = video_semantic + (v_quantized_segment - video_semantic).detach()    #[B,T,D = 256]
         a_quantized_segment = audio_semantic + (a_quantized_segment - audio_semantic).detach()    #[B,T,D = 256]
 
-        # v_full_continuous = torch.cat([video_semantic, audio_semantic], dim=-1)
-        # a_full_continuous = torch.cat([video_semantic, audio_semantic], dim=-1)
-        # v_full_vectors = v_full_continuous + (v_full_vectors - v_full_continuous).detach()  #[B,T,D = 512]
-        # a_full_vectors = a_full_continuous + (a_full_vectors - a_full_continuous).detach()  #[B,T,D = 512]
+        ################## Use v_full_vectors for cross modal reconstruction gradients ###################
 
+        v_full_continuous = torch.cat([video_semantic, audio_semantic], dim=-1)
+        a_full_continuous = torch.cat([video_semantic, audio_semantic], dim=-1)
+        v_full_vectors = v_full_continuous + (v_full_vectors - v_full_continuous).detach()  #[B,T,D = 512]
+        a_full_vectors = a_full_continuous + (a_full_vectors - a_full_continuous).detach()  #[B,T,D = 512]
+
+        ################## Use v_full_vectors for cross modal reconstruction gradients ###################
 
         v_avg_probs = torch.mean(v_encodings, dim=0)
         v_perplexity = torch.exp(-torch.sum(v_avg_probs * torch.log(v_avg_probs + 1e-10)))
@@ -1273,7 +1280,7 @@ class Cross_VQEmbeddingEMA_AV_hierarchical_softmax(nn.Module):
         B, T, D = video_semantic.size()  # D is 256
         v_flat = video_semantic.detach().reshape(-1, D)  # [B, T, D] -> [BxT, D]
 
-        video_embedding = self.embedding[:, :self.embedding_dim]  # [n_embeddings, 256]
+        video_embedding = self.embedding[:, :D]  # [n_embeddings, 256]
 
         v_distances = torch.addmm(torch.sum(video_embedding ** 2, dim=1) +
                                 torch.sum(v_flat ** 2, dim=1, keepdim=True),
@@ -1296,7 +1303,7 @@ class Cross_VQEmbeddingEMA_AV_hierarchical_softmax(nn.Module):
         B, T, D = audio_semantic.size()  # D = 256
         a_flat = audio_semantic.detach().reshape(-1, D)  # [B, T, D] -> [BxT, D]
      
-        audio_embedding = self.embedding[:, self.embedding_dim:]  # [n_embeddings, 256]
+        audio_embedding = self.embedding[:, D:]  # [n_embeddings, 256]
 
         a_distances = torch.addmm(torch.sum(audio_embedding ** 2, dim=1) +
                                 torch.sum(a_flat ** 2, dim=1, keepdim=True),
@@ -1511,11 +1518,15 @@ class Cross_VQEmbeddingEMA_AV_hierarchical_softmax(nn.Module):
 
         v_quantized_segment = video_semantic + (v_quantized_segment - video_semantic).detach()    #[B,T,D = 256]
         a_quantized_segment = audio_semantic + (a_quantized_segment - audio_semantic).detach()    #[B,T,D = 256]
+        
+        ################### Use v_full_vectors for cross modal reconstruction gradients #################
 
-        # v_full_continuous = torch.cat([video_semantic, audio_semantic], dim=-1)
-        # a_full_continuous = torch.cat([video_semantic, audio_semantic], dim=-1)
-        # v_full_vectors = v_full_continuous + (v_full_vectors - v_full_continuous).detach()  #[B,T,D = 512]
-        # a_full_vectors = a_full_continuous + (a_full_vectors - a_full_continuous).detach()  #[B,T,D = 512]
+        v_full_continuous = torch.cat([video_semantic, audio_semantic], dim=-1)
+        a_full_continuous = torch.cat([video_semantic, audio_semantic], dim=-1)
+        v_full_vectors = v_full_continuous + (v_full_vectors - v_full_continuous).detach()  #[B,T,D = 512]
+        a_full_vectors = a_full_continuous + (a_full_vectors - a_full_continuous).detach()  #[B,T,D = 512]
+
+        ################## Use v_full_vectors for cross modal reconstruction gradients ###################
 
 
         v_avg_probs = torch.mean(v_encodings, dim=0)
@@ -1561,7 +1572,7 @@ class Cross_VQEmbeddingEMA_AV_hierarchical_1(nn.Module):
         B, T, D = video_semantic.size()  # D is 256
         v_flat = video_semantic.detach().reshape(-1, D)  # [B, T, D] -> [BxT, D]
 
-        video_embedding = self.embedding[:, :self.embedding_dim]  # [n_embeddings, 256]
+        video_embedding = self.embedding[:, :D]  # [n_embeddings, 256]
 
         v_distances = torch.addmm(torch.sum(video_embedding ** 2, dim=1) +
                                 torch.sum(v_flat ** 2, dim=1, keepdim=True),
@@ -1584,7 +1595,7 @@ class Cross_VQEmbeddingEMA_AV_hierarchical_1(nn.Module):
         B, T, D = audio_semantic.size()  # D = 256
         a_flat = audio_semantic.detach().reshape(-1, D)  # [B, T, D] -> [BxT, D]
      
-        audio_embedding = self.embedding[:, self.embedding_dim:]  # [n_embeddings, 256]
+        audio_embedding = self.embedding[:, D:]  # [n_embeddings, 256]
 
         a_distances = torch.addmm(torch.sum(audio_embedding ** 2, dim=1) +
                                 torch.sum(a_flat ** 2, dim=1, keepdim=True),
@@ -1788,10 +1799,14 @@ class Cross_VQEmbeddingEMA_AV_hierarchical_1(nn.Module):
         v_quantized_segment = video_semantic + (v_quantized_segment - video_semantic).detach()    #[B,T,D = 256]
         a_quantized_segment = audio_semantic + (a_quantized_segment - audio_semantic).detach()    #[B,T,D = 256]
 
-        # v_full_continuous = torch.cat([video_semantic, audio_semantic], dim=-1)
-        # a_full_continuous = torch.cat([video_semantic, audio_semantic], dim=-1)
-        # v_full_vectors = v_full_continuous + (v_full_vectors - v_full_continuous).detach()  #[B,T,D = 512]
-        # a_full_vectors = a_full_continuous + (a_full_vectors - a_full_continuous).detach()  #[B,T,D = 512]
+        ################## Use v_full_vectors for cross modal reconstruction gradients ###################
+
+        v_full_continuous = torch.cat([video_semantic, audio_semantic], dim=-1)
+        a_full_continuous = torch.cat([video_semantic, audio_semantic], dim=-1)
+        v_full_vectors = v_full_continuous + (v_full_vectors - v_full_continuous).detach()  #[B,T,D = 512]
+        a_full_vectors = a_full_continuous + (a_full_vectors - a_full_continuous).detach()  #[B,T,D = 512]
+
+        ################## Use v_full_vectors for cross modal reconstruction gradients ###################
 
 
         v_avg_probs = torch.mean(v_encodings, dim=0)
@@ -1837,7 +1852,7 @@ class Cross_VQEmbeddingEMA_AV_vanilla(nn.Module):
         B, T, D = video_semantic.size()  # D is 256
         v_flat = video_semantic.detach().reshape(-1, D)  # [B, T, D] -> [BxT, D]
 
-        video_embedding = self.embedding[:, :self.embedding_dim]  # [n_embeddings, 256]
+        video_embedding = self.embedding[:, :D]  # [n_embeddings, 256]
 
         v_distances = torch.addmm(torch.sum(video_embedding ** 2, dim=1) +
                                 torch.sum(v_flat ** 2, dim=1, keepdim=True),
@@ -1860,7 +1875,7 @@ class Cross_VQEmbeddingEMA_AV_vanilla(nn.Module):
         B, T, D = audio_semantic.size()  # D = 256
         a_flat = audio_semantic.detach().reshape(-1, D)  # [B, T, D] -> [BxT, D]
      
-        audio_embedding = self.embedding[:, self.embedding_dim:]  # [n_embeddings, 256]
+        audio_embedding = self.embedding[:, D:]  # [n_embeddings, 256]
 
         a_distances = torch.addmm(torch.sum(audio_embedding ** 2, dim=1) +
                                 torch.sum(a_flat ** 2, dim=1, keepdim=True),
@@ -2001,19 +2016,20 @@ class Cross_VQEmbeddingEMA_AV_vanilla(nn.Module):
             # a_segment_update = 0.25 * v_dw_a + 0.75 * a_dw
 
             # Comment out segment loss when downstream on vailla without CPC model
+
             # SEGMENT ALIGNMENT Metric
-            new_embedding = self.embedding.clone()
-            video_embedding_new = new_embedding[:, :D]         
-            audio_embedding_new = new_embedding[:, D:]  
-            video_segments_norm = F.normalize(video_embedding_new, p=2, dim=1)  # [M, D]
-            audio_segments_norm = F.normalize(audio_embedding_new, p=2, dim=1)  # [M, D]
-            similarity_matrix = torch.matmul(video_segments_norm, audio_segments_norm.t())  # [M, M]
-            temperature = 0.1
-            similarity_matrix = similarity_matrix / temperature
-            positive_logits = torch.diag(similarity_matrix)  # Diagonal elements = positive pairs [M]
-            logsumexp_logits = torch.logsumexp(similarity_matrix, dim=1)  # [M]
-            segment_loss_raw = torch.mean(-positive_logits + logsumexp_logits)
-            segment_loss = 0.5 * segment_loss_raw
+            # new_embedding = self.embedding.clone()
+            # video_embedding_new = new_embedding[:, :D]         
+            # audio_embedding_new = new_embedding[:, D:]  
+            # video_segments_norm = F.normalize(video_embedding_new, p=2, dim=1)  # [M, D]
+            # audio_segments_norm = F.normalize(audio_embedding_new, p=2, dim=1)  # [M, D]
+            # similarity_matrix = torch.matmul(video_segments_norm, audio_segments_norm.t())  # [M, M]
+            # temperature = 0.1
+            # similarity_matrix = similarity_matrix / temperature
+            # positive_logits = torch.diag(similarity_matrix)  # Diagonal elements = positive pairs [M]
+            # logsumexp_logits = torch.logsumexp(similarity_matrix, dim=1)  # [M]
+            # segment_loss_raw = torch.mean(-positive_logits + logsumexp_logits)
+            # segment_loss = 0.5 * segment_loss_raw
 
             self.ema_count = self.ema_count_v +self.ema_count_a
             # Dead Codebook vectors Alleviation with modality and hierarchical weights
@@ -2067,15 +2083,15 @@ class Cross_VQEmbeddingEMA_AV_vanilla(nn.Module):
         a_avg_probs = torch.mean(a_encodings, dim=0)
         a_perplexity = torch.exp(-torch.sum(a_avg_probs * torch.log(a_avg_probs + 1e-10)))
 
-        return  v_full_vectors, v_quantized_segment,\
-                a_full_vectors, a_quantized_segment,\
-                v_loss, a_loss, v_perplexity, a_perplexity,\
-                equal_num, cmcm_loss, segment_loss
-    
         # return  v_full_vectors, v_quantized_segment,\
-        #             a_full_vectors, a_quantized_segment,\
-        #             v_loss, a_loss, v_perplexity, a_perplexity,\
-        #             equal_num, cmcm_loss                             # Use this when when downstream on vailla without CPC model
+        #         a_full_vectors, a_quantized_segment,\
+        #         v_loss, a_loss, v_perplexity, a_perplexity,\
+        #         equal_num, cmcm_loss, segment_loss
+    
+        return  v_full_vectors, v_quantized_segment,\
+                    a_full_vectors, a_quantized_segment,\
+                    v_loss, a_loss, v_perplexity, a_perplexity,\
+                    equal_num, cmcm_loss                             # Use this when when downstream on vailla without CPC model
 
 
 # Code book split + Feature-Level Meta Learning + Segment Alignment

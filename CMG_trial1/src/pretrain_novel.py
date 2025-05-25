@@ -102,6 +102,7 @@ def main():
     embedding_dim = 256
     start_epoch = -1
     model_resume = False
+    # model_resume = True
     total_step = 0
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -206,9 +207,6 @@ def train_epoch(CPC, Encoder, Decoder, train_dataloader, criterion, criterion_ev
         logger.info(f"INITIALIZATION_1 - Vector 346 (first 5 audio dims): {quantizer.embedding[346, 256:261]}")
         logger.info(f"INITIALIZATION_1 - Vector 45 (first 5 video dims): {quantizer.embedding[45, :5]}")
         logger.info(f"INITIALIZATION_1 - Vector 45 (first 5 audio dims): {quantizer.embedding[45, 256:261]}")
-        # logger.info(f"INITIALIZATION_1 - Count for vector 345: {quantizer.ema_count[345]}")
-        # logger.info(f"INITIALIZATION_1 - Count for vector 346: {quantizer.ema_count[346]}")
-        # logger.info(f"INITIALIZATION_1 - Count for vector 45: {quantizer.ema_count[45]}")
         logger.info(f"Init Codebook min: {quantizer.embedding.min().item()}, max: {quantizer.embedding.max().item()}")
 
 
@@ -263,10 +261,7 @@ def train_epoch(CPC, Encoder, Decoder, train_dataloader, criterion, criterion_ev
                 logger.info(f"Init Codebook min: {quantizer.embedding.min().item()}, max: {quantizer.embedding.max().item()}")
 
         if n_iter == 120:
-            # Get the Cross_quantizer from the encoder
             quantizer = Encoder.Cross_quantizer
-            
-            # Log the most used vector and a couple of random vectors
             with torch.no_grad():
                 most_used_idx = torch.argmax(quantizer.ema_count)
                 random_idx1 = (most_used_idx + 1) % 400
@@ -281,15 +276,13 @@ def train_epoch(CPC, Encoder, Decoder, train_dataloader, criterion, criterion_ev
                 logger.info(f"Count statistics - min: {quantizer.ema_count.min()}, max: {quantizer.ema_count.max()}, mean: {quantizer.ema_count.mean()}")
                 logger.info(f"Number of dead vectors (count < 0.01): {(quantizer.ema_count < 0.01).sum()}")
 
-        # Add similar debug for iteration 139 right before collapse
+
         if n_iter == 139:
             quantizer = Encoder.Cross_quantizer
-            
             with torch.no_grad():
                 most_used_idx = torch.argmax(quantizer.ema_count)
                 random_idx1 = (most_used_idx + 1) % 400
                 random_idx2 = (most_used_idx + 100) % 400
-                
                 logger.info(f"\n===== BATCH ({n_iter}) DEBUG =====")
                 logger.info(f"Most used vector ({most_used_idx}) value (first 5 video dims): {quantizer.embedding[most_used_idx, :5]}")
                 logger.info(f"Most used vector ({most_used_idx}) value (first 5 audio dims): {quantizer.embedding[most_used_idx, 256:261]}")
@@ -302,17 +295,13 @@ def train_epoch(CPC, Encoder, Decoder, train_dataloader, criterion, criterion_ev
                 logger.info(f"Number of dead vectors (count < 0.01): {(quantizer.ema_count < 0.01).sum()}")
                 logger.info(f"Embedding stats - mean: {quantizer.embedding.mean()}, std: {quantizer.embedding.std()}, min: {quantizer.embedding.min()}, max: {quantizer.embedding.max()}")
 
-        
-         # Add similar debug for iteration 139 right before collapse
+
         if n_iter == 1100:
             quantizer = Encoder.Cross_quantizer
-            
             with torch.no_grad():
                 most_used_idx = torch.argmax(quantizer.ema_count)
                 random_idx1 = (most_used_idx + 1) % 400
                 random_idx2 = (most_used_idx + 100) % 400
-
-                
                 logger.info(f"\n===== BATCH ({n_iter}) DEBUG =====")
                 logger.info(f"Most used vector ({most_used_idx}) value (first 5 video dims): {quantizer.embedding[most_used_idx, :5]}")
                 logger.info(f"Most used vector ({most_used_idx}) value (first 5 audio dims): {quantizer.embedding[most_used_idx, 256:261]}")
@@ -359,7 +348,9 @@ def train_epoch(CPC, Encoder, Decoder, train_dataloader, criterion, criterion_ev
         #     "cmcm_loss": cmcm_loss.item(),
         #     "segment_loss": segment_loss.item(),
         #     "audio_class_loss": audio_class_loss.item(),
-        #     "video_class_loss": video_class_loss.item()
+        #     "video_class_loss": video_class_loss.item(),
+        #     "audio_perplexity": audio_perplexity.item(),
+        #     "video_perplexity": video_perplexity.item()
         # }
 
         
@@ -385,14 +376,12 @@ def train_epoch(CPC, Encoder, Decoder, train_dataloader, criterion, criterion_ev
         
         #VGG training and testing
         # loss = audio_recon_loss + video_recon_loss + audio_embedding_loss +  video_embedding_loss\
-        #         + cpc_loss + cmcm_loss + segment_loss + audio_class_loss + video_class_loss
+        #         + cpc_loss + cmcm_loss + audio_class_loss + video_class_loss
 
         # VGG downstream
         loss =  audio_recon_loss + video_recon_loss + audio_embedding_loss +  video_embedding_loss\
                 + cpc_loss + cmcm_loss
         
-        # loss =  audio_recon_loss + video_recon_loss + audio_embedding_loss +  video_embedding_loss\
-        #         + cpc_loss + cmcm_loss 
 
         if n_iter % 20 == 0:
             _export_log(epoch=epoch, total_step=total_step+n_iter, batch_idx=n_iter, lr=0.0004, loss_meter=metricsContainer.calculate_average("loss"))
@@ -424,9 +413,9 @@ def mi_first_forward(CPC, audio_feature, video_feature, Decoder,epoch,
 
     
     """Cross_CPC"""
-    # accuracy1, accuracy2, accuracy3, accuracy4, cpc_loss = CPC(video_semantic_result, audio_semantic_result)
+    accuracy1, accuracy2, accuracy3, accuracy4, cpc_loss = CPC(video_semantic_result, audio_semantic_result)
     ## CPC with vq ##
-    accuracy1, accuracy2, accuracy3, accuracy4, cpc_loss = CPC(video_vq, audio_vq)
+    # accuracy1, accuracy2, accuracy3, accuracy4, cpc_loss = CPC(video_vq, audio_vq)
 
     audio_recon_loss, video_recon_loss, audio_class, video_class, \
         = Decoder(audio_feature, video_feature, audio_encoder_result, video_spatial, out_vq_audio, audio_vq, out_vq_video, video_vq)
