@@ -165,8 +165,8 @@ class AV_VQVAE_Encoder(nn.Module):
 
         # self.Cross_quantizer = Cross_VQEmbeddingEMA_AV_Timestep(n_embeddings, self.hidden_dim)
         # self.Cross_quantizer = Cross_VQEmbeddingEMA_AV(n_embeddings, self.hidden_dim)
-        self.Cross_quantizer = Cross_VQEmbeddingEMA_AV_hierarchical(n_embeddings, self.hidden_dim)
-        # self.Cross_quantizer = Cross_VQEmbeddingEMA_AV_hierarchical_softmax(n_embeddings, self.hidden_dim)
+        # self.Cross_quantizer = Cross_VQEmbeddingEMA_AV_hierarchical(n_embeddings, self.hidden_dim)
+        self.Cross_quantizer = Cross_VQEmbeddingEMA_AV_hierarchical_softmax(n_embeddings, self.hidden_dim)
         # self.Cross_quantizer = Cross_VQEmbeddingEMA_AV_hierarchical_1(n_embeddings, self.hidden_dim)
         # self.Cross_quantizer = Cross_VQEmbeddingEMA_AV_vanilla(n_embeddings, self.hidden_dim)
         # self.Cross_quantizer = Cross_VQEmbeddingEMA_AV_segment(n_embeddings, self.hidden_dim)

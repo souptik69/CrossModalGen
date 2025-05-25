@@ -34,12 +34,19 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
 
+# def collate_func_AV(samples):
+#     bsz = len(samples)
+#     return {
+#         'audio_fea': torch.from_numpy(np.asarray([sample['audio_fea'] for sample in samples])).float(),
+#         'video_fea': torch.from_numpy(np.asarray([sample['video_fea'] for sample in samples])).float(),
+#         'avel_label': torch.from_numpy(np.asarray([sample['avel_label'] for sample in samples])).float()
+#     }
+
 def collate_func_AV(samples):
     bsz = len(samples)
     return {
         'audio_fea': torch.from_numpy(np.asarray([sample['audio_fea'] for sample in samples])).float(),
-        'video_fea': torch.from_numpy(np.asarray([sample['video_fea'] for sample in samples])).float(),
-        'avel_label': torch.from_numpy(np.asarray([sample['avel_label'] for sample in samples])).float()
+        'video_fea': torch.from_numpy(np.asarray([sample['video_fea'] for sample in samples])).float()
     }
 
 def main():
@@ -73,7 +80,8 @@ def main():
 
     '''dataset selection'''
     if args.dataset_name == 'vggsound':
-        from dataset.VGG_dataset_novel import VGGSoundDataset_AV as AVEDataset 
+        # from dataset.VGG_dataset_novel import VGGSoundDataset_AV as AVEDataset 
+        from dataset.VGG_dataset_novel import VGGSoundDataset_AV_1 as AVEDataset
     elif args.dataset_name == 'vggsound_D':
         from dataset.VGG_dataset_novel import VGGSoundDataset_AV_new as AVEDataset
     else:
@@ -81,18 +89,34 @@ def main():
 
     '''Dataloader Loading'''
     
-    meta_csv_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data/vggsound-avel100k-new.csv'
-    audio_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/audio80k_features_new'
-    video_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/video80k_features_keras'
-    avc_label_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/100klabels'
+    # meta_csv_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data/vggsound-avel100k-new.csv'
+    # audio_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/audio80k_features_new'
+    # video_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/video80k_features_keras'
+    # avc_label_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/100klabels'
+    # train_dataloader = DataLoader(
+    #     AVEDataset(meta_csv_path, audio_fea_base_path, video_fea_base_path, avc_label_base_path, split='train'),
+    #     batch_size=args.batch_size,
+    #     shuffle=True,
+    #     num_workers=8,
+    #     pin_memory=False,
+    #     collate_fn=collate_func_AV
+    # )
+
+    ########## 40 k #############
+
+    meta_csv_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/data/data/vggsound40k/data/vggsound-avel40k.csv'
+    audio_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/data/data/vggsound40k/feature/audio/zip'
+    video_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/data/data/vggsound40k/feature/video/zip'
     train_dataloader = DataLoader(
-        AVEDataset(meta_csv_path, audio_fea_base_path, video_fea_base_path, avc_label_base_path, split='train'),
+        AVEDataset(meta_csv_path, audio_fea_base_path, video_fea_base_path, split='train'),
         batch_size=args.batch_size,
         shuffle=True,
         num_workers=8,
         pin_memory=False,
         collate_fn=collate_func_AV
     )
+
+    ########## 40 k #############
 
     '''model setting'''
     video_dim = 512
@@ -216,21 +240,23 @@ def train_epoch(CPC, Encoder, Decoder, train_dataloader, criterion, criterion_ev
         '''Feed input to model'''
 
         # vggsound_AV
-        audio_feature, video_feature, labels = batch_data['audio_fea'], batch_data['video_fea'], batch_data['avel_label']
+        # audio_feature, video_feature, labels = batch_data['audio_fea'], batch_data['video_fea'], batch_data['avel_label']
 
-        labels = labels.double().cuda()
-        labels_BCE, labels_evn = labels.max(-1)  # Shape: [batch, 10]
-        batch_foreground_classes = []
-        for i in range(labels_evn.size(0)):  # For each sample in the batch
-            frame_classes = labels_evn[i]
-            bg_index = labels.size(2) - 1  # Background is the last class
-            fg_classes = [idx.item() for idx in frame_classes if idx.item() != bg_index]
-            if fg_classes:
-                most_common_fg = Counter(fg_classes).most_common(1)[0][0]
-                batch_foreground_classes.append(most_common_fg)
-            else:
-                batch_foreground_classes.append(bg_index)
-        labels_event = torch.tensor(batch_foreground_classes, device=labels.device)
+        audio_feature, video_feature = batch_data['audio_fea'], batch_data['video_fea']
+
+        # labels = labels.double().cuda()
+        # labels_BCE, labels_evn = labels.max(-1)  # Shape: [batch, 10]
+        # batch_foreground_classes = []
+        # for i in range(labels_evn.size(0)):  # For each sample in the batch
+        #     frame_classes = labels_evn[i]
+        #     bg_index = labels.size(2) - 1  # Background is the last class
+        #     fg_classes = [idx.item() for idx in frame_classes if idx.item() != bg_index]
+        #     if fg_classes:
+        #         most_common_fg = Counter(fg_classes).most_common(1)[0][0]
+        #         batch_foreground_classes.append(most_common_fg)
+        #     else:
+        #         batch_foreground_classes.append(bg_index)
+        # labels_event = torch.tensor(batch_foreground_classes, device=labels.device)
 
         # batch_dim = audio_feature.size()[0]
         audio_feature = audio_feature.cuda().to(torch.float64)
@@ -322,7 +348,7 @@ def train_epoch(CPC, Encoder, Decoder, train_dataloader, criterion, criterion_ev
         audio_recon_loss, video_recon_loss, audio_class, video_class\
         = mi_first_forward(CPC, audio_feature, video_feature, Decoder,epoch,
                         audio_encoder_result, audio_semantic_result, video_spatial, video_semantic_result,
-                        out_vq_audio, audio_vq, out_vq_video, video_vq, labels_event, criterion_event)
+                        out_vq_audio, audio_vq, out_vq_video, video_vq, criterion_event)
         
         # accuracy1, accuracy2, accuracy3, accuracy4, cpc_loss,  \
         # audio_recon_loss, video_recon_loss, audio_class, video_class, audio_class_loss, video_class_loss\
@@ -409,7 +435,7 @@ def train_epoch(CPC, Encoder, Decoder, train_dataloader, criterion, criterion_ev
 def mi_first_forward(CPC, audio_feature, video_feature, Decoder,epoch,
                       audio_encoder_result, audio_semantic_result, video_spatial, 
                       video_semantic_result, out_vq_audio,
-                      audio_vq, out_vq_video, video_vq, labels_event, criterion_event):
+                      audio_vq, out_vq_video, video_vq, criterion_event):
 
     
     """Cross_CPC"""
