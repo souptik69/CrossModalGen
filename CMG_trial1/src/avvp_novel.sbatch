@@ -2,7 +2,7 @@
 
 #SBATCH --job-name=AVVP_train
 #SBATCH --partition=leinegpu
-#SBATCH --nodelist=leinevmgpu005
+#SBATCH --nodelist=leinevmgpu007
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=1
 #SBATCH --cpus-per-task=32
@@ -26,7 +26,7 @@ python $SRCDIR/CMG_trial1/src/avvp_novel.py \
     --gpu 0 \
     --lr 0.0004 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Models/Novel_AVVP_2/Hier/V2A/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Models/Novel_AVVP_40k/Hier/V2A/" \
     --n_epoch 50 \
     --batch_size 64 \
     --test_batch_size 64 \

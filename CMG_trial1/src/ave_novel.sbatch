@@ -2,7 +2,7 @@
 
 #SBATCH --job-name=AVE_train
 #SBATCH --partition=leinegpu
-#SBATCH --nodelist=leinevmgpu003
+#SBATCH --nodelist=leinevmgpu005
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=1
 #SBATCH --cpus-per-task=32
@@ -26,7 +26,7 @@ python $SRCDIR/CMG_trial1/src/ave_novel.py \
     --gpu 0 \
     --lr 0.00025 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Models/Novel_AVE_2/Hier/A2V/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Models/Novel_AVE_40k/Hier/A2V/" \
     --n_epoch 30 \
     --batch_size 256 \
     --test_batch_size 128 \
