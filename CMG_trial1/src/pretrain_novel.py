@@ -92,9 +92,8 @@ def main():
     # meta_csv_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data/vggsound-avel100k-new.csv'
     # audio_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/audio80k_features_new'
     # video_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/video80k_features_keras'
-    # avc_label_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/100klabels'
     # train_dataloader = DataLoader(
-    #     AVEDataset(meta_csv_path, audio_fea_base_path, video_fea_base_path, avc_label_base_path, split='train'),
+    #     AVEDataset(meta_csv_path, audio_fea_base_path, video_fea_base_path, split='train'),
     #     batch_size=args.batch_size,
     #     shuffle=True,
     #     num_workers=8,
@@ -262,10 +261,6 @@ def train_epoch(CPC, Encoder, Decoder, train_dataloader, criterion, criterion_ev
         audio_feature = audio_feature.cuda().to(torch.float64)
         video_feature = video_feature.cuda().to(torch.float64)
 
-        # audio_semantic_result, audio_encoder_result, video_semantic_result, video_spatial, out_vq_video, video_vq, out_vq_audio, \
-        # audio_vq, video_embedding_loss, audio_embedding_loss, video_perplexity, audio_perplexity,\
-        # equal_num, cmcm_loss\
-        # = Encoder(audio_feature, video_feature, epoch)
 
         audio_semantic_result, audio_encoder_result, video_semantic_result, video_spatial, out_vq_video, video_vq, out_vq_audio, \
         audio_vq, video_embedding_loss, audio_embedding_loss, video_perplexity, audio_perplexity,\
@@ -441,7 +436,7 @@ def mi_first_forward(CPC, audio_feature, video_feature, Decoder,epoch,
     """Cross_CPC"""
     accuracy1, accuracy2, accuracy3, accuracy4, cpc_loss = CPC(video_semantic_result, audio_semantic_result)
     ## CPC with vq ##
-    # accuracy1, accuracy2, accuracy3, accuracy4, cpc_loss = CPC(video_vq, audio_vq)
+    # accuracy1_vq, accuracy2_vq, accuracy3_vq, accuracy4_vq, cpc_loss_vq = CPC(video_vq, audio_vq)
 
     audio_recon_loss, video_recon_loss, audio_class, video_class, \
         = Decoder(audio_feature, video_feature, audio_encoder_result, video_spatial, out_vq_audio, audio_vq, out_vq_video, video_vq)
@@ -449,7 +444,7 @@ def mi_first_forward(CPC, audio_feature, video_feature, Decoder,epoch,
     # video_class_loss = criterion_event(video_class, labels_event.cuda())
     # audio_class_loss = criterion_event(audio_class, labels_event.cuda())
 
-    return accuracy1, accuracy2, accuracy3, accuracy4, cpc_loss,  \
+    return accuracy1, accuracy2, accuracy3, accuracy4, cpc_loss,\
            audio_recon_loss, video_recon_loss, audio_class, video_class
 
     # return accuracy1, accuracy2, accuracy3, accuracy4, cpc_loss,  \

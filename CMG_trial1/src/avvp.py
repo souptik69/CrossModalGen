@@ -18,7 +18,7 @@ import numpy as np
 from configs.opts import parser
 # from model.main_model_2 import AV_VQVAE_Encoder
 # from model.main_model_2 import AV_VQVAE_Decoder
-from model.main_model_2 import Semantic_Decoder_AVVP, AV_VQVAE_Encoder
+from model.main_model_2 import Semantic_Decoder_AVVP_1, AV_VQVAE_Encoder
 # from model.main_model_NEW import Semantic_Decoder_AVVP, AVT_VQVAE_Encoder
 
 from utils import AverageMeter, Prepare_logger, get_and_save_args
@@ -138,7 +138,7 @@ def main():
     # AVT
     # Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, audio_output_dim, video_output_dim, text_output_dim, n_embeddings, embedding_dim)
     
-    Decoder = Semantic_Decoder_AVVP(input_dim=embedding_dim,class_num=26) #256对应embedding_dim，即codeword的维度
+    Decoder = Semantic_Decoder_AVVP_1(input_dim=embedding_dim,class_num=26) #256对应embedding_dim，即codeword的维度
     Encoder.double()
     Decoder.double()
     Encoder.to(device)
@@ -156,8 +156,8 @@ def main():
     if model_resume is True:
 
         #Test
+        # path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/CMG_AV/40k/checkpoint/DCID-model-5.pt"
         path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/CMG_AV/40k/checkpoint/DCID-model-4.pt"
-        # path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/CMG_AV/90k/checkpoint/DCID-model-5.pt"
 
         checkpoints = torch.load(path_checkpoints)
         Encoder.load_state_dict(checkpoints['Encoder_parameters'])

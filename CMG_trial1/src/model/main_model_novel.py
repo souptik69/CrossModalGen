@@ -166,8 +166,8 @@ class AV_VQVAE_Encoder(nn.Module):
         # self.Cross_quantizer = Cross_VQEmbeddingEMA_AV_Timestep(n_embeddings, self.hidden_dim)
         # self.Cross_quantizer = Cross_VQEmbeddingEMA_AV(n_embeddings, self.hidden_dim)
         # self.Cross_quantizer = Cross_VQEmbeddingEMA_AV_hierarchical(n_embeddings, self.hidden_dim)
-        # self.Cross_quantizer = Cross_VQEmbeddingEMA_AV_hierarchical_softmax(n_embeddings, self.hidden_dim)
-        self.Cross_quantizer = Cross_VQEmbeddingEMA_AV_hierarchical_1(n_embeddings, self.hidden_dim)
+        self.Cross_quantizer = Cross_VQEmbeddingEMA_AV_hierarchical_softmax(n_embeddings, self.hidden_dim)
+        # self.Cross_quantizer = Cross_VQEmbeddingEMA_AV_hierarchical_1(n_embeddings, self.hidden_dim)
         # self.Cross_quantizer = Cross_VQEmbeddingEMA_AV_vanilla(n_embeddings, self.hidden_dim)
         # self.Cross_quantizer = Cross_VQEmbeddingEMA_AV_segment(n_embeddings, self.hidden_dim)
         self.video_semantic_encoder = Video_Semantic_Encoder(video_dim, video_output_dim)
@@ -244,24 +244,6 @@ class Semantic_Decoder(nn.Module):
         class_logits = self.event_classifier(input_feat)
         return class_logits
 
-""" class_num AVE:28  VGGSOUND:141+1 """
-class Semantic_Decoder_1(nn.Module):
-    def __init__(self, input_dim, class_num):
-        super(Semantic_Decoder_1, self).__init__()
-        # self.fusion_layer = nn.Linear(input_dim, input_dim // 2)
-        self.linear = nn.Linear(input_dim , input_dim)
-        self.fusion_layer = nn.Linear(input_dim, input_dim // 2)
-        self.linear1 = nn.Linear(input_dim // 2 , input_dim // 2)
-        self.event_classifier = nn.Linear(input_dim // 2 , class_num)  
-
-    def forward(self, input_vq):
-        # fused_feat = self.fusion_layer(input_vq)  
-        input_feat = self.linear(input_vq)
-        fused_feat = self.fusion_layer(input_feat)
-        input_feat_1 = self.linear1(fused_feat)
-        input_feat_1, _ = input_feat_1.max(1)  
-        class_logits = self.event_classifier(input_feat_1)
-        return class_logits
 
 
 """ class_num AVVP:25+1(negative label) AVE_AVVP:12+1 """
@@ -1296,16 +1278,22 @@ class Cross_VQEmbeddingEMA_AV_hierarchical_softmax(nn.Module):
         self.register_buffer("ema_weight", self.embedding.clone())
         self.register_buffer("unactivated_count", -torch.ones(n_embeddings))# unactivated:-1
 
-        # Meta weights or parameters
+        # Meta weights or parameters evolutionary weights
         self.register_buffer("modal_weights", torch.zeros(n_embeddings, 4))
         self.register_buffer("hier_weights", torch.zeros(n_embeddings, 4))
-        log_ratio = math.log(0.8/0.2)  # ≈ 1.3863
+
+        # self.modal_weights = nn.Parameter(torch.zeros(n_embeddings, 4))
+        # self.hier_weights = nn.Parameter(torch.zeros(n_embeddings, 4))
+
+
+        log_ratio = math.log(0.75/0.25)  # ≈ 1.3863
         init_modality_weights = torch.zeros(n_embeddings, 4)
         init_modality_weights[:, 0] = log_ratio  # v->v weights
         init_modality_weights[:, 3] = log_ratio  # a->a weights
         self.modality_weights = nn.Parameter(init_modality_weights)
 
-        log_ratio_hier = math.log(0.7/0.3)  # ≈ 1.3863
+        # log_ratio_hier = math.log(0.7/0.3)  # ≈ 1.3863
+        log_ratio_hier = math.log(0.5/0.5)
         init_hier_weights = torch.zeros(n_embeddings, 4)
         init_hier_weights[:, 0] = log_ratio_hier  # v->v weights
         init_hier_weights[:, 3] = log_ratio_hier  # a->a weights
@@ -1381,6 +1369,12 @@ class Cross_VQEmbeddingEMA_AV_hierarchical_softmax(nn.Module):
 
             self.hier_weights[:, 0:2] = hier_weights_video
             self.hier_weights[:, 2:4] = hier_weights_audio
+
+        # self.modal_weights[:, 0:2] = modal_weights_video
+        # self.modal_weights[:, 2:4] = modal_weights_audio
+
+        # self.hier_weights[:, 0:2] = hier_weights_video
+        # self.hier_weights[:, 2:4] = hier_weights_audio
 
 
         a_flat = audio_semantic.detach().reshape(-1, D)  # [B, T, D] -> [BxT, D]
