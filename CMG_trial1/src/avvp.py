@@ -18,7 +18,7 @@ import numpy as np
 from configs.opts import parser
 # from model.main_model_2 import AV_VQVAE_Encoder
 # from model.main_model_2 import AV_VQVAE_Decoder
-from model.main_model_2 import Semantic_Decoder_AVVP, AVT_VQVAE_Encoder
+from model.main_model_2 import Semantic_Decoder_AVVP, AV_VQVAE_Encoder
 # from model.main_model_NEW import Semantic_Decoder_AVVP, AVT_VQVAE_Encoder
 
 from utils import AverageMeter, Prepare_logger, get_and_save_args
@@ -125,8 +125,6 @@ def main():
     audio_dim = 128
     video_output_dim = 2048
     audio_output_dim = 256
-    text_lstm_dim = 128
-    text_output_dim = 256
     n_embeddings = 400
     embedding_dim = 256
     start_epoch = -1
@@ -135,10 +133,10 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     # AV
-    # Encoder = AV_VQVAE_Encoder(video_dim, audio_dim, video_output_dim, audio_output_dim, n_embeddings, embedding_dim)
+    Encoder = AV_VQVAE_Encoder(video_dim, audio_dim, video_output_dim, audio_output_dim, n_embeddings, embedding_dim)
     
     # AVT
-    Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, audio_output_dim, video_output_dim, text_output_dim, n_embeddings, embedding_dim)
+    # Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, audio_output_dim, video_output_dim, text_output_dim, n_embeddings, embedding_dim)
     
     Decoder = Semantic_Decoder_AVVP(input_dim=embedding_dim,class_num=26) #256对应embedding_dim，即codeword的维度
     Encoder.double()
@@ -158,23 +156,9 @@ def main():
     if model_resume is True:
 
         #Test
-        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/AVT_100k_Test/checkpoint/DCID-model-5.pt"
+        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/CMG_AV/40k/checkpoint/DCID-model-4.pt"
+        # path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/CMG_AV/90k/checkpoint/DCID-model-5.pt"
 
-        #CLUB
-        # path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/AVT_100k_CLUB/checkpoint/DCID-model-5.pt"
-        
-        # 100k
-        # path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/AVT100k_unfiltered/checkpoint/DCID-model-5.pt"
-        
-        # # 100k audio ReLU
-        # path_checkpoints = "/project/ag-jafra/Souptik/VGGSoundAVEL/CMG_Models/AVT_audio100k/checkpoint/DCID-model-5.pt"
-        
-        # # 40k orignal checkpoint
-        # path_checkpoints = "/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/checkpoint/AVT_vgg40k_size400.pt"
-       
-        # # 40k my model
-        # path_checkpoints = "/project/ag-jafra/Souptik/VGGSoundAVEL/CMG_Models/AVT_40k_pretrain/checkpoint/DCID-model-5.pt"
-        
         checkpoints = torch.load(path_checkpoints)
         Encoder.load_state_dict(checkpoints['Encoder_parameters'])
         start_epoch = checkpoints['epoch']

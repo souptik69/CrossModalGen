@@ -16,7 +16,7 @@ from torch.optim.lr_scheduler import StepLR, MultiStepLR
 
 import numpy as np
 from configs.opts import parser
-from model.main_model_novel import Semantic_Decoder_AVVP,AV_VQVAE_Encoder
+from model.main_model_novel import Semantic_Decoder_AVVP_1,AV_VQVAE_Encoder
 
 from utils import AverageMeter, Prepare_logger, get_and_save_args
 from utils.container import metricsContainer
@@ -128,7 +128,7 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     Encoder = AV_VQVAE_Encoder( audio_dim, video_dim, video_output_dim, n_embeddings, embedding_dim)
-    Decoder = Semantic_Decoder_AVVP(input_dim=embedding_dim * 2, class_num=26)
+    Decoder = Semantic_Decoder_AVVP_1(input_dim=embedding_dim * 2, class_num=26)
     Encoder.double()
     Decoder.double()
     Encoder.to(device)

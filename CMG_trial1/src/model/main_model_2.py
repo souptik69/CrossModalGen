@@ -493,7 +493,7 @@ class AV_VQVAE_Encoder(nn.Module):
             = self.Cross_quantizer(audio_semantic_result, video_semantic_result, epoch)
 
         return video_semantic_result, audio_semantic_result, video_encoder_result, video_club_feature, audio_encoder_result, \
-               video_vq, audio_vq, audio_embedding_loss, video_embedding_loss, cmcm_loss, equal_num
+               video_vq, audio_vq, audio_embedding_loss, video_embedding_loss, cmcm_loss, equal_num, audio_perplexity, video_perplexity
 
 
 class AVT_VQVAE_Decoder(nn.Module):

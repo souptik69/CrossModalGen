@@ -17,7 +17,7 @@ from configs.opts import parser
 # from model.main_model_new import AV_VQVAE_Encoder as AV_VQVAE_Encoder
 # from model.main_model_new import AV_VQVAE_Decoder as AV_VQVAE_Decoder
 
-from model.main_model_2 import Semantic_Decoder,AVT_VQVAE_Encoder
+from model.main_model_2 import Semantic_Decoder,AV_VQVAE_Encoder
 # from model.main_model_NEW import Semantic_Decoder,AVT_VQVAE_Encoder
 from utils import AverageMeter, Prepare_logger, get_and_save_args
 from utils.container import metricsContainer
@@ -87,8 +87,6 @@ def main():
     audio_dim = 128
     video_output_dim = 2048
     audio_output_dim = 256
-    text_lstm_dim = 128
-    text_output_dim = 256
     n_embeddings = 400
     embedding_dim = 256
     start_epoch = -1
@@ -97,10 +95,10 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     # AV
-    # Encoder = AV_VQVAE_Encoder(video_dim, audio_dim, video_output_dim, audio_output_dim, n_embeddings, embedding_dim)
+    Encoder = AV_VQVAE_Encoder(video_dim, audio_dim, video_output_dim, audio_output_dim, n_embeddings, embedding_dim)
     
     # AVT
-    Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, audio_output_dim, video_output_dim, text_output_dim, n_embeddings, embedding_dim)
+    # Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, audio_output_dim, video_output_dim, text_output_dim, n_embeddings, embedding_dim)
     Decoder = Semantic_Decoder(input_dim=embedding_dim, class_num=28) 
     Encoder.double()
     Decoder.double()
@@ -115,13 +113,8 @@ def main():
     criterion_event = nn.CrossEntropyLoss().cuda()
 
     if model_resume is True:
-        # path_checkpoints = "/project/ag-jafra/Souptik/VGGSoundAVEL/CMG_Models/AVT_100k_pretrain/checkpoint/DCID-model-5.pt"
-        # path_checkpoints = "/project/ag-jafra/Souptik/VGGSoundAVEL/CMG_Models/AVT_audio100k/checkpoint/DCID-model-5.pt"
-        # path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/AVT100k_unfiltered/checkpoint/DCID-model-5.pt"
-
-
-        # path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/AVT_100k_NEW/checkpoint/DCID-model-5.pt"
-        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/AVT_100k_Test/checkpoint/DCID-model-5.pt"
+        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/CMG_AV/40k/checkpoint/DCID-model-4.pt"
+        # path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/CMG_AV/90k/checkpoint/DCID-model-5.pt"
 
         checkpoints = torch.load(path_checkpoints)
         Encoder.load_state_dict(checkpoints['Encoder_parameters'])
@@ -235,9 +228,11 @@ def train_epoch(Encoder, Decoder, train_dataloader, criterion, criterion_event, 
             video_class = Decoder(video_vq)
             video_event_loss = criterion_event(video_class, labels_event.cuda())
             video_precision = compute_precision_supervised(video_class, labels)
+            video_acc = compute_accuracy_supervised(video_class, labels)
             loss_items = {
                 "video_event_loss":video_event_loss.item(),
                 "video_precision": video_precision.item(),
+                "video_acc": video_acc.item(),
             }
             metricsContainer.update("loss", loss_items)
             loss = video_event_loss
@@ -247,9 +242,11 @@ def train_epoch(Encoder, Decoder, train_dataloader, criterion, criterion_event, 
             audio_class = Decoder(audio_vq)
             audio_event_loss = criterion_event(audio_class, labels_event.cuda())
             audio_precision = compute_precision_supervised(audio_class, labels)
+            audio_acc = compute_accuracy_supervised(audio_class, labels)
             loss_items = {
                 "audio_event_loss":audio_event_loss.item(),
                 "audio_precision": audio_precision.item(),
+                "audio_acc": audio_acc.item(),
             }
             metricsContainer.update("loss", loss_items)
             loss = audio_event_loss
@@ -288,6 +285,8 @@ def validate_epoch(Encoder,Decoder, val_dataloader, criterion, criterion_event, 
     losses = AverageMeter()
     audio_precision = AverageMeter()
     video_precision = AverageMeter()
+    audio_accuracy = AverageMeter()
+    video_accuracy = AverageMeter()
     end_time = time.time()
 
     Encoder.eval()
@@ -325,6 +324,10 @@ def validate_epoch(Encoder,Decoder, val_dataloader, criterion, criterion_event, 
         video_prec = compute_precision_supervised(video_class, labels)
         audio_precision.update(audio_prec.item(), bs * 10)
         video_precision.update(video_prec.item(), bs * 10)
+        audio_acc = compute_accuracy_supervised(audio_class, labels)
+        video_acc = compute_accuracy_supervised(video_class, labels)
+        audio_accuracy.update(audio_acc.item(), bs * 10)
+        video_accuracy.update(video_acc.item(), bs * 10)
         batch_time.update(time.time() - end_time)
         end_time = time.time()
         losses.update(loss.item(), bs * 10)
@@ -333,6 +336,8 @@ def validate_epoch(Encoder,Decoder, val_dataloader, criterion, criterion_event, 
         f'**************************************************************************\t'
         f"\t Audio Evaluation results (precision): {audio_precision.avg:.4f}%."
         f"\t Video Evaluation results (precision): {video_precision.avg:.4f}%."
+        f"\t Audio Evaluation results (acc): {audio_accuracy.avg:.4f}%."
+        f"\t Video Evaluation results (acc): {video_accuracy.avg:.4f}%."
     )
     return losses.avg
 
@@ -366,6 +371,16 @@ def compute_precision_supervised(event_scores, labels):
         avg_precision = torch.tensor(0.0).cuda()
         
     return avg_precision
+
+def compute_accuracy_supervised(event_scores, labels):
+    labels_foreground = labels[:, :, :-1]
+    labels_BCE, labels_evn = labels_foreground.max(-1)
+    labels_event, _ = labels_evn.max(-1)
+    _, event_class = event_scores.max(-1)
+    correct = event_class.eq(labels_event)
+    correct_num = correct.sum().double()
+    acc = correct_num * (100. / correct.numel())
+    return acc
 
 
     

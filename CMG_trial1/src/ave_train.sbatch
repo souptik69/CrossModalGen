@@ -2,20 +2,20 @@
 
 #SBATCH --job-name=AVE_train
 #SBATCH --partition=leinegpu
-#SBATCH --nodelist=leinevmgpu007
+#SBATCH --nodelist=leinevmgpu002
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=1
 #SBATCH --cpus-per-task=32
 #SBATCH --mem-per-cpu=5G 
 #SBATCH --time=165:00:00
-#SBATCH --output=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/AVE_100k_AV_Test/ave_%j.out
-#SBATCH --error=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/AVE_100k_AV_Test/ave_%j.err
+#SBATCH --output=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/1_AVE_40k_AV_CMG/ave_%j.out
+#SBATCH --error=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/1_AVE_40k_AV_CMG/ave_%j.err
 
 # Set source directory
 SRCDIR=/project/ag-jafra/Souptik/CMG_New/Experiments
 
 # Create output directories for logs
-mkdir -p $SRCDIR/CMG_trial1/slurm/AVE_100k_AV_Test
+mkdir -p $SRCDIR/CMG_trial1/slurm/1_AVE_40k_AV_CMG
 
 # Activate conda environment
 source ~/.bashrc
@@ -26,7 +26,7 @@ python $SRCDIR/CMG_trial1/src/ave_precision.py \
     --gpu 0 \
     --lr 0.00025 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Models/AVE_Test/A2V/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Models/AVE_40k_CMG/A2V/" \
     --n_epoch 30 \
     --batch_size 256 \
     --test_batch_size 128 \

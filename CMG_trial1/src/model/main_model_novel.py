@@ -244,6 +244,25 @@ class Semantic_Decoder(nn.Module):
         class_logits = self.event_classifier(input_feat)
         return class_logits
 
+""" class_num AVE:28  VGGSOUND:141+1 """
+class Semantic_Decoder_1(nn.Module):
+    def __init__(self, input_dim, class_num):
+        super(Semantic_Decoder_1, self).__init__()
+        # self.fusion_layer = nn.Linear(input_dim, input_dim // 2)
+        self.linear = nn.Linear(input_dim , input_dim)
+        self.fusion_layer = nn.Linear(input_dim, input_dim // 2)
+        self.linear1 = nn.Linear(input_dim // 2 , input_dim // 2)
+        self.event_classifier = nn.Linear(input_dim // 2 , class_num)  
+
+    def forward(self, input_vq):
+        # fused_feat = self.fusion_layer(input_vq)  
+        input_feat = self.linear(input_vq)
+        fused_feat = self.fusion_layer(input_feat)
+        input_feat_1 = self.linear1(fused_feat)
+        input_feat_1, _ = input_feat_1.max(1)  
+        class_logits = self.event_classifier(input_feat_1)
+        return class_logits
+
 
 """ class_num AVVP:25+1(negative label) AVE_AVVP:12+1 """
 class Semantic_Decoder_AVVP(nn.Module):
@@ -258,6 +277,28 @@ class Semantic_Decoder_AVVP(nn.Module):
         input_feat = self.linear(input_vq)
         class_logits = self.event_classifier(input_feat)
         return class_logits
+
+
+
+""" class_num AVVP:25+1(negative label) AVE_AVVP:12+1 """
+class Semantic_Decoder_AVVP_1(nn.Module):
+    def __init__(self, input_dim, class_num):
+        super(Semantic_Decoder_AVVP_1, self).__init__()
+        # self.fusion_layer = nn.Linear(input_dim, input_dim // 2)
+        self.linear = nn.Linear(input_dim , input_dim )
+        self.fusion_layer = nn.Linear(input_dim, input_dim // 2)
+        self.linear1 = nn.Linear(input_dim // 2 , input_dim // 2)
+        self.event_classifier = nn.Linear(input_dim // 2 , class_num)    
+
+    def forward(self, input_vq):
+        # fused_feat = self.fusion_layer(input_vq)  
+        input_feat = self.linear(input_vq)
+        fused_feat = self.fusion_layer(input_feat)
+        input_feat_1 = self.linear1(fused_feat)
+        class_logits = self.event_classifier(input_feat_1)
+        return class_logits
+
+
 
 
 class Audio_Decoder(nn.Module):
