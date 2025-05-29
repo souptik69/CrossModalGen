@@ -166,8 +166,10 @@ class AV_VQVAE_Encoder(nn.Module):
         # self.Cross_quantizer = Cross_VQEmbeddingEMA_AV_Timestep(n_embeddings, self.hidden_dim)
         # self.Cross_quantizer = Cross_VQEmbeddingEMA_AV(n_embeddings, self.hidden_dim)
         # self.Cross_quantizer = Cross_VQEmbeddingEMA_AV_hierarchical(n_embeddings, self.hidden_dim)
-        self.Cross_quantizer = Cross_VQEmbeddingEMA_AV_hierarchical_softmax(n_embeddings, self.hidden_dim)
-        # self.Cross_quantizer = Cross_VQEmbeddingEMA_AV_hierarchical_1(n_embeddings, self.hidden_dim)
+
+        # self.Cross_quantizer = Cross_VQEmbeddingEMA_AV_hierarchical_softmax(n_embeddings, self.hidden_dim)
+        self.Cross_quantizer = Cross_VQEmbeddingEMA_AV_hierarchical_1(n_embeddings, self.hidden_dim)
+        
         # self.Cross_quantizer = Cross_VQEmbeddingEMA_AV_vanilla(n_embeddings, self.hidden_dim)
         # self.Cross_quantizer = Cross_VQEmbeddingEMA_AV_segment(n_embeddings, self.hidden_dim)
         self.video_semantic_encoder = Video_Semantic_Encoder(video_dim, video_output_dim)
@@ -1534,11 +1536,11 @@ class Cross_VQEmbeddingEMA_AV_hierarchical_softmax(nn.Module):
                 for i in unactivated_indices:
                     random_idx = random.randint(0, len(activated_indices)-1)
                     self.embedding[i] = activated_quantized[random_idx] + torch.randn_like(self.embedding[i]) * 0.001
-                    with torch.no_grad():
-                        modality_logit_noise = 0.1
-                        self.modality_weights[i] = self.modality_weights[random_idx] + torch.randn_like(self.modality_weights[i]) * modality_logit_noise
-                        hier_noise_scale = 0.05
-                        self.hierarchical_weights[i] = self.hierarchical_weights[random_idx] + torch.randn_like(self.hierarchical_weights[i]) * hier_noise_scale
+                    # with torch.no_grad():
+                    #     modality_logit_noise = 0.1
+                    #     self.modality_weights[i] = self.modality_weights[random_idx] + torch.randn_like(self.modality_weights[i]) * modality_logit_noise
+                    #     hier_noise_scale = 0.05
+                    #     self.hierarchical_weights[i] = self.hierarchical_weights[random_idx] + torch.randn_like(self.hierarchical_weights[i]) * hier_noise_scale
 
         cmcm_loss = 0.5 * Lcmcm_av
 

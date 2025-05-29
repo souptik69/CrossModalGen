@@ -124,8 +124,8 @@ def main():
     n_embeddings = 400
     embedding_dim = 256
     start_epoch = -1
-    model_resume = False
-    # model_resume = True
+    # model_resume = False
+    model_resume = True
     total_step = 0
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -151,7 +151,8 @@ def main():
     criterion_event = nn.CrossEntropyLoss().cuda()
 
     if model_resume is True:
-        path_checkpoints = ""
+        # path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/Hier/90k/checkpoint/DCID-model-5.pt"
+        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/Hier/40k/checkpoint/DCID-model-5.pt"
         print(path_checkpoints)
         checkpoints = torch.load(path_checkpoints)
         Encoder.load_state_dict(checkpoints['Encoder_parameters'])
