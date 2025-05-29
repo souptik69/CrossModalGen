@@ -89,23 +89,9 @@ def main():
 
     '''Dataloader Loading'''
     
-    # meta_csv_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data/vggsound-avel100k-new.csv'
-    # audio_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/audio80k_features_new'
-    # video_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/video80k_features_keras'
-    # train_dataloader = DataLoader(
-    #     AVEDataset(meta_csv_path, audio_fea_base_path, video_fea_base_path, split='train'),
-    #     batch_size=args.batch_size,
-    #     shuffle=True,
-    #     num_workers=8,
-    #     pin_memory=False,
-    #     collate_fn=collate_func_AV
-    # )
-
-    ########## 40 k #############
-
-    meta_csv_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/data/data/vggsound40k/data/vggsound-avel40k.csv'
-    audio_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/data/data/vggsound40k/feature/audio/zip'
-    video_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/data/data/vggsound40k/feature/video/zip'
+    meta_csv_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data/vggsound-avel100k-new.csv'
+    audio_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/audio80k_features_new'
+    video_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/video80k_features_keras'
     train_dataloader = DataLoader(
         AVEDataset(meta_csv_path, audio_fea_base_path, video_fea_base_path, split='train'),
         batch_size=args.batch_size,
@@ -117,6 +103,20 @@ def main():
 
     ########## 40 k #############
 
+    # meta_csv_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/data/data/vggsound40k/data/vggsound-avel40k.csv'
+    # audio_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/data/data/vggsound40k/feature/audio/zip'
+    # video_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/data/data/vggsound40k/feature/video/zip'
+    # train_dataloader = DataLoader(
+    #     AVEDataset(meta_csv_path, audio_fea_base_path, video_fea_base_path, split='train'),
+    #     batch_size=args.batch_size,
+    #     shuffle=True,
+    #     num_workers=8,
+    #     pin_memory=False,
+    #     collate_fn=collate_func_AV
+    # )
+
+    ########## 40 k #############
+
     '''model setting'''
     video_dim = 512
     audio_dim = 128
@@ -124,8 +124,8 @@ def main():
     n_embeddings = 400
     embedding_dim = 256
     start_epoch = -1
-    # model_resume = False
-    model_resume = True
+    model_resume = False
+    # model_resume = True
     total_step = 0
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -151,8 +151,8 @@ def main():
     criterion_event = nn.CrossEntropyLoss().cuda()
 
     if model_resume is True:
-        # path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/Hier/90k/checkpoint/DCID-model-5.pt"
-        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/Hier/40k/checkpoint/DCID-model-5.pt"
+        path_checkpoints = ""
+        # path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/Hier/40k/checkpoint/DCID-model-5.pt"
         print(path_checkpoints)
         checkpoints = torch.load(path_checkpoints)
         Encoder.load_state_dict(checkpoints['Encoder_parameters'])

@@ -18,7 +18,7 @@ Encoder = AV_VQVAE_Encoder(audio_dim, video_dim, video_output_dim, n_embeddings,
 Encoder.double()
 Encoder.to(device)
 
-path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/40k/checkpoint/DCID-model-5.pt"
+path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/Final1/90k/checkpoint/DCID-model-5.pt"
 # path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/Novel_AV_final_2/Meta_Hier_Softmax/checkpoint/DCID-model-5.pt"
 print(f"Loading checkpoint from: {path_checkpoints}")
 

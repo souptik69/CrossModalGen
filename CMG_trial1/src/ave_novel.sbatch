@@ -26,11 +26,12 @@ python $SRCDIR/CMG_trial1/src/ave_novel.py \
     --gpu 0 \
     --lr 0.00025 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Novel_Model_Final/AVE_Tests/90k/A2V/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Novel_Model_Final/AVE_Tests/FixMeta/90k/A2V/" \
     --n_epoch 30 \
     --batch_size 256 \
     --test_batch_size 128 \
     --dataset_name "ave_av" \
+    --model_save_path "$SRCDIR/CMG_trial1/Novel_Model_Final/AVE_Tests/FixMeta/90k/A2V/" \
     --print_freq 1 \
     --eval_freq 1
 

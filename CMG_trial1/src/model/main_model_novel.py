@@ -155,7 +155,24 @@ class Audio_Encoder(nn.Module):
     def forward(self, audio_feat):
         return self.relu(self.audio_linear(audio_feat))
 
-    
+
+class Audio_Encoder_1(nn.Module):
+    def __init__(self, audio_dim, hidden_dim, noise_std=0.1):
+        super(Audio_Encoder_1, self).__init__()
+        self.audio_dim = audio_dim
+        self.hidden_dim = hidden_dim
+        self.noise_std = noise_std
+        self.audio_linear = nn.Linear(audio_dim, hidden_dim)
+        self.relu = nn.ReLU()
+
+    def forward(self, audio_feat):
+        if self.training:
+            noise = torch.randn_like(audio_feat) * self.noise_std
+            audio_feat = audio_feat + noise   
+        return self.relu(self.audio_linear(audio_feat))
+
+
+
 class AV_VQVAE_Encoder(nn.Module):
     def __init__(self, audio_dim, video_dim,  video_output_dim, n_embeddings, embedding_dim):
         super(AV_VQVAE_Encoder, self).__init__()
@@ -163,17 +180,14 @@ class AV_VQVAE_Encoder(nn.Module):
         self.audio_dim = audio_dim
         self.hidden_dim = 256
 
-        # self.Cross_quantizer = Cross_VQEmbeddingEMA_AV_Timestep(n_embeddings, self.hidden_dim)
-        # self.Cross_quantizer = Cross_VQEmbeddingEMA_AV(n_embeddings, self.hidden_dim)
-        # self.Cross_quantizer = Cross_VQEmbeddingEMA_AV_hierarchical(n_embeddings, self.hidden_dim)
 
-        # self.Cross_quantizer = Cross_VQEmbeddingEMA_AV_hierarchical_softmax(n_embeddings, self.hidden_dim)
-        self.Cross_quantizer = Cross_VQEmbeddingEMA_AV_hierarchical_1(n_embeddings, self.hidden_dim)
+        self.Cross_quantizer = Cross_VQEmbeddingEMA_AV_hierarchical_softmax(n_embeddings, self.hidden_dim)
+        # self.Cross_quantizer = Cross_VQEmbeddingEMA_AV_hierarchical_1(n_embeddings, self.hidden_dim)
         
-        # self.Cross_quantizer = Cross_VQEmbeddingEMA_AV_vanilla(n_embeddings, self.hidden_dim)
-        # self.Cross_quantizer = Cross_VQEmbeddingEMA_AV_segment(n_embeddings, self.hidden_dim)
+
         self.video_semantic_encoder = Video_Semantic_Encoder(video_dim, video_output_dim)
-        self.Audio_encoder = Audio_Encoder(audio_dim, self.hidden_dim)
+        # self.Audio_encoder = Audio_Encoder(audio_dim, self.hidden_dim)
+        self.Audio_encoder = Audio_Encoder_1(audio_dim, self.hidden_dim)
         self.video_self_att = InternalTemporalRelationModule(input_dim=video_dim, d_model=self.hidden_dim)
         self.audio_self_att = InternalTemporalRelationModule(input_dim=audio_dim, d_model=self.hidden_dim)
 

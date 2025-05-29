@@ -15,9 +15,9 @@ parser.add_argument('--evaluate', action='store_true')
 parser.add_argument('--clip_gradient', type=float)
 parser.add_argument('--loss_weights', type=float)
 parser.add_argument('--start_epoch', type=int)
-# parser.add_argument('--model_save_path', default='/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/AVE_Tests/90k/A2V/')
-# parser.add_argument('--model_save_path', default='/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/AVVP_Tests/90k/NewDecoder/V2A/')
-parser.add_argument('--model_save_path', default='/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/Hier/40k/checkpoint/')
+parser.add_argument('--model_save_path', default='/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/AVE_Tests/90k/A2V/')
+# parser.add_argument('--model_save_path', default='/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/AVVP_Tests/FixMeta/40k/NewDecoder/V2A/')
+# parser.add_argument('--model_save_path', default='/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/Hier/40k/checkpoint/')
 # parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
 #                     help='momentum')
 parser.add_argument('--output_dir', type=str, default='./results',
