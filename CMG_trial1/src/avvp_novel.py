@@ -16,8 +16,10 @@ from torch.optim.lr_scheduler import StepLR, MultiStepLR
 
 import numpy as np
 from configs.opts import parser
-# from model.main_model_novel import Semantic_Decoder_AVVP_1,AV_VQVAE_Encoder
-from model.main_model_novel import Semantic_Decoder_AVVP,AV_VQVAE_Encoder
+# # from model.main_model_novel import Semantic_Decoder_AVVP_1,AV_VQVAE_Encoder
+# from model.main_model_novel import Semantic_Decoder_AVVP,AV_VQVAE_Encoder
+from model.main_model_novel import Semantic_Decoder_AVVP_1,AVT_VQVAE_Encoder
+# from model.main_model_novel import Semantic_Decoder_AVVP,AVT_VQVAE_Encoder
 
 from utils import AverageMeter, Prepare_logger, get_and_save_args
 from utils.container import metricsContainer
@@ -118,8 +120,21 @@ def main():
         ) 
 
     '''model setting'''
+    # video_dim = 512
+    # audio_dim = 128
+    # video_output_dim = 2048
+    # n_embeddings = 400
+    # embedding_dim = 256
+    # start_epoch = -1
+    # model_resume = True
+    # total_step = 0
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
     video_dim = 512
+    text_dim = 768
     audio_dim = 128
+    text_lstm_dim = 128
     video_output_dim = 2048
     n_embeddings = 400
     embedding_dim = 256
@@ -128,9 +143,15 @@ def main():
     total_step = 0
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    Encoder = AV_VQVAE_Encoder( audio_dim, video_dim, video_output_dim, n_embeddings, embedding_dim)
+    Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_dim, video_output_dim, n_embeddings, embedding_dim)
+    # Encoder = AV_VQVAE_Encoder( audio_dim, video_dim, video_output_dim, n_embeddings, embedding_dim)
+
+    Decoder = Semantic_Decoder_AVVP_1(input_dim=embedding_dim * 3, class_num=26)
+    # Decoder = Semantic_Decoder_AVVP(input_dim=embedding_dim * 3, class_num=26)
+
     # Decoder = Semantic_Decoder_AVVP_1(input_dim=embedding_dim * 2, class_num=26)
-    Decoder = Semantic_Decoder_AVVP(input_dim=embedding_dim * 2, class_num=26)
+    # # Decoder = Semantic_Decoder_AVVP(input_dim=embedding_dim * 2, class_num=26)
+
     Encoder.double()
     Decoder.double()
     Encoder.to(device)
@@ -145,8 +166,8 @@ def main():
     criterion_event = nn.CrossEntropyLoss().cuda()
 
     if model_resume is True:
-        # path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/Final1/40k/checkpoint/DCID-model-5.pt"
-        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/Final1/90k/checkpoint/DCID-model-5.pt"
+        # path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/FixMetaAudioNoise/40k/checkpoint/DCID-model-5.pt"
+        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/FixMetaAudioNoise/90k/checkpoint/DCID-model-5.pt"
         checkpoints = torch.load(path_checkpoints)
         Encoder.load_state_dict(checkpoints['Encoder_parameters'])
         start_epoch = checkpoints['epoch']

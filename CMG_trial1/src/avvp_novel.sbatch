@@ -2,7 +2,7 @@
 
 #SBATCH --job-name=AVVP_train
 #SBATCH --partition=leinegpu
-#SBATCH --nodelist=leinevmgpu007
+#SBATCH --nodelist=leinevmgpu008
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=1
 #SBATCH --cpus-per-task=32
@@ -26,12 +26,12 @@ python $SRCDIR/CMG_trial1/src/avvp_novel.py \
     --gpu 0 \
     --lr 0.0004 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Novel_Model_Final/AVVP_Tests/FixMeta/90k/OldDecoder/V2A/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Novel_Model_Final/AVVP_Tests/FixMetaAudioNoise/90k/OldDecoder/V2A/" \
     --n_epoch 50 \
     --batch_size 64 \
     --test_batch_size 64 \
     --dataset_name "avvp_va" \
-    --model_save_path "$SRCDIR/CMG_trial1/Novel_Model_Final/AVVP_Tests/FixMeta/90k/OldDecoder/V2A/" \
+    --model_save_path "$SRCDIR/CMG_trial1/Novel_Model_Final/AVVP_Tests/FixMetaAudioNoise/90k/OldDecoder/V2A/" \
     --print_freq 1 \
     --eval_freq 1
 
