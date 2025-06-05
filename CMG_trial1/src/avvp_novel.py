@@ -143,7 +143,7 @@ def main():
     total_step = 0
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_dim, video_output_dim, n_embeddings, embedding_dim)
+    Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, video_output_dim, n_embeddings, embedding_dim)
     # Encoder = AV_VQVAE_Encoder( audio_dim, video_dim, video_output_dim, n_embeddings, embedding_dim)
 
     Decoder = Semantic_Decoder_AVVP_1(input_dim=embedding_dim * 3, class_num=26)

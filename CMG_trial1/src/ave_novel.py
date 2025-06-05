@@ -105,7 +105,7 @@ def main():
 
 
     # Encoder = AV_VQVAE_Encoder( audio_dim, video_dim, video_output_dim, n_embeddings, embedding_dim)
-    Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_dim, video_output_dim, n_embeddings, embedding_dim)
+    Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, video_output_dim, n_embeddings, embedding_dim)
     Decoder = Semantic_Decoder(input_dim=embedding_dim * 3, class_num=28)
     # Decoder = Semantic_Decoder(input_dim=embedding_dim * 2, class_num=28)
     Encoder.double()

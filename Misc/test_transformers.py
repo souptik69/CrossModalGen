@@ -115,10 +115,12 @@ def format_for_collate(filtered_words, filtered_embeddings, id2idx, tokenizer):
     # Calculate query lengths
     query_len = []
     for sample in filtered_embeddings:
-        query_len.append(min(len(sample), 10))
+        # query_len.append(min(len(sample), 10))
+        query_len.append(10)  # max_num_words:10
     
     # Create query tensors
-    max_len = max(query_len) if query_len else 0
+    # max_len = max(query_len) if query_len else 0
+    max_len = max(query_len)
     query = np.zeros([bsz, max_len, 768]).astype(np.float32)
     query_idx = np.zeros([bsz, max_len]).astype(np.float32)
     

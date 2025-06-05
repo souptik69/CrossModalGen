@@ -274,10 +274,10 @@ class AVT_VQVAE_Encoder(nn.Module):
         self.hidden_dim = 256
         self.Cross_quantizer = Cross_VQEmbeddingEMA_AVT_hierarchical(n_embeddings, self.hidden_dim)
         self.video_semantic_encoder = Video_Semantic_Encoder(video_dim, video_output_dim)
-        # self.Audio_encoder = Audio_Encoder(audio_dim, self.hidden_dim)
-        self.Audio_encoder = Audio_Encoder_1(audio_dim, self.hidden_dim)
-        # self.Text_encoder = Text_Encoder(text_dim, self.hidden_dim)
-        self.Text_encoder = Text_Encoder_1(text_dim, self.hidden_dim)
+        self.Audio_encoder = Audio_Encoder(audio_dim, self.hidden_dim)
+        # self.Audio_encoder = Audio_Encoder_1(audio_dim, self.hidden_dim)
+        self.Text_encoder = Text_Encoder(text_dim, self.hidden_dim)
+        # self.Text_encoder = Text_Encoder_1(text_dim, self.hidden_dim)
         self.video_self_att = InternalTemporalRelationModule(input_dim=video_dim, d_model=self.hidden_dim)
         self.audio_self_att = InternalTemporalRelationModule(input_dim=audio_dim, d_model=self.hidden_dim)
         self.text_self_att = InternalTemporalRelationModule(input_dim=text_dim, d_model=self.hidden_dim)
@@ -562,7 +562,7 @@ class AVT_VQVAE_Decoder(nn.Module):
         self.hidden_dim = 256 #embedding_dim
         self.video_dim = video_dim
         self.audio_dim = audio_dim
-        self-text_dim = text_dim
+        self.text_dim = text_dim
         self.video_output_dim = video_output_dim
         self.Video_decoder = Video_Decoder_1(video_output_dim, video_dim, self.hidden_dim)
         self.Audio_decoder = Audio_Decoder_1(audio_dim, self.hidden_dim)
@@ -821,9 +821,9 @@ class Cross_VQEmbeddingEMA_AV_hierarchical_softmax(nn.Module):
                 video_embedding_new = new_embedding[:, :D]         
                 audio_embedding_new = new_embedding[:, D:]        
                 new_embedding[:, D:] = self.hier_weights[:, 3].unsqueeze(1) * audio_embedding_new + \
-                                        self.hier_weights[:, 2].unsqueeze(1) * video_embedding_new
+                                        self.hier_weights[:, 2].unsqueeze(1) * video_embedding_new    #Audio = (1/2)Video + (1/2)Audio 
                 new_embedding[:, :D] = self.hier_weights[:, 0].unsqueeze(1) * video_embedding_new + \
-                                        self.hier_weights[:, 1].unsqueeze(1) *  audio_embedding_new
+                                        self.hier_weights[:, 1].unsqueeze(1) *  audio_embedding_new   #Video = (3/4)Video + (1/4)Audio
              
                 self.embedding = new_embedding
 
@@ -1105,8 +1105,8 @@ class Cross_VQEmbeddingEMA_AV_hierarchical_1(nn.Module):
             new_embedding = self.embedding.clone()
             video_embedding_new = new_embedding[:, :D]         
             audio_embedding_new = new_embedding[:, D:]         
-            new_embedding[:, D:] = (0.5 * audio_embedding_new) + (0.5 * video_embedding_new)
-            new_embedding[:, :D] = (0.5 * video_embedding_new) + (0.5 *  audio_embedding_new)
+            new_embedding[:, D:] = (0.5 * audio_embedding_new) + (0.5 * video_embedding_new)   #Audio = (1/2)Video + (1/2)Audio 
+            new_embedding[:, :D] = (0.5 * video_embedding_new) + (0.5 *  audio_embedding_new)  #Video = (3/4)Video + (1/4)Audio
             self.embedding = new_embedding
 
             # SEGMENT ALIGNMENT Metric
@@ -1463,16 +1463,42 @@ class Cross_VQEmbeddingEMA_AVT_hierarchical(nn.Module):
 
 
             # STEP 2: HIERARCHICAL INFLUENCE BETWEEN SEGMENTS
+            # with torch.no_grad():
+            #     new_embedding = self.embedding.clone()
+            #     video_embedding_new = new_embedding[:, :D]         
+            #     audio_embedding_new = new_embedding[:, D:2*D] 
+            #     text_embedding_new =  new_embedding[:, 2*D:]
+
+            #     new_embedding[:, :D] = (1/3) * video_embedding_new + (1/3) * audio_embedding_new + (1/3) * text_embedding_new
+            #     new_embedding[:, D:2*D] = (1/3) * audio_embedding_new + (1/3) * video_embedding_new + (1/3) * text_embedding_new  
+            #     new_embedding[:, 2*D:] = (1/3) * text_embedding_new + (1/3) * video_embedding_new + (1/3) * audio_embedding_new
+             
+            #     self.embedding = new_embedding
+
             with torch.no_grad():
                 new_embedding = self.embedding.clone()
                 video_embedding_new = new_embedding[:, :D]         
                 audio_embedding_new = new_embedding[:, D:2*D] 
-                text_embedding_new =  new_embedding[:, 2*D:]
+                text_embedding_new = new_embedding[:, 2*D:]
+                
+                # Stage 1: Video-Audio mixing 
+                # video_audio_mixed_v = (0.5 * video_embedding_new) + (0.5 * audio_embedding_new)
+                # video_audio_mixed_a = (0.5 * audio_embedding_new) + (0.5 * video_embedding_new)
+                
+                # Stage 2: Add text influence to the mixed video-audio segments 
+                # new_embedding[:, :D] = (0.5 * video_embedding_new) + (0.5 * audio_embedding_new)
+                # new_embedding[:, D:2*D] = (0.5 * audio_embedding_new) + (0.5 * video_embedding_new)
 
-                new_embedding[:, :D] = (1/3) * video_embedding_new + (1/3) * audio_embedding_new + (1/3) * text_embedding_new
-                new_embedding[:, D:2*D] = (1/3) * audio_embedding_new + (1/3) * video_embedding_new + (1/3) * text_embedding_new  
-                new_embedding[:, 2*D:] = (1/3) * text_embedding_new + (1/3) * video_embedding_new + (1/3) * audio_embedding_new
-             
+                new_embedding[:, 2*D:] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D]) + ((1/3) * new_embedding[:, 2*D:])    #Text = (1/3)Video + (1/3)Audio + (1/3)Text
+                new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, 2*D:])  #Audio = (4/9)Video + (4/9)Audio + (1/9)Text
+                new_embedding[:, :D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])     #Video = (16/27)Video + (7/27)Audio + (4/27)Text
+
+
+
+                # new_embedding[:, :D] = video_audio_mixed_v
+                # new_embedding[:, D:2*D] = video_audio_mixed_a
+                # new_embedding[:, 2*D:] = 0.3 * text_embedding_new + 0.7 * video_audio_mixed_v  
+                
                 self.embedding = new_embedding
 
 
@@ -1574,7 +1600,7 @@ class Cross_VQEmbeddingEMA_AVT_hierarchical(nn.Module):
         return  v_full_vectors, v_quantized_segment,\
                 a_full_vectors, a_quantized_segment,\
                 t_full_vectors, t_quantized_segment,\
-                v_loss, a_loss, t_loss, v_perplexity, a_perplexity, text_perplexity,\
+                v_loss, a_loss, t_loss, v_perplexity, a_perplexity, t_perplexity,\
                 equal_num, cmcm_loss, segment_loss  
 
 

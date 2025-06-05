@@ -175,9 +175,9 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     Text_ar_lstm = nn.LSTM(text_dim, text_lstm_dim, num_layers=2, batch_first=True, bidirectional=True)
-    Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_dim, video_output_dim, n_embeddings, embedding_dim)
+    Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, video_output_dim, n_embeddings, embedding_dim)
     CPC = Cross_CPC(embedding_dim, hidden_dim=256, context_dim=256, num_layers=2)
-    Decoder = AVT_VQVAE_Decoder(audio_dim, video_dim, text_dim, video_output_dim)
+    Decoder = AVT_VQVAE_Decoder(audio_dim, video_dim, text_lstm_dim*2, video_output_dim)
 
     Text_ar_lstm.double()
     Encoder.double()
@@ -270,6 +270,19 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Decoder,train_dataloader, criterion, c
     Decoder.cuda()
     CPC.cuda()
     optimizer.zero_grad()
+
+    quantizer = Encoder.Cross_quantizer
+    with torch.no_grad():
+        logger.info(f"INITIALIZATION_1 - Vector 345 (first 5 video dims): {quantizer.embedding[345, :5]}")
+        logger.info(f"INITIALIZATION_1 - Vector 345 (first 5 audio dims): {quantizer.embedding[345, 256:261]}")
+        logger.info(f"INITIALIZATION_1 - Vector 345 (first 5 text dims): {quantizer.embedding[345, 512:517]}")
+        logger.info(f"INITIALIZATION_1 - Vector 346 (first 5 video dims): {quantizer.embedding[346, :5]}")
+        logger.info(f"INITIALIZATION_1 - Vector 346 (first 5 audio dims): {quantizer.embedding[346, 256:261]}")
+        logger.info(f"INITIALIZATION_1 - Vector 346 (first 5 text dims): {quantizer.embedding[346, 512:517]}")
+        logger.info(f"INITIALIZATION_1 - Vector 45 (first 5 video dims): {quantizer.embedding[45, :5]}")
+        logger.info(f"INITIALIZATION_1 - Vector 45 (first 5 audio dims): {quantizer.embedding[45, 256:261]}")
+        logger.info(f"INITIALIZATION_1 - Vector 45 (first 5 text dims): {quantizer.embedding[45, 512:517]}")
+        logger.info(f"Init Codebook min: {quantizer.embedding.min().item()}, max: {quantizer.embedding.max().item()}")
   
     for n_iter, batch_data in enumerate(train_dataloader):
 
@@ -296,6 +309,213 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Decoder,train_dataloader, criterion, c
         out_vq_text, text_vq, video_embedding_loss, audio_embedding_loss, text_embedding_loss, \
         video_perplexity, audio_perplexity, text_perplexity, equal_num, cmcm_loss, segment_loss \
         = Encoder(audio_feature, video_feature, text_feature, epoch)
+
+        if n_iter == 0:
+            quantizer = Encoder.Cross_quantizer
+            with torch.no_grad():
+                logger.info(f"INITIALIZATION Epoch 0 - Vector 345 (first 5 video dims): {quantizer.embedding[345, :5]}")
+                logger.info(f"INITIALIZATION Epoch 0 - Vector 345 (first 5 audio dims): {quantizer.embedding[345, 256:261]}")
+                logger.info(f"INITIALIZATION Epoch 0 - Vector 345 (first 5 text dims): {quantizer.embedding[345, 512:517]}")
+                logger.info(f"INITIALIZATION Epoch 0 - Vector 346 (first 5 video dims): {quantizer.embedding[346, :5]}")
+                logger.info(f"INITIALIZATION Epoch 0 - Vector 346 (first 5 audio dims): {quantizer.embedding[346, 256:261]}")
+                logger.info(f"INITIALIZATION Epoch 0 - Vector 346 (first 5 text dims): {quantizer.embedding[346, 512:517]}")
+                logger.info(f"INITIALIZATION Epoch 0 - Vector 45 (first 5 video dims): {quantizer.embedding[45, :5]}")
+                logger.info(f"INITIALIZATION Epoch 0 - Vector 45 (first 5 audio dims): {quantizer.embedding[45, 256:261]}")
+                logger.info(f"INITIALIZATION Epoch 0 - Vector 45 (first 5 text dims): {quantizer.embedding[45, 512:517]}")
+                logger.info(f"INITIALIZATION Epoch 0 - Count for vector 345: {quantizer.ema_count[345]}")
+                logger.info(f"INITIALIZATION Epoch 0 - Count for vector 346: {quantizer.ema_count[346]}")
+                logger.info(f"INITIALIZATION Epoch 0 - Count for vector 45: {quantizer.ema_count[45]}")
+                logger.info(f"Init Codebook min: {quantizer.embedding.min().item()}, max: {quantizer.embedding.max().item()}")
+
+        if n_iter == 20:
+            quantizer = Encoder.Cross_quantizer
+            with torch.no_grad():
+                most_used_idx = torch.argmax(quantizer.ema_count)
+                random_idx1 = (most_used_idx + 1) % 400
+                random_idx2 = (most_used_idx + 100) % 400
+                logger.info("\n===== BATCH 20 DEBUG =====")
+                logger.info(f"Most used vector ({most_used_idx}) value (first 5 video dims): {quantizer.embedding[most_used_idx, :5]}")
+                logger.info(f"Most used vector ({most_used_idx}) value (first 5 audio dims): {quantizer.embedding[most_used_idx, 256:261]}")
+                logger.info(f"Most used vector ({most_used_idx}) value (first 5 text dims): {quantizer.embedding[most_used_idx, 512:517]}")
+                logger.info(f"Random ({random_idx1}) vector value (first 5 video dims): {quantizer.embedding[random_idx1, :5]}")
+                logger.info(f"Random {random_idx1} vector value (first 5 audio dims): {quantizer.embedding[random_idx1, 256:261]}")
+                logger.info(f"Random {random_idx1} vector value (first 5 text dims): {quantizer.embedding[random_idx1, 512:517]}")
+                logger.info(f"Random {random_idx2} vector value (first 5 video dims): {quantizer.embedding[random_idx2, :5]}")
+                logger.info(f"Random {random_idx2} vector value (first 5 audio dims): {quantizer.embedding[random_idx2, 256:261]}")
+                logger.info(f"Random {random_idx2} vector value (first 5 text dims): {quantizer.embedding[random_idx2, 512:517]}")
+                logger.info(f"Count statistics - min: {quantizer.ema_count.min()}, max: {quantizer.ema_count.max()}, mean: {quantizer.ema_count.mean()}")
+                logger.info(f"Number of dead vectors (count < 0.01): {(quantizer.ema_count < 0.01).sum()}")
+
+
+        if n_iter == 40:
+            quantizer = Encoder.Cross_quantizer
+            with torch.no_grad():
+                most_used_idx = torch.argmax(quantizer.ema_count)
+                random_idx1 = (most_used_idx + 1) % 400
+                random_idx2 = (most_used_idx + 100) % 400
+                logger.info(f"\n===== BATCH ({n_iter}) DEBUG =====")
+                logger.info(f"Most used vector ({most_used_idx}) value (first 5 video dims): {quantizer.embedding[most_used_idx, :5]}")
+                logger.info(f"Most used vector ({most_used_idx}) value (first 5 audio dims): {quantizer.embedding[most_used_idx, 256:261]}")
+                logger.info(f"Most used vector ({most_used_idx}) value (first 5 text dims): {quantizer.embedding[most_used_idx, 512:517]}")
+                logger.info(f"Random ({random_idx1}) vector value (first 5 video dims): {quantizer.embedding[random_idx1, :5]}")
+                logger.info(f"Random {random_idx1} vector value (first 5 audio dims): {quantizer.embedding[random_idx1, 256:261]}")
+                logger.info(f"Random {random_idx1} vector value (first 5 text dims): {quantizer.embedding[random_idx1, 512:517]}")
+                logger.info(f"Random {random_idx2} vector value (first 5 video dims): {quantizer.embedding[random_idx2, :5]}")
+                logger.info(f"Random {random_idx2} vector value (first 5 audio dims): {quantizer.embedding[random_idx2, 256:261]}")
+                logger.info(f"Random {random_idx2} vector value (first 5 text dims): {quantizer.embedding[random_idx2, 512:517]}")
+                logger.info(f"Count statistics - min: {quantizer.ema_count.min()}, max: {quantizer.ema_count.max()}, mean: {quantizer.ema_count.mean()}")
+                logger.info(f"Count histogram: {torch.histc(quantizer.ema_count, bins=10, min=0, max=quantizer.ema_count.max())}")
+                logger.info(f"Number of dead vectors (count < 0.01): {(quantizer.ema_count < 0.01).sum()}")
+                logger.info(f"Embedding stats - mean: {quantizer.embedding.mean()}, std: {quantizer.embedding.std()}, min: {quantizer.embedding.min()}, max: {quantizer.embedding.max()}")
+
+        if n_iter == 60:
+            quantizer = Encoder.Cross_quantizer
+            with torch.no_grad():
+                most_used_idx = torch.argmax(quantizer.ema_count)
+                random_idx1 = (most_used_idx + 1) % 400
+                random_idx2 = (most_used_idx + 100) % 400
+                logger.info(f"\n===== BATCH ({n_iter}) DEBUG =====")
+                logger.info(f"Most used vector ({most_used_idx}) value (first 5 video dims): {quantizer.embedding[most_used_idx, :5]}")
+                logger.info(f"Most used vector ({most_used_idx}) value (first 5 audio dims): {quantizer.embedding[most_used_idx, 256:261]}")
+                logger.info(f"Most used vector ({most_used_idx}) value (first 5 text dims): {quantizer.embedding[most_used_idx, 512:517]}")
+                logger.info(f"Random ({random_idx1}) vector value (first 5 video dims): {quantizer.embedding[random_idx1, :5]}")
+                logger.info(f"Random {random_idx1} vector value (first 5 audio dims): {quantizer.embedding[random_idx1, 256:261]}")
+                logger.info(f"Random {random_idx1} vector value (first 5 text dims): {quantizer.embedding[random_idx1, 512:517]}")
+                logger.info(f"Random {random_idx2} vector value (first 5 video dims): {quantizer.embedding[random_idx2, :5]}")
+                logger.info(f"Random {random_idx2} vector value (first 5 audio dims): {quantizer.embedding[random_idx2, 256:261]}")
+                logger.info(f"Random {random_idx2} vector value (first 5 text dims): {quantizer.embedding[random_idx2, 512:517]}")
+                logger.info(f"Count statistics - min: {quantizer.ema_count.min()}, max: {quantizer.ema_count.max()}, mean: {quantizer.ema_count.mean()}")
+                logger.info(f"Count histogram: {torch.histc(quantizer.ema_count, bins=10, min=0, max=quantizer.ema_count.max())}")
+                logger.info(f"Number of dead vectors (count < 0.01): {(quantizer.ema_count < 0.01).sum()}")
+                logger.info(f"Embedding stats - mean: {quantizer.embedding.mean()}, std: {quantizer.embedding.std()}, min: {quantizer.embedding.min()}, max: {quantizer.embedding.max()}")
+
+
+        if n_iter == 80:
+            quantizer = Encoder.Cross_quantizer
+            with torch.no_grad():
+                most_used_idx = torch.argmax(quantizer.ema_count)
+                random_idx1 = (most_used_idx + 1) % 400
+                random_idx2 = (most_used_idx + 100) % 400
+                logger.info(f"\n===== BATCH ({n_iter}) DEBUG =====")
+                logger.info(f"Most used vector ({most_used_idx}) value (first 5 video dims): {quantizer.embedding[most_used_idx, :5]}")
+                logger.info(f"Most used vector ({most_used_idx}) value (first 5 audio dims): {quantizer.embedding[most_used_idx, 256:261]}")
+                logger.info(f"Most used vector ({most_used_idx}) value (first 5 text dims): {quantizer.embedding[most_used_idx, 512:517]}")
+                logger.info(f"Random ({random_idx1}) vector value (first 5 video dims): {quantizer.embedding[random_idx1, :5]}")
+                logger.info(f"Random {random_idx1} vector value (first 5 audio dims): {quantizer.embedding[random_idx1, 256:261]}")
+                logger.info(f"Random {random_idx1} vector value (first 5 text dims): {quantizer.embedding[random_idx1, 512:517]}")
+                logger.info(f"Random {random_idx2} vector value (first 5 video dims): {quantizer.embedding[random_idx2, :5]}")
+                logger.info(f"Random {random_idx2} vector value (first 5 audio dims): {quantizer.embedding[random_idx2, 256:261]}")
+                logger.info(f"Random {random_idx2} vector value (first 5 text dims): {quantizer.embedding[random_idx2, 512:517]}")
+                logger.info(f"Count statistics - min: {quantizer.ema_count.min()}, max: {quantizer.ema_count.max()}, mean: {quantizer.ema_count.mean()}")
+                logger.info(f"Count histogram: {torch.histc(quantizer.ema_count, bins=10, min=0, max=quantizer.ema_count.max())}")
+                logger.info(f"Number of dead vectors (count < 0.01): {(quantizer.ema_count < 0.01).sum()}")
+                logger.info(f"Embedding stats - mean: {quantizer.embedding.mean()}, std: {quantizer.embedding.std()}, min: {quantizer.embedding.min()}, max: {quantizer.embedding.max()}")
+
+        if n_iter == 100:
+            quantizer = Encoder.Cross_quantizer
+            with torch.no_grad():
+                most_used_idx = torch.argmax(quantizer.ema_count)
+                random_idx1 = (most_used_idx + 1) % 400
+                random_idx2 = (most_used_idx + 100) % 400
+                logger.info(f"\n===== BATCH ({n_iter}) DEBUG =====")
+                logger.info(f"Most used vector ({most_used_idx}) value (first 5 video dims): {quantizer.embedding[most_used_idx, :5]}")
+                logger.info(f"Most used vector ({most_used_idx}) value (first 5 audio dims): {quantizer.embedding[most_used_idx, 256:261]}")
+                logger.info(f"Most used vector ({most_used_idx}) value (first 5 text dims): {quantizer.embedding[most_used_idx, 512:517]}")
+                logger.info(f"Random ({random_idx1}) vector value (first 5 video dims): {quantizer.embedding[random_idx1, :5]}")
+                logger.info(f"Random {random_idx1} vector value (first 5 audio dims): {quantizer.embedding[random_idx1, 256:261]}")
+                logger.info(f"Random {random_idx1} vector value (first 5 text dims): {quantizer.embedding[random_idx1, 512:517]}")
+                logger.info(f"Random {random_idx2} vector value (first 5 video dims): {quantizer.embedding[random_idx2, :5]}")
+                logger.info(f"Random {random_idx2} vector value (first 5 audio dims): {quantizer.embedding[random_idx2, 256:261]}")
+                logger.info(f"Random {random_idx2} vector value (first 5 text dims): {quantizer.embedding[random_idx2, 512:517]}")
+                logger.info(f"Count statistics - min: {quantizer.ema_count.min()}, max: {quantizer.ema_count.max()}, mean: {quantizer.ema_count.mean()}")
+                logger.info(f"Count histogram: {torch.histc(quantizer.ema_count, bins=10, min=0, max=quantizer.ema_count.max())}")
+                logger.info(f"Number of dead vectors (count < 0.01): {(quantizer.ema_count < 0.01).sum()}")
+                logger.info(f"Embedding stats - mean: {quantizer.embedding.mean()}, std: {quantizer.embedding.std()}, min: {quantizer.embedding.min()}, max: {quantizer.embedding.max()}")
+
+        if n_iter == 120:
+            quantizer = Encoder.Cross_quantizer
+            with torch.no_grad():
+                most_used_idx = torch.argmax(quantizer.ema_count)
+                random_idx1 = (most_used_idx + 1) % 400
+                random_idx2 = (most_used_idx + 100) % 400
+                logger.info(f"\n===== BATCH ({n_iter}) DEBUG =====")
+                logger.info(f"Most used vector ({most_used_idx}) value (first 5 video dims): {quantizer.embedding[most_used_idx, :5]}")
+                logger.info(f"Most used vector ({most_used_idx}) value (first 5 audio dims): {quantizer.embedding[most_used_idx, 256:261]}")
+                logger.info(f"Most used vector ({most_used_idx}) value (first 5 text dims): {quantizer.embedding[most_used_idx, 512:517]}")
+                logger.info(f"Random ({random_idx1}) vector value (first 5 video dims): {quantizer.embedding[random_idx1, :5]}")
+                logger.info(f"Random {random_idx1} vector value (first 5 audio dims): {quantizer.embedding[random_idx1, 256:261]}")
+                logger.info(f"Random {random_idx1} vector value (first 5 text dims): {quantizer.embedding[random_idx1, 512:517]}")
+                logger.info(f"Random {random_idx2} vector value (first 5 video dims): {quantizer.embedding[random_idx2, :5]}")
+                logger.info(f"Random {random_idx2} vector value (first 5 audio dims): {quantizer.embedding[random_idx2, 256:261]}")
+                logger.info(f"Random {random_idx2} vector value (first 5 text dims): {quantizer.embedding[random_idx2, 512:517]}")
+                logger.info(f"Count statistics - min: {quantizer.ema_count.min()}, max: {quantizer.ema_count.max()}, mean: {quantizer.ema_count.mean()}")
+                logger.info(f"Count histogram: {torch.histc(quantizer.ema_count, bins=10, min=0, max=quantizer.ema_count.max())}")
+                logger.info(f"Number of dead vectors (count < 0.01): {(quantizer.ema_count < 0.01).sum()}")
+                logger.info(f"Embedding stats - mean: {quantizer.embedding.mean()}, std: {quantizer.embedding.std()}, min: {quantizer.embedding.min()}, max: {quantizer.embedding.max()}")
+
+        if n_iter == 130:
+            quantizer = Encoder.Cross_quantizer
+            with torch.no_grad():
+                most_used_idx = torch.argmax(quantizer.ema_count)
+                random_idx1 = (most_used_idx + 1) % 400
+                random_idx2 = (most_used_idx + 100) % 400
+                logger.info(f"\n===== BATCH ({n_iter}) DEBUG =====")
+                logger.info(f"Most used vector ({most_used_idx}) value (first 5 video dims): {quantizer.embedding[most_used_idx, :5]}")
+                logger.info(f"Most used vector ({most_used_idx}) value (first 5 audio dims): {quantizer.embedding[most_used_idx, 256:261]}")
+                logger.info(f"Most used vector ({most_used_idx}) value (first 5 text dims): {quantizer.embedding[most_used_idx, 512:517]}")
+                logger.info(f"Random ({random_idx1}) vector value (first 5 video dims): {quantizer.embedding[random_idx1, :5]}")
+                logger.info(f"Random {random_idx1} vector value (first 5 audio dims): {quantizer.embedding[random_idx1, 256:261]}")
+                logger.info(f"Random {random_idx1} vector value (first 5 text dims): {quantizer.embedding[random_idx1, 512:517]}")
+                logger.info(f"Random {random_idx2} vector value (first 5 video dims): {quantizer.embedding[random_idx2, :5]}")
+                logger.info(f"Random {random_idx2} vector value (first 5 audio dims): {quantizer.embedding[random_idx2, 256:261]}")
+                logger.info(f"Random {random_idx2} vector value (first 5 text dims): {quantizer.embedding[random_idx2, 512:517]}")
+                logger.info(f"Count statistics - min: {quantizer.ema_count.min()}, max: {quantizer.ema_count.max()}, mean: {quantizer.ema_count.mean()}")
+                logger.info(f"Count histogram: {torch.histc(quantizer.ema_count, bins=10, min=0, max=quantizer.ema_count.max())}")
+                logger.info(f"Number of dead vectors (count < 0.01): {(quantizer.ema_count < 0.01).sum()}")
+                logger.info(f"Embedding stats - mean: {quantizer.embedding.mean()}, std: {quantizer.embedding.std()}, min: {quantizer.embedding.min()}, max: {quantizer.embedding.max()}")
+
+        if n_iter == 140:
+            quantizer = Encoder.Cross_quantizer
+            with torch.no_grad():
+                most_used_idx = torch.argmax(quantizer.ema_count)
+                random_idx1 = (most_used_idx + 1) % 400
+                random_idx2 = (most_used_idx + 100) % 400
+                logger.info(f"\n===== BATCH ({n_iter}) DEBUG =====")
+                logger.info(f"Most used vector ({most_used_idx}) value (first 5 video dims): {quantizer.embedding[most_used_idx, :5]}")
+                logger.info(f"Most used vector ({most_used_idx}) value (first 5 audio dims): {quantizer.embedding[most_used_idx, 256:261]}")
+                logger.info(f"Most used vector ({most_used_idx}) value (first 5 text dims): {quantizer.embedding[most_used_idx, 512:517]}")
+                logger.info(f"Random ({random_idx1}) vector value (first 5 video dims): {quantizer.embedding[random_idx1, :5]}")
+                logger.info(f"Random {random_idx1} vector value (first 5 audio dims): {quantizer.embedding[random_idx1, 256:261]}")
+                logger.info(f"Random {random_idx1} vector value (first 5 text dims): {quantizer.embedding[random_idx1, 512:517]}")
+                logger.info(f"Random {random_idx2} vector value (first 5 video dims): {quantizer.embedding[random_idx2, :5]}")
+                logger.info(f"Random {random_idx2} vector value (first 5 audio dims): {quantizer.embedding[random_idx2, 256:261]}")
+                logger.info(f"Random {random_idx2} vector value (first 5 text dims): {quantizer.embedding[random_idx2, 512:517]}")
+                logger.info(f"Count statistics - min: {quantizer.ema_count.min()}, max: {quantizer.ema_count.max()}, mean: {quantizer.ema_count.mean()}")
+                logger.info(f"Count histogram: {torch.histc(quantizer.ema_count, bins=10, min=0, max=quantizer.ema_count.max())}")
+                logger.info(f"Number of dead vectors (count < 0.01): {(quantizer.ema_count < 0.01).sum()}")
+                logger.info(f"Embedding stats - mean: {quantizer.embedding.mean()}, std: {quantizer.embedding.std()}, min: {quantizer.embedding.min()}, max: {quantizer.embedding.max()}")
+
+        if n_iter == 320:
+            quantizer = Encoder.Cross_quantizer
+            with torch.no_grad():
+                most_used_idx = torch.argmax(quantizer.ema_count)
+                random_idx1 = (most_used_idx + 1) % 400
+                random_idx2 = (most_used_idx + 100) % 400
+                logger.info(f"\n===== BATCH ({n_iter}) DEBUG =====")
+                logger.info(f"Most used vector ({most_used_idx}) value (first 5 video dims): {quantizer.embedding[most_used_idx, :5]}")
+                logger.info(f"Most used vector ({most_used_idx}) value (first 5 audio dims): {quantizer.embedding[most_used_idx, 256:261]}")
+                logger.info(f"Most used vector ({most_used_idx}) value (first 5 text dims): {quantizer.embedding[most_used_idx, 512:517]}")
+                logger.info(f"Random ({random_idx1}) vector value (first 5 video dims): {quantizer.embedding[random_idx1, :5]}")
+                logger.info(f"Random {random_idx1} vector value (first 5 audio dims): {quantizer.embedding[random_idx1, 256:261]}")
+                logger.info(f"Random {random_idx1} vector value (first 5 text dims): {quantizer.embedding[random_idx1, 512:517]}")
+                logger.info(f"Random {random_idx2} vector value (first 5 video dims): {quantizer.embedding[random_idx2, :5]}")
+                logger.info(f"Random {random_idx2} vector value (first 5 audio dims): {quantizer.embedding[random_idx2, 256:261]}")
+                logger.info(f"Random {random_idx2} vector value (first 5 text dims): {quantizer.embedding[random_idx2, 512:517]}")
+                logger.info(f"Count statistics - min: {quantizer.ema_count.min()}, max: {quantizer.ema_count.max()}, mean: {quantizer.ema_count.mean()}")
+                logger.info(f"Count histogram: {torch.histc(quantizer.ema_count, bins=10, min=0, max=quantizer.ema_count.max())}")
+                logger.info(f"Number of dead vectors (count < 0.01): {(quantizer.ema_count < 0.01).sum()}")
+                logger.info(f"Embedding stats - mean: {quantizer.embedding.mean()}, std: {quantizer.embedding.std()}, min: {quantizer.embedding.min()}, max: {quantizer.embedding.max()}")
+
 
         accuracy1, accuracy2, accuracy3, accuracy4, cpc_loss,  \
         audio_recon_loss, video_recon_loss, text_recon_loss, audio_class, video_class, text_class \
@@ -339,7 +559,7 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Decoder,train_dataloader, criterion, c
        
         loss.backward()
 
-         '''Clip Gradient'''
+        '''Clip Gradient'''
         if args.clip_gradient is not None:
             for model in models:
                 total_norm = clip_grad_norm_(model.parameters(), args.clip_gradient)
