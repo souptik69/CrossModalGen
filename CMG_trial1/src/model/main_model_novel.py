@@ -398,6 +398,28 @@ class Semantic_Decoder_AVVP_1(nn.Module):
         input_feat_1 = self.linear1(fused_feat)
         class_logits = self.event_classifier(input_feat_1)
         return class_logits
+    
+""" class_num AVVP:25+1(negative label) AVE_AVVP:12+1 """
+class Semantic_Decoder_AVVP_2(nn.Module):
+    def __init__(self, input_dim, class_num):
+        super(Semantic_Decoder_AVVP_2, self).__init__()
+        # self.fusion_layer = nn.Linear(input_dim, input_dim // 2)
+        self.linear = nn.Linear(input_dim , input_dim )
+        self.fusion_layer_1 = nn.Linear(input_dim, input_dim // 2)
+        self.linear1 = nn.Linear(input_dim // 2 , input_dim // 2)
+        self.fusion_layer_2 = nn.Linear(input_dim // 2, input_dim // 3)
+        self.linear2 = nn.Linear(input_dim // 3 , input_dim // 3)
+        self.event_classifier = nn.Linear(input_dim // 3 , class_num)    
+
+    def forward(self, input_vq):
+        # fused_feat = self.fusion_layer(input_vq)  
+        input_feat = self.linear(input_vq)
+        fused_feat_1 = self.fusion_layer_1(input_feat)
+        input_feat_1 = self.linear1(fused_feat_1)
+        fused_feat_2 = self.fusion_layer_2(input_feat_1)
+        input_feat_2 = self.linear2(fused_feat_2)
+        class_logits = self.event_classifier(input_feat_2)
+        return class_logits
 
 
 

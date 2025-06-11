@@ -18,6 +18,7 @@ import numpy as np
 from configs.opts import parser
 # # from model.main_model_novel import Semantic_Decoder_AVVP_1,AV_VQVAE_Encoder
 # from model.main_model_novel import Semantic_Decoder_AVVP,AV_VQVAE_Encoder
+
 from model.main_model_novel import Semantic_Decoder_AVVP_1,AVT_VQVAE_Encoder
 # from model.main_model_novel import Semantic_Decoder_AVVP,AVT_VQVAE_Encoder
 
@@ -166,8 +167,8 @@ def main():
     criterion_event = nn.CrossEntropyLoss().cuda()
 
     if model_resume is True:
-        # path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/FixMetaAudioNoise/40k/checkpoint/DCID-model-5.pt"
-        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/FixMetaAudioNoise/90k/checkpoint/DCID-model-5.pt"
+        # path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/AVT_model/Text_CPC_noNoise/40k/checkpoint/DCID-model-5.pt"
+        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/AVT_model/Text_CPC_noNoise/90k/checkpoint/DCID-model-5.pt"
         checkpoints = torch.load(path_checkpoints)
         Encoder.load_state_dict(checkpoints['Encoder_parameters'])
         start_epoch = checkpoints['epoch']

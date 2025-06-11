@@ -63,7 +63,7 @@ def main():
         logger.info(f'\nLog file will be save in a {args.snapshot_pref}/Eval.log.')
 
     '''dataset selection'''
-    if args.dataset_name == 'ave_va' or args.dataset_name == 'ave_av':
+    if args.dataset_name == 'ave_va' or args.dataset_name == 'ave_av' or args.dataset_name == 'ave':
         from dataset.AVE_dataset import AVEDataset as AVEDataset
     else: 
         raise NotImplementedError
@@ -121,8 +121,8 @@ def main():
     criterion_event = nn.CrossEntropyLoss().cuda()
 
     if model_resume is True:
-        # path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/FixMetaAudioNoise/40k/checkpoint/DCID-model-5.pt"
-        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/FixMetaAudioNoise/90k/checkpoint/DCID-model-5.pt"
+        # path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/AVT_model/Text_CPC_noNoise/40k/checkpoint/DCID-model-5.pt"
+        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/AVT_model/Text_CPC_noNoise/90k/checkpoint/DCID-model-5.pt"
         checkpoints = torch.load(path_checkpoints)
         Encoder.load_state_dict(checkpoints['Encoder_parameters'])
         start_epoch = checkpoints['epoch']
@@ -252,6 +252,30 @@ def train_epoch(Encoder, Decoder, train_dataloader, criterion, criterion_event, 
             metricsContainer.update("loss", loss_items)
             loss = audio_event_loss
 
+        elif args.dataset_name == 'ave':
+            with torch.no_grad():# Freeze Encoder
+                out_vq_video, video_vq = Encoder.Video_VQ_Encoder(visual_feature)
+                out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(audio_feature)
+            video_class = Decoder(out_vq_video)
+            audio_class = Decoder(out_vq_audio)
+            video_event_loss = criterion_event(video_class, labels_event.cuda())
+            audio_event_loss = criterion_event(audio_class, labels_event.cuda())
+            video_precision = compute_precision_supervised(video_class, labels)
+            audio_precision = compute_precision_supervised(audio_class, labels)
+            audio_acc = compute_accuracy_supervised(audio_class, labels)
+            video_acc = compute_accuracy_supervised(video_class, labels)
+            loss_items = {
+                "audio_event_loss":audio_event_loss.item(),
+                "audio_precision": audio_precision.item(),
+                "audio_acc": audio_acc.item(),
+                "video_event_loss":video_event_loss.item(),
+                "video_precision": video_precision.item(),
+                "video_acc": video_acc.item(),
+            }
+            metricsContainer.update("loss", loss_items)
+            loss = audio_event_loss + video_event_loss
+
+
         if n_iter % 20 == 0:
             _export_log(epoch=epoch, total_step=total_step+n_iter, batch_idx=n_iter, lr=optimizer.state_dict()['param_groups'][0]['lr'], loss_meter=metricsContainer.calculate_average("loss"))
         loss.backward()
@@ -318,7 +342,8 @@ def validate_epoch(Encoder,Decoder, val_dataloader, criterion, criterion_event, 
         audio_event_loss = criterion_event(audio_class, labels_event.cuda())
         video_event_loss = criterion_event(video_class, labels_event.cuda())
 
-        loss = audio_event_loss
+        # loss = audio_event_loss + video_event_loss
+        loss = audio_event_loss 
 
         audio_prec = compute_precision_supervised(audio_class, labels)
         video_prec = compute_precision_supervised(video_class, labels)
