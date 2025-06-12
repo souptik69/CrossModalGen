@@ -214,8 +214,8 @@ class AV_VQVAE_Encoder(nn.Module):
         
 
         self.video_semantic_encoder = Video_Semantic_Encoder(video_dim, video_output_dim)
-        # self.Audio_encoder = Audio_Encoder(audio_dim, self.hidden_dim)
-        self.Audio_encoder = Audio_Encoder_1(audio_dim, self.hidden_dim)
+        self.Audio_encoder = Audio_Encoder(audio_dim, self.hidden_dim)
+        # self.Audio_encoder = Audio_Encoder_1(audio_dim, self.hidden_dim)
         self.video_self_att = InternalTemporalRelationModule(input_dim=video_dim, d_model=self.hidden_dim)
         self.audio_self_att = InternalTemporalRelationModule(input_dim=audio_dim, d_model=self.hidden_dim)
 
@@ -564,6 +564,11 @@ class AV_VQVAE_Decoder(nn.Module):
         self.video_semantic_decoder = Semantic_Decoder(self.hidden_dim * 2, class_num=142)
         self.audio_semantic_decoder = Semantic_Decoder(self.hidden_dim * 2, class_num=142)
 
+        ### Equal distribution ###
+        # self.video_semantic_decoder = Semantic_Decoder(self.hidden_dim , class_num=142)
+        # self.audio_semantic_decoder = Semantic_Decoder(self.hidden_dim , class_num=142)
+        ### Equal distribution ###
+
     def forward(self, audio_feat, video_feat, audio_encoder_result, video_spatial, out_vq_audio, audio_vq, out_vq_video, video_vq):
         video_feat = video_feat.cuda()
         audio_feat = audio_feat.cuda()
@@ -573,6 +578,11 @@ class AV_VQVAE_Decoder(nn.Module):
         audio_recon_loss = F.mse_loss(audio_recon_result, audio_feat)
         video_class = self.video_semantic_decoder(out_vq_video)
         audio_class = self.audio_semantic_decoder(out_vq_audio)
+
+        ### Equal distribution ###
+        # video_class = self.video_semantic_decoder(video_vq)
+        # audio_class = self.audio_semantic_decoder(audio_vq)
+        ### Equal distribution ###
 
         return audio_recon_loss, video_recon_loss, audio_class, video_class
 
@@ -593,6 +603,12 @@ class AVT_VQVAE_Decoder(nn.Module):
         self.audio_semantic_decoder = Semantic_Decoder(self.hidden_dim * 3, class_num=142)
         self.text_semantic_decoder = Semantic_Decoder(self.hidden_dim * 3, class_num=142)
 
+        ### Equal distribution ###
+        # self.video_semantic_decoder = Semantic_Decoder(self.hidden_dim , class_num=142)
+        # self.audio_semantic_decoder = Semantic_Decoder(self.hidden_dim , class_num=142)
+        # self.text_semantic_decoder = Semantic_Decoder(self.hidden_dim , class_num=142)
+        ### Equal distribution ###
+
     def forward(self, audio_feat, video_feat, text_feat, audio_encoder_result, video_spatial, text_encoder_result, out_vq_audio, audio_vq, out_vq_video, video_vq, out_vq_text, text_vq):
         video_feat = video_feat.cuda()
         audio_feat = audio_feat.cuda()
@@ -603,9 +619,17 @@ class AVT_VQVAE_Decoder(nn.Module):
         video_recon_loss = F.mse_loss(video_recon_result, video_feat)
         audio_recon_loss = F.mse_loss(audio_recon_result, audio_feat)
         text_recon_loss = F.mse_loss(text_recon_result, text_feat)
+
         video_class = self.video_semantic_decoder(out_vq_video)
         audio_class = self.audio_semantic_decoder(out_vq_audio)
         text_class = self.text_semantic_decoder(out_vq_text)
+
+        ### Equal distribution ###
+        # video_class = self.video_semantic_decoder(video_vq)
+        # audio_class = self.audio_semantic_decoder(audio_vq)
+        # text_class = self.text_semantic_decoder(text_vq)
+        ### Equal distribution ###
+
         return audio_recon_loss, video_recon_loss, text_recon_loss, audio_class, video_class, text_class
 
 
@@ -723,11 +747,6 @@ class Cross_VQEmbeddingEMA_AV_hierarchical_softmax(nn.Module):
             self.hier_weights[:, 0:2] = hier_weights_video
             self.hier_weights[:, 2:4] = hier_weights_audio
 
-        # self.modal_weights[:, 0:2] = modal_weights_video
-        # self.modal_weights[:, 2:4] = modal_weights_audio
-
-        # self.hier_weights[:, 0:2] = hier_weights_video
-        # self.hier_weights[:, 2:4] = hier_weights_audio
 
 
         a_flat = audio_semantic.detach().reshape(-1, D)  # [B, T, D] -> [BxT, D]
@@ -842,10 +861,22 @@ class Cross_VQEmbeddingEMA_AV_hierarchical_softmax(nn.Module):
                 new_embedding = self.embedding.clone()
                 video_embedding_new = new_embedding[:, :D]         
                 audio_embedding_new = new_embedding[:, D:]        
+
                 new_embedding[:, D:] = self.hier_weights[:, 3].unsqueeze(1) * audio_embedding_new + \
                                         self.hier_weights[:, 2].unsqueeze(1) * video_embedding_new    #Audio = (1/2)Video + (1/2)Audio 
                 new_embedding[:, :D] = self.hier_weights[:, 0].unsqueeze(1) * video_embedding_new + \
                                         self.hier_weights[:, 1].unsqueeze(1) *  audio_embedding_new   #Video = (3/4)Video + (1/4)Audio
+
+                ### Equal distribution ###
+                # audio_emb = self.hier_weights[:, 3].unsqueeze(1) * audio_embedding_new + \
+                #                         self.hier_weights[:, 2].unsqueeze(1) * video_embedding_new     
+                # video_emb = self.hier_weights[:, 0].unsqueeze(1) * video_embedding_new + \
+                #                         self.hier_weights[:, 1].unsqueeze(1) *  audio_embedding_new   
+
+                # new_embedding[:, D:] = audio_emb   #Audio = (1/2)Video + (1/2)Audio
+                # new_embedding[:, :D] = video_emb   #Video = (1/2)Video + (1/2)Audio
+                ### Equal distribution ###
+                
              
                 self.embedding = new_embedding
 
@@ -887,11 +918,6 @@ class Cross_VQEmbeddingEMA_AV_hierarchical_softmax(nn.Module):
                 for i in unactivated_indices:
                     random_idx = random.randint(0, len(activated_indices)-1)
                     self.embedding[i] = activated_quantized[random_idx] + torch.randn_like(self.embedding[i]) * 0.001
-                    # with torch.no_grad():
-                    #     modality_logit_noise = 0.1
-                    #     self.modality_weights[i] = self.modality_weights[random_idx] + torch.randn_like(self.modality_weights[i]) * modality_logit_noise
-                    #     hier_noise_scale = 0.05
-                    #     self.hierarchical_weights[i] = self.hierarchical_weights[random_idx] + torch.randn_like(self.hierarchical_weights[i]) * hier_noise_scale
 
         cmcm_loss = 0.5 * Lcmcm_av
 
@@ -1485,17 +1511,6 @@ class Cross_VQEmbeddingEMA_AVT_hierarchical(nn.Module):
 
 
             # STEP 2: HIERARCHICAL INFLUENCE BETWEEN SEGMENTS
-            # with torch.no_grad():
-            #     new_embedding = self.embedding.clone()
-            #     video_embedding_new = new_embedding[:, :D]         
-            #     audio_embedding_new = new_embedding[:, D:2*D] 
-            #     text_embedding_new =  new_embedding[:, 2*D:]
-
-            #     new_embedding[:, :D] = (1/3) * video_embedding_new + (1/3) * audio_embedding_new + (1/3) * text_embedding_new
-            #     new_embedding[:, D:2*D] = (1/3) * audio_embedding_new + (1/3) * video_embedding_new + (1/3) * text_embedding_new  
-            #     new_embedding[:, 2*D:] = (1/3) * text_embedding_new + (1/3) * video_embedding_new + (1/3) * audio_embedding_new
-             
-            #     self.embedding = new_embedding
 
             with torch.no_grad():
                 new_embedding = self.embedding.clone()
@@ -1503,23 +1518,20 @@ class Cross_VQEmbeddingEMA_AVT_hierarchical(nn.Module):
                 audio_embedding_new = new_embedding[:, D:2*D] 
                 text_embedding_new = new_embedding[:, 2*D:]
                 
-                # Stage 1: Video-Audio mixing 
-                # video_audio_mixed_v = (0.5 * video_embedding_new) + (0.5 * audio_embedding_new)
-                # video_audio_mixed_a = (0.5 * audio_embedding_new) + (0.5 * video_embedding_new)
                 
-                # Stage 2: Add text influence to the mixed video-audio segments 
-                # new_embedding[:, :D] = (0.5 * video_embedding_new) + (0.5 * audio_embedding_new)
-                # new_embedding[:, D:2*D] = (0.5 * audio_embedding_new) + (0.5 * video_embedding_new)
-
                 new_embedding[:, 2*D:] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D]) + ((1/3) * new_embedding[:, 2*D:])    #Text = (1/3)Video + (1/3)Audio + (1/3)Text
                 new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, 2*D:])  #Audio = (4/9)Video + (4/9)Audio + (1/9)Text
                 new_embedding[:, :D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])     #Video = (16/27)Video + (7/27)Audio + (4/27)Text
 
+                ### Equal distribution ###
+                # text_emb = ((1/3) * video_embedding_new) + ((1/3) * audio_embedding_new) + ((1/3) * text_embedding_new)   
+                # audio_emb = ((1/3) * video_embedding_new) + ((1/3) * audio_embedding_new) + ((1/3) * text_embedding_new)   
+                # video_emb = ((1/3) * video_embedding_new) + ((1/3) * audio_embedding_new) + ((1/3) * text_embedding_new)    
 
-
-                # new_embedding[:, :D] = video_audio_mixed_v
-                # new_embedding[:, D:2*D] = video_audio_mixed_a
-                # new_embedding[:, 2*D:] = 0.3 * text_embedding_new + 0.7 * video_audio_mixed_v  
+                # new_embedding[:, 2*D:] = text_emb    #Text = (1/3)Video + (1/3)Audio + (1/3)Text
+                # new_embedding[:, D:2*D] = audio_emb  #Audio = (1/3)Video + (1/3)Audio + (1/3)Text
+                # new_embedding[:, :D] = video_emb     #Video = (1/3)Video + (1/3)Audio + (1/3)Text
+                ### Equal distribution ###
                 
                 self.embedding = new_embedding
 

@@ -15,8 +15,8 @@ from torch.optim.lr_scheduler import StepLR, MultiStepLR
 import numpy as np
 from configs.opts import parser
 
-# from model.main_model_novel import Semantic_Decoder,AV_VQVAE_Encoder
-from model.main_model_novel import Semantic_Decoder,AVT_VQVAE_Encoder
+from model.main_model_novel import Semantic_Decoder,AV_VQVAE_Encoder, AVT_VQVAE_Encoder
+# from model.main_model_novel import Semantic_Decoder,AVT_VQVAE_Encoder
 from utils import AverageMeter, Prepare_logger, get_and_save_args
 from utils.container import metricsContainer
 from utils.Recorder import Recorder
@@ -106,8 +106,9 @@ def main():
 
     # Encoder = AV_VQVAE_Encoder( audio_dim, video_dim, video_output_dim, n_embeddings, embedding_dim)
     Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, video_output_dim, n_embeddings, embedding_dim)
-    Decoder = Semantic_Decoder(input_dim=embedding_dim * 3, class_num=28)
+    # Decoder = Semantic_Decoder(input_dim=embedding_dim * 3, class_num=28)
     # Decoder = Semantic_Decoder(input_dim=embedding_dim * 2, class_num=28)
+    Decoder = Semantic_Decoder(input_dim=embedding_dim , class_num=28)
     Encoder.double()
     Decoder.double()
     Encoder.to(device)
@@ -121,8 +122,8 @@ def main():
     criterion_event = nn.CrossEntropyLoss().cuda()
 
     if model_resume is True:
-        # path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/AVT_model/Text_CPC_noNoise/40k/checkpoint/DCID-model-5.pt"
-        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/AVT_model/Text_CPC_noNoise/90k/checkpoint/DCID-model-5.pt"
+        # path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/AVT_model/EqualHier/40k/checkpoint/DCID-model-5.pt"
+        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/AVT_model/EqualHier/90k/checkpoint/DCID-model-5.pt"
         checkpoints = torch.load(path_checkpoints)
         Encoder.load_state_dict(checkpoints['Encoder_parameters'])
         start_epoch = checkpoints['epoch']
@@ -227,6 +228,7 @@ def train_epoch(Encoder, Decoder, train_dataloader, criterion, criterion_event, 
             with torch.no_grad():# Freeze Encoder
                 out_vq_video, video_vq = Encoder.Video_VQ_Encoder(visual_feature)
             video_class = Decoder(out_vq_video)
+            # video_class = Decoder(video_vq)
             video_event_loss = criterion_event(video_class, labels_event.cuda())
             video_precision = compute_precision_supervised(video_class, labels)
             video_acc = compute_accuracy_supervised(video_class, labels)
@@ -241,6 +243,7 @@ def train_epoch(Encoder, Decoder, train_dataloader, criterion, criterion_event, 
             with torch.no_grad():# Freeze Encoder
                 out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(audio_feature)
             audio_class = Decoder(out_vq_audio)
+            # audio_class = Decoder(audio_vq)
             audio_event_loss = criterion_event(audio_class, labels_event.cuda())
             audio_precision = compute_precision_supervised(audio_class, labels)
             audio_acc = compute_accuracy_supervised(audio_class, labels)
@@ -338,6 +341,8 @@ def validate_epoch(Encoder,Decoder, val_dataloader, criterion, criterion_event, 
         out_vq_video, video_vq = Encoder.Video_VQ_Encoder(visual_feature)
         audio_class = Decoder(out_vq_audio)
         video_class = Decoder(out_vq_video)
+        # audio_class = Decoder(audio_vq)
+        # video_class = Decoder(video_vq)
         
         audio_event_loss = criterion_event(audio_class, labels_event.cuda())
         video_event_loss = criterion_event(video_class, labels_event.cuda())

@@ -17,9 +17,9 @@ from torch.optim.lr_scheduler import StepLR, MultiStepLR
 import numpy as np
 from configs.opts import parser
 # # from model.main_model_novel import Semantic_Decoder_AVVP_1,AV_VQVAE_Encoder
-# from model.main_model_novel import Semantic_Decoder_AVVP,AV_VQVAE_Encoder
+from model.main_model_novel import Semantic_Decoder_AVVP, Semantic_Decoder_AVVP_1, AV_VQVAE_Encoder, AVT_VQVAE_Encoder
 
-from model.main_model_novel import Semantic_Decoder_AVVP_1,AVT_VQVAE_Encoder
+# from model.main_model_novel import Semantic_Decoder_AVVP_1,AVT_VQVAE_Encoder
 # from model.main_model_novel import Semantic_Decoder_AVVP,AVT_VQVAE_Encoder
 
 from utils import AverageMeter, Prepare_logger, get_and_save_args
@@ -147,11 +147,14 @@ def main():
     Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, video_output_dim, n_embeddings, embedding_dim)
     # Encoder = AV_VQVAE_Encoder( audio_dim, video_dim, video_output_dim, n_embeddings, embedding_dim)
 
-    Decoder = Semantic_Decoder_AVVP_1(input_dim=embedding_dim * 3, class_num=26)
+    # Decoder = Semantic_Decoder_AVVP_1(input_dim=embedding_dim * 3, class_num=26)
     # Decoder = Semantic_Decoder_AVVP(input_dim=embedding_dim * 3, class_num=26)
 
     # Decoder = Semantic_Decoder_AVVP_1(input_dim=embedding_dim * 2, class_num=26)
-    # # Decoder = Semantic_Decoder_AVVP(input_dim=embedding_dim * 2, class_num=26)
+    # Decoder = Semantic_Decoder_AVVP(input_dim=embedding_dim * 2, class_num=26)
+
+    Decoder = Semantic_Decoder_AVVP(input_dim=embedding_dim, class_num=26)
+    # Decoder = Semantic_Decoder_AVVP_1(input_dim=embedding_dim, class_num=26)
 
     Encoder.double()
     Decoder.double()
@@ -167,8 +170,8 @@ def main():
     criterion_event = nn.CrossEntropyLoss().cuda()
 
     if model_resume is True:
-        # path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/AVT_model/Text_CPC_noNoise/40k/checkpoint/DCID-model-5.pt"
-        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/AVT_model/Text_CPC_noNoise/90k/checkpoint/DCID-model-5.pt"
+        # path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/AVT_model/EqualHier/40k/checkpoint/DCID-model-5.pt"
+        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/AVT_model/EqualHier/90k/checkpoint/DCID-model-5.pt"
         checkpoints = torch.load(path_checkpoints)
         Encoder.load_state_dict(checkpoints['Encoder_parameters'])
         start_epoch = checkpoints['epoch']
@@ -297,6 +300,11 @@ def train_epoch(Encoder, Decoder,ExpLogLoss_fn, train_dataloader, criterion, cri
             e_dim = out_vq_video.size()[2]
             out_vq_video = out_vq_video.reshape(-1, e_dim)
             video_class = Decoder(out_vq_video)
+
+            # e_dim = video_vq.size()[2]
+            # video_vq = video_vq.reshape(-1, e_dim)
+            # video_class = Decoder(video_vq)
+
             loss1 = criterion(video_class, labels_evn.cuda())
             loss2 = ExpLogLoss_fn(video_class, labels_evn.cuda())
             # loss3 = distance_map_loss(Sigmoid_fun(video_class), labels_evn.cuda())+ loss3
@@ -324,6 +332,11 @@ def train_epoch(Encoder, Decoder,ExpLogLoss_fn, train_dataloader, criterion, cri
             e_dim = out_vq_audio.size()[2]
             out_vq_audio = out_vq_audio.reshape(-1, e_dim)
             audio_class = Decoder(out_vq_audio)
+
+            # e_dim = audio_vq.size()[2]
+            # audio_vq = audio_vq.reshape(-1, e_dim)
+            # audio_class = Decoder(audio_vq)
+
             loss1 = criterion(audio_class, labels_evn.cuda())
             loss2 = ExpLogLoss_fn(audio_class, labels_evn.cuda())
             # loss3 = distance_map_loss(Sigmoid_fun(video_class), labels_evn.cuda())
@@ -411,6 +424,11 @@ def validate_epoch(Encoder,Decoder,ExpLogLoss_fn, val_dataloader, criterion, cri
             B, T, e_dim = out_vq_audio.size()
             out_vq_audio = out_vq_audio.reshape(-1, e_dim)
             audio_class = Decoder(out_vq_audio)
+
+            # B, T, e_dim = audio_vq.size()
+            # audio_vq = audio_vq.reshape(-1, e_dim)
+            # audio_class = Decoder(audio_vq)
+
             loss1 = criterion(audio_class, labels_evn.cuda())
             loss2 = ExpLogLoss_fn(audio_class, labels_evn.cuda())
             # loss3 = distance_map_loss(Sigmoid_fun(audio_class), labels_evn.cuda())+ loss3
@@ -431,6 +449,11 @@ def validate_epoch(Encoder,Decoder,ExpLogLoss_fn, val_dataloader, criterion, cri
             e_dim = out_vq_video.size()[2]
             out_vq_video = out_vq_video.reshape(-1, e_dim)
             video_class = Decoder(out_vq_video)
+
+            # e_dim = video_vq.size()[2]
+            # video_vq = video_vq.reshape(-1, e_dim)
+            # video_class = Decoder(video_vq)
+
             loss1 = criterion(video_class, labels_evn.cuda())
             loss2 = ExpLogLoss_fn(video_class, labels_evn.cuda())
             # loss3 = distance_map_loss(Sigmoid_fun(video_class), labels_evn.cuda())
