@@ -51,6 +51,16 @@ def main():
     best_acc=0
     best_rec=0
     best_f1=0
+
+    global best_audio_f1, best_audio_acc, best_audio_rec
+    global best_video_f1, best_video_acc, best_video_rec
+    best_audio_f1 = 0
+    best_audio_acc = 0
+    best_audio_rec = 0
+    best_video_f1 = 0
+    best_video_acc = 0
+    best_video_rec = 0
+    
     # configs
     dataset_configs = get_and_save_args(parser)
     parser.set_defaults(**dataset_configs)
@@ -76,7 +86,9 @@ def main():
 
     '''dataset selection'''
     if args.dataset_name =='avvp_av' or args.dataset_name =='avvp_va':
-        from dataset.AVVP_dataset import AVVPDataset
+        from dataset.AVVP_dataset import AVVPDataset as AVVPDataset
+    elif args.dataset_name =='avvp':
+        from dataset.AVVP_dataset import AVVPMultimodalDatasetSimplified as AVVPDataset
     else: 
         raise NotImplementedError
 
@@ -118,7 +130,27 @@ def main():
             shuffle=False,
             num_workers=8,
             pin_memory=False
-        ) 
+        )
+
+    elif args.dataset_name == 'avvp':
+        multimodal_csv_path = "/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/data/data/AVVP/data/AVVP_multimodal_simplified.csv"
+        audio_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/data/data/AVVP/feature/audio/zip'
+        video_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/data/data/AVVP/feature/video/zip'
+        train_dataloader = DataLoader(
+            AVVPDataset(multimodal_csv_path, audio_fea_base_path, video_fea_base_path, split='train'),
+            batch_size=args.batch_size,
+            shuffle=True,
+            num_workers=8,
+            pin_memory=False
+        )
+        val_dataloader = DataLoader(
+            AVVPDataset(multimodal_csv_path, audio_fea_base_path, video_fea_base_path, split='val'),
+            batch_size=args.batch_size,
+            shuffle=False,
+            num_workers=8,
+            pin_memory=False
+        )
+
 
     '''model setting'''
     # video_dim = 512
@@ -180,8 +212,8 @@ def main():
     criterion_event = nn.CrossEntropyLoss().cuda()
 
     if model_resume is True:
-        # path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/Equal_Hier_AV/40k/checkpoint/DCID-model-5.pt"
-        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/Equal_Hier_AV/90k/checkpoint/DCID-model-5.pt"
+        # path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/FixMetaModel_AV_final/40k/checkpoint/DCID-model-5.pt"
+        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/FixMetaModel_AV_final/90k/checkpoint/DCID-model-5.pt"
         checkpoints = torch.load(path_checkpoints)
         Encoder.load_state_dict(checkpoints['Encoder_parameters'])
         start_epoch = checkpoints['epoch']
@@ -277,6 +309,10 @@ def train_epoch(Encoder, Decoder,ExpLogLoss_fn, train_dataloader, criterion, cri
     train_acc = AverageMeter()
     all_accuracy = AverageMeter()
     all_recall = AverageMeter()
+    all_accuracy_v = AverageMeter()
+    all_recall_v = AverageMeter()
+    all_accuracy_a = AverageMeter()
+    all_recall_a = AverageMeter()
     end_time = time.time()
     models = [Encoder, Decoder]
     to_train(models)
@@ -292,16 +328,26 @@ def train_epoch(Encoder, Decoder,ExpLogLoss_fn, train_dataloader, criterion, cri
 
         data_time.update(time.time() - end_time)
         '''Feed input to model'''
-        feature, labels, video_id = batch_data
-        feature = feature.to(torch.float64)
-        feature.cuda()
+        if (args.dataset_name == 'avvp_va') or (args.dataset_name == 'avvp_va'):
+            feature, labels, video_id = batch_data
+            feature = feature.to(torch.float64)
+            feature.cuda()
+            labels = labels.double().cuda()
+            B, T, C = labels.size()
+            labels = labels.reshape(-1, C)# [B, T, C] -> [BxT, C] e.g.[80*10, 26]
+            labels_evn = labels.to(torch.float32)
+            bs = feature.size(0)
 
-        labels = labels.double().cuda()
-        """"now"""
-        B, T, C = labels.size()
-        labels = labels.reshape(-1, C)# [B, T, C] -> [BxT, C] e.g.[80*10, 26]
-        labels_evn = labels.to(torch.float32)
-        bs = feature.size(0)
+        elif (args.dataset_name == 'avvp'):
+            audio_feature, video_feature, labels, video_id = batch_data
+            audio_feature = audio_feature.to(torch.float64).cuda()
+            video_feature = video_feature.to(torch.float64).cuda()
+            labels = labels.double().cuda()
+            B, T, C = labels.size()
+            labels = labels.reshape(-1, C)  # [B, T, C] -> [BxT, C]
+            labels_evn = labels.to(torch.float32)
+            bs = audio_feature.size(0)
+
 
         if (args.dataset_name == 'avvp_va'):
             
@@ -364,6 +410,49 @@ def train_epoch(Encoder, Decoder,ExpLogLoss_fn, train_dataloader, criterion, cri
             all_recall.update(recall.item(), bs * 10)
             metricsContainer.update("loss", loss_items)
             loss = audio_event_loss
+
+        elif (args.dataset_name == 'avvp'):
+            with torch.no_grad():
+                out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(audio_feature)
+                out_vq_video, video_vq = Encoder.Video_VQ_Encoder(video_feature)
+            audio_dim = out_vq_audio.size()[2]
+            video_dim = out_vq_video.size()[2]
+            out_vq_audio = out_vq_audio.reshape(-1, audio_dim)
+            out_vq_video = out_vq_video.reshape(-1, video_dim)
+            audio_class = Decoder(out_vq_audio)
+            video_class = Decoder(out_vq_video)
+
+            loss1 = criterion(video_class, labels_evn.cuda())
+            loss2 = ExpLogLoss_fn(video_class, labels_evn.cuda())
+            video_event_loss = loss1 + loss2 
+            precision_v, recall_v = compute_accuracy_supervised_sigmoid(Sigmoid_fun(video_class), labels_evn.cuda())
+
+            loss3 = criterion(audio_class, labels_evn.cuda())
+            loss4 = ExpLogLoss_fn(audio_class, labels_evn.cuda())
+            audio_event_loss = loss3 + loss4
+            precision_a, recall_a = compute_accuracy_supervised_sigmoid(Sigmoid_fun(audio_class), labels_evn.cuda())
+
+            loss_items = {
+                "video_event_loss":video_event_loss.item(),
+                "BCELoss_v":loss1.item(),
+                "ExpLogLoss_v":loss2.item(),
+                "video_precision": precision_v.item(),
+                "video_recall": recall_v.item(),
+                "audio_event_loss":audio_event_loss.item(),
+                "BCELoss_a":loss3.item(),
+                "ExpLogLoss_a":loss4.item(),
+                "audio_precision": precision_a.item(),
+                "audio_recall": recall_a.item(),
+                "alpha":ExpLogLoss_fn.check().item()
+            }
+            all_accuracy_v.update(precision_v.item(), bs * 10)
+            all_recall_v.update(recall_v.item(), bs * 10)
+            all_accuracy_a.update(precision_a.item(), bs * 10)
+            all_recall_a.update(recall_a.item(), bs * 10)
+            metricsContainer.update("loss", loss_items)
+            loss = video_event_loss + audio_event_loss
+
+
         else: 
             raise NotImplementedError
         
@@ -381,16 +470,20 @@ def train_epoch(Encoder, Decoder,ExpLogLoss_fn, train_dataloader, criterion, cri
         optimizer.step()
         optimizer.zero_grad()
 
-        losses.update(loss.item(), feature.size(0) * 10)
+        losses.update(loss.item(), bs * 10)
         batch_time.update(time.time() - end_time)
         end_time = time.time()
 
-
-
-    logger.info(
+    if (args.dataset_name == 'avvp_va') or (args.dataset_name == 'avvp_va'):
+        logger.info(
         f'**********************************************\t'
-        f"\t Train results (accuracy and recall): {all_accuracy.avg:.4f}\t{all_recall.avg:.4f}."
-    )
+        f"\t Train results (accuracy and recall): {all_accuracy.avg:.4f}\t{all_recall.avg:.4f}.")
+
+    elif (args.dataset_name == 'avvp'):
+        logger.info(
+            f'**********************************************\t'
+            f"\t Video Train results (accuracy and recall): {all_accuracy_v.avg:.4f}\t{all_recall_v.avg:.4f}."
+            f"\t Audio Train results (accuracy and recall): {all_accuracy_a.avg:.4f}\t{all_recall_a.avg:.4f}.")
     return losses.avg, n_iter + total_step
 
 
@@ -405,6 +498,13 @@ def validate_epoch(Encoder,Decoder,ExpLogLoss_fn, val_dataloader, criterion, cri
     downstream_recall = AverageMeter()
     end_time = time.time()
 
+    audio_losses = AverageMeter()
+    video_losses = AverageMeter()
+    audio_accuracy = AverageMeter()
+    audio_recall = AverageMeter()
+    video_accuracy = AverageMeter()
+    video_recall = AverageMeter()
+
     Encoder.eval()
     Decoder.eval()
     Encoder.cuda()
@@ -418,16 +518,25 @@ def validate_epoch(Encoder,Decoder,ExpLogLoss_fn, val_dataloader, criterion, cri
         data_time.update(time.time() - end_time)
 
         '''Feed input to model'''
-        feature, labels, video_id = batch_data
-        feature = feature.to(torch.float64)
-        feature.cuda()
-        labels = labels.double().cuda()
-        
-        B, T, C = labels.size()
-        labels = labels.reshape(-1, C)# [B, T, C] -> [BxT, C] e.g.[80*10, 26]
-        labels_evn = labels.to(torch.float32)
+        if (args.dataset_name == 'avvp_va') or (args.dataset_name == 'avvp_va'):
+            feature, labels, video_id = batch_data
+            feature = feature.to(torch.float64)
+            feature.cuda()
+            labels = labels.double().cuda()
+            B, T, C = labels.size()
+            labels = labels.reshape(-1, C)# [B, T, C] -> [BxT, C] e.g.[80*10, 26]
+            labels_evn = labels.to(torch.float32)
+            bs = feature.size(0)
 
-        bs = feature.size(0)
+        elif (args.dataset_name == 'avvp'):
+            audio_feature, video_feature, labels, video_id = batch_data
+            audio_feature = audio_feature.to(torch.float64).cuda()
+            video_feature = video_feature.to(torch.float64).cuda()
+            labels = labels.double().cuda()
+            B, T, C = labels.size()
+            labels = labels.reshape(-1, C)  # [B, T, C] -> [BxT, C]
+            labels_evn = labels.to(torch.float32)
+            bs = audio_feature.size(0)
 
         if (args.dataset_name == 'avvp_va'):
             out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(feature)
@@ -476,6 +585,42 @@ def validate_epoch(Encoder,Decoder,ExpLogLoss_fn, val_dataloader, criterion, cri
             #     save_img(Draw, Sigmoid_fun(video_class.reshape(B,T,C)[rand_choose,:,:]), labels_evn.reshape(B,T,C)[rand_choose,:,:].cuda(), video_id[rand_choose],"av",epoch)
             downstream_accuracy.update(precision.item(), bs * 10)
             downstream_recall.update(recall.item(), bs * 10)
+
+        elif (args.dataset_name == 'avvp'):
+            out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(audio_feature)
+            audio_dim = out_vq_audio.size()[2]
+            out_vq_audio = out_vq_audio.reshape(-1, audio_dim)
+            audio_class = Decoder(out_vq_audio)
+            
+            audio_loss1 = criterion(audio_class, labels_evn.cuda())
+            audio_loss2 = ExpLogLoss_fn(audio_class, labels_evn.cuda())
+            audio_total_loss = audio_loss1 + audio_loss2
+            
+            audio_precision, audio_rec = compute_accuracy_supervised_sigmoid(
+                Sigmoid_fun(audio_class), labels_evn.cuda()
+            )
+
+            out_vq_video, video_vq = Encoder.Video_VQ_Encoder(video_feature)
+            video_dim = out_vq_video.size()[2]
+            out_vq_video = out_vq_video.reshape(-1, video_dim)
+            video_class = Decoder(out_vq_video)
+            
+            video_loss1 = criterion(video_class, labels_evn.cuda())
+            video_loss2 = ExpLogLoss_fn(video_class, labels_evn.cuda())
+            video_total_loss = video_loss1 + video_loss2
+            loss = video_total_loss + audio_total_loss
+            video_precision, video_rec = compute_accuracy_supervised_sigmoid(
+                Sigmoid_fun(video_class), labels_evn.cuda()
+            )
+            
+            audio_losses.update(audio_total_loss.item(), bs * 10)
+            audio_accuracy.update(audio_precision.item(), bs * 10)
+            audio_recall.update(audio_rec.item(), bs * 10)
+            
+            video_losses.update(video_total_loss.item(), bs * 10)
+            video_accuracy.update(video_precision.item(), bs * 10)
+            video_recall.update(video_rec.item(), bs * 10)
+
         else: 
             raise NotImplementedError
             
@@ -483,30 +628,47 @@ def validate_epoch(Encoder,Decoder,ExpLogLoss_fn, val_dataloader, criterion, cri
         end_time = time.time()
         losses.update(loss.item(), bs * 10)
 
-    f1_score = 2.0*downstream_accuracy.avg*downstream_recall.avg/(downstream_accuracy.avg+downstream_recall.avg)
-    global best_f1,best_acc,best_rec
-    # For AVVP downstream, record the best acc. For AVE_AVVP, record the best f1-score. 
-    # This setting is simple, there is no special deeper meaning.
-    if downstream_accuracy.avg > best_acc:
-        best_f1 = f1_score
-        best_acc = downstream_accuracy.avg
-        best_rec = downstream_recall.avg
-    logger.info(
+    if (args.dataset_name == 'avvp_va') or (args.dataset_name == 'avvp_va'):
+        f1_score = 2.0*downstream_accuracy.avg*downstream_recall.avg/(downstream_accuracy.avg+downstream_recall.avg)
+        global best_f1,best_acc,best_rec
+        # For AVVP downstream, record the best acc. For AVE_AVVP, record the best f1-score. 
+        # This setting is simple, there is no special deeper meaning.
+        if downstream_accuracy.avg > best_acc:
+            best_f1 = f1_score
+            best_acc = downstream_accuracy.avg
+            best_rec = downstream_recall.avg
+        logger.info(
+            f'**********************************************\t'
+            f"\t Evaluation results (accuracy and recall F1-score): {downstream_accuracy.avg:.4f}\t{downstream_recall.avg:.4f}\t{f1_score:.4f}.\n"
+            f'**********************************************\t'
+            f"\t Best results (accuracy and recall F1-score): {best_acc:.4f}\t{best_rec:.4f}\t{best_f1:.4f}."
+        )
+    elif (args.dataset_name == 'avvp'):
+        audio_f1 = 2.0 * audio_accuracy.avg * audio_recall.avg / (audio_accuracy.avg + audio_recall.avg) if (audio_accuracy.avg + audio_recall.avg) > 0 else 0.0
+        video_f1 = 2.0 * video_accuracy.avg * video_recall.avg / (video_accuracy.avg + video_recall.avg) if (video_accuracy.avg + video_recall.avg) > 0 else 0.0
+        global best_audio_f1, best_audio_acc, best_audio_rec
+        if audio_accuracy.avg > best_audio_acc:
+            best_audio_f1 = audio_f1
+            best_audio_acc = audio_accuracy.avg
+            best_audio_rec = audio_recall.avg
+        global best_video_f1, best_video_acc, best_video_rec
+        if video_accuracy.avg > best_video_acc:
+            best_video_f1 = video_f1
+            best_video_acc = video_accuracy.avg
+            best_video_rec = video_recall.avg
+        logger.info(
         f'**********************************************\t'
-        f"\t Evaluation results (accuracy and recall F1-score): {downstream_accuracy.avg:.4f}\t{downstream_recall.avg:.4f}\t{f1_score:.4f}.\n"
+        f"\t Audio Evaluation results (accuracy and recall F1-score): {audio_accuracy.avg:.4f}\t{audio_recall.avg:.4f}\t{audio_f1:.4f}.\n"
         f'**********************************************\t'
-        f"\t Best results (accuracy and recall F1-score): {best_acc:.4f}\t{best_rec:.4f}\t{best_f1:.4f}."
-    )
+        f"\t Audio Best results (accuracy and recall F1-score): {best_audio_acc:.4f}\t{best_audio_rec:.4f}\t{best_audio_f1:.4f}.")
+
+        logger.info(
+        f'**********************************************\t'
+        f"\t Video Evaluation results (accuracy and recall F1-score): {video_accuracy.avg:.4f}\t{video_recall.avg:.4f}\t{video_f1:.4f}.\n"
+        f'**********************************************\t'
+        f"\t Video Best results (accuracy and recall F1-score): {best_video_acc:.4f}\t{best_video_rec:.4f}\t{best_video_f1:.4f}.")
+
     return losses.avg
-
-
-
-
-
-
-
-
-
 
 
 
