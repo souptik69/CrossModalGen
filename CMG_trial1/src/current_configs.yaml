@@ -1,8 +1,8 @@
 # ======================================= Learning configs ==================================
-n_epoch: 50
-batch_size: 64
-test_batch_size: 64
-lr: 0.0004
+n_epoch: 30
+batch_size: 256
+test_batch_size: 128
+lr: 0.00025
 mi_lr: 0.001
 loss_weights: 0.5
 clip_gradient: 0.5
@@ -11,7 +11,7 @@ weight_decay: 5e-4
 
   # ======================================= Print and snapshot configs ==================================
 snapshot_pref: 
-    /project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/AVT_Tests/AVVP/noCascade/90k/OldDecoder/V2A/
+    /project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/AVT_Tests/AVE/noCascade/90k/A2V1/
 print_freq: 1
 eval_freq: 1
 
