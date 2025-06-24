@@ -22,16 +22,16 @@ source ~/.bashrc
 conda activate /project/ag-jafra/Souptik/CMG_New/Experiments/envs/CMG_new
 
 # Run AVVP training
-python $SRCDIR/CMG_trial1/src/avvp_novel.py \
+python $SRCDIR/CMG_trial1/src/avvp.py \
     --gpu 0 \
     --lr 0.0004 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Novel_Model_Final/AVVP_Tests/FixMeta/Event/90k/ND/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Novel_Model_Final/AVVP_Tests/CMG_Event_AV/Event/90k/ND/" \
     --n_epoch 50 \
     --batch_size 64 \
     --test_batch_size 64 \
     --dataset_name "avvp" \
-    --model_save_path "$SRCDIR/CMG_trial1/Novel_Model_Final/AVVP_Tests/FixMeta/Event/90k/ND/" \
+    --model_save_path "$SRCDIR/CMG_trial1/Novel_Model_Final/AVVP_Tests/CMG_Event_AV/Event/90k/ND/" \
     --print_freq 1 \
     --eval_freq 1
 

@@ -176,12 +176,12 @@ def main():
     total_step = 0
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, video_output_dim, n_embeddings, embedding_dim)
-    Encoder = AV_VQVAE_Encoder( audio_dim, video_dim, video_output_dim, n_embeddings, embedding_dim)
+    Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, video_output_dim, n_embeddings, embedding_dim)
+    # Encoder = AV_VQVAE_Encoder( audio_dim, video_dim, video_output_dim, n_embeddings, embedding_dim)
 
     ######## Audio Video Text ########
 
-    # Decoder = Semantic_Decoder_AVVP_1(input_dim=embedding_dim * 3, class_num=26)
+    Decoder = Semantic_Decoder_AVVP_1(input_dim=embedding_dim * 3, class_num=26)
     # Decoder = Semantic_Decoder_AVVP(input_dim=embedding_dim * 3, class_num=26)
 
     ######## Audio Video Text ########
@@ -190,7 +190,7 @@ def main():
 
     ######## Audio Video ########
 
-    Decoder = Semantic_Decoder_AVVP_1(input_dim=embedding_dim * 2, class_num=26)
+    # Decoder = Semantic_Decoder_AVVP_1(input_dim=embedding_dim * 2, class_num=26)
     # Decoder = Semantic_Decoder_AVVP(input_dim=embedding_dim * 2, class_num=26)
 
     ######## Audio Video ########
@@ -212,8 +212,8 @@ def main():
     criterion_event = nn.CrossEntropyLoss().cuda()
 
     if model_resume is True:
-        # path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/FixMetaModel_AV_final/40k/checkpoint/DCID-model-5.pt"
-        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/FixMetaModel_AV_final/90k/checkpoint/DCID-model-5.pt"
+        # path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/AVT_model/Best_Text_CPC_noNoise/40k/checkpoint/DCID-model-5.pt"
+        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/AVT_model/Best_Text_CPC_noNoise/90k/checkpoint/DCID-model-5.pt"
         checkpoints = torch.load(path_checkpoints)
         Encoder.load_state_dict(checkpoints['Encoder_parameters'])
         start_epoch = checkpoints['epoch']
@@ -367,6 +367,7 @@ def train_epoch(Encoder, Decoder,ExpLogLoss_fn, train_dataloader, criterion, cri
             video_event_loss = loss1 + loss2 
             
             precision, recall = compute_accuracy_supervised_sigmoid(Sigmoid_fun(video_class), labels_evn.cuda())
+            # precision, recall = compute_accuracy_recall_supervised_sigmoid(Sigmoid_fun(video_class), labels_evn.cuda())
             loss_items = {
                 "video_event_loss":video_event_loss.item(),
                 "BCELoss":loss1.item(),
@@ -398,6 +399,7 @@ def train_epoch(Encoder, Decoder,ExpLogLoss_fn, train_dataloader, criterion, cri
             # loss3 = distance_map_loss(Sigmoid_fun(video_class), labels_evn.cuda())
             audio_event_loss = loss1 + loss2
             precision, recall = compute_accuracy_supervised_sigmoid(Sigmoid_fun(audio_class), labels_evn.cuda())
+            # precision, recall = compute_accuracy_recall_supervised_sigmoid(Sigmoid_fun(audio_class), labels_evn.cuda())
             loss_items = {
                 "audio_event_loss":audio_event_loss.item(),
                 "BCELoss":loss1.item(),
@@ -426,11 +428,13 @@ def train_epoch(Encoder, Decoder,ExpLogLoss_fn, train_dataloader, criterion, cri
             loss2 = ExpLogLoss_fn(video_class, labels_evn.cuda())
             video_event_loss = loss1 + loss2 
             precision_v, recall_v = compute_accuracy_supervised_sigmoid(Sigmoid_fun(video_class), labels_evn.cuda())
+            # precision_v, recall_v = compute_accuracy_supervised_sigmoid(Sigmoid_fun(video_class), labels_evn.cuda())
 
             loss3 = criterion(audio_class, labels_evn.cuda())
             loss4 = ExpLogLoss_fn(audio_class, labels_evn.cuda())
             audio_event_loss = loss3 + loss4
             precision_a, recall_a = compute_accuracy_supervised_sigmoid(Sigmoid_fun(audio_class), labels_evn.cuda())
+            # precision_a, recall_a = compute_accuracy_recall_supervised_sigmoid(Sigmoid_fun(audio_class), labels_evn.cuda())
 
             loss_items = {
                 "video_event_loss":video_event_loss.item(),
@@ -556,6 +560,7 @@ def validate_epoch(Encoder,Decoder,ExpLogLoss_fn, val_dataloader, criterion, cri
             loss = audio_event_loss
             
             precision, recall = compute_accuracy_supervised_sigmoid(Sigmoid_fun(audio_class), labels_evn.cuda())
+            # precision, recall = compute_accuracy_recall_supervised_sigmoid(Sigmoid_fun(audio_class), labels_evn.cuda())
             """draw image"""
             # if n_iter % 5 == 0:
             #     rand_choose = random.randint(0,B-1)
@@ -579,6 +584,7 @@ def validate_epoch(Encoder,Decoder,ExpLogLoss_fn, val_dataloader, criterion, cri
             video_event_loss = loss1 + loss2
             loss = video_event_loss
             precision, recall = compute_accuracy_supervised_sigmoid(Sigmoid_fun(video_class), labels_evn.cuda())
+            # precision, recall = compute_accuracy_recall_supervised_sigmoid(Sigmoid_fun(video_class), labels_evn.cuda())
             """draw image"""
             # if n_iter % 5 == 0:
             #     rand_choose = random.randint(0,B-1)
@@ -599,6 +605,9 @@ def validate_epoch(Encoder,Decoder,ExpLogLoss_fn, val_dataloader, criterion, cri
             audio_precision, audio_rec = compute_accuracy_supervised_sigmoid(
                 Sigmoid_fun(audio_class), labels_evn.cuda()
             )
+            # audio_precision, audio_rec = compute_accuracy_recall_supervised_sigmoid(
+            #     Sigmoid_fun(audio_class), labels_evn.cuda()
+            # )
 
             out_vq_video, video_vq = Encoder.Video_VQ_Encoder(video_feature)
             video_dim = out_vq_video.size()[2]
@@ -612,6 +621,9 @@ def validate_epoch(Encoder,Decoder,ExpLogLoss_fn, val_dataloader, criterion, cri
             video_precision, video_rec = compute_accuracy_supervised_sigmoid(
                 Sigmoid_fun(video_class), labels_evn.cuda()
             )
+            # video_precision, video_rec = compute_accuracy_recall_supervised_sigmoid(
+            #     Sigmoid_fun(video_class), labels_evn.cuda()
+            # )
             
             audio_losses.update(audio_total_loss.item(), bs * 10)
             audio_accuracy.update(audio_precision.item(), bs * 10)
@@ -686,6 +698,37 @@ def compute_accuracy_supervised_sigmoid(model_pred, labels):
     
     recall = true_predict_num / target_one_num
     return precision, recall
+
+# New function
+
+def compute_accuracy_recall_supervised_sigmoid(model_pred, labels):
+    accuracy_th = 0.5
+    pred_result = model_pred > accuracy_th
+    pred_result = pred_result.float()
+    
+    # Total number of predictions
+    total_predictions = pred_result.numel()
+    
+    # Total number of positive examples in ground truth
+    target_one_num = torch.sum(labels)
+    
+    # True positives: where prediction and ground truth both have 1
+    true_positives = torch.sum(pred_result * labels)
+    
+    # True negatives: where prediction and ground truth both have 0
+    true_negatives = torch.sum((1 - pred_result) * (1 - labels))
+    
+    # If no positive predictions or no positive ground truth, return zeros
+    if total_predictions == 0:
+        return torch.zeros(1), torch.zeros(1)
+    
+    # Accuracy: (TP + TN) / total
+    accuracy = (true_positives + true_negatives) / total_predictions
+    
+    # Recall (same as in the original function): TP / (all actual positives)
+    recall = true_positives / target_one_num if target_one_num > 0 else torch.zeros(1)
+    
+    return accuracy, recall
 
 
 

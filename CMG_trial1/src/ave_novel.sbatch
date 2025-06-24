@@ -2,7 +2,7 @@
 
 #SBATCH --job-name=AVE_train
 #SBATCH --partition=leinegpu
-#SBATCH --nodelist=leinewr011
+#SBATCH --nodelist=leinevmgpu008
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=1
 #SBATCH --cpus-per-task=32
@@ -22,16 +22,16 @@ source ~/.bashrc
 conda activate /project/ag-jafra/Souptik/CMG_New/Experiments/envs/CMG_new
 
 # Run AVE training
-python $SRCDIR/CMG_trial1/src/ave_novel.py \
+python $SRCDIR/CMG_trial1/src/ave_precision.py \
     --gpu 0 \
     --lr 0.00025 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Novel_Model_Final/AVE_Tests/noCascade/90k/V2A1/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Models/Final_AVE_90k_CMG/AV/" \
     --n_epoch 30 \
     --batch_size 256 \
     --test_batch_size 128 \
-    --dataset_name "ave_va" \
-    --model_save_path "$SRCDIR/CMG_trial1/Novel_Model_Final/AVE_Tests/noCascade/90k/V2A1/" \
+    --dataset_name "ave" \
+    --model_save_path "$SRCDIR/CMG_trial1/Models/Final_AVE_90k_CMG/AV/" \
     --print_freq 1 \
     --eval_freq 1
 
