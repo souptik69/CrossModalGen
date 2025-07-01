@@ -179,23 +179,9 @@ def main():
     Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, video_output_dim, n_embeddings, embedding_dim)
     # Encoder = AV_VQVAE_Encoder( audio_dim, video_dim, video_output_dim, n_embeddings, embedding_dim)
 
-    ######## Audio Video Text ########
-
-    Decoder = Semantic_Decoder_AVVP_1(input_dim=embedding_dim * 3, class_num=26)
-    # Decoder = Semantic_Decoder_AVVP(input_dim=embedding_dim * 3, class_num=26)
-
-    ######## Audio Video Text ########
-    
 
 
-    ######## Audio Video ########
-
-    # Decoder = Semantic_Decoder_AVVP_1(input_dim=embedding_dim * 2, class_num=26)
-    # Decoder = Semantic_Decoder_AVVP(input_dim=embedding_dim * 2, class_num=26)
-
-    ######## Audio Video ########
-
-    # Decoder = Semantic_Decoder_AVVP(input_dim=embedding_dim, class_num=26)
+    Decoder = Semantic_Decoder_AVVP(input_dim=embedding_dim, class_num=26)
     # Decoder = Semantic_Decoder_AVVP_1(input_dim=embedding_dim, class_num=26)
 
     Encoder.double()
@@ -353,17 +339,20 @@ def train_epoch(Encoder, Decoder,ExpLogLoss_fn, train_dataloader, criterion, cri
             
             with torch.no_grad():
                 out_vq_video, video_vq = Encoder.Video_VQ_Encoder(feature)
-            e_dim = out_vq_video.size()[2]
-            out_vq_video = out_vq_video.reshape(-1, e_dim)
-            video_class = Decoder(out_vq_video)
+            e_dim = video_vq.size()[2]
+            D = out_vq_video.size()[2]
+            out_vq_video = out_vq_video.reshape(-1, D)
+            video_vq = video_vq.reshape(-1,e_dim)
+            audio_vq = out_vq_video[:, e_dim:2*e_dim]
+            text_vq = out_vq_video[:, 2*e_dim:]
+            out_vq = video_vq + audio_vq + text_vq
 
-            # e_dim = video_vq.size()[2]
-            # video_vq = video_vq.reshape(-1, e_dim)
-            # video_class = Decoder(video_vq)
+            # audio_vq = out_vq_video[:, e_dim:]
+            # out_vq = video_vq + audio_vq
 
+            video_class = Decoder(out_vq)
             loss1 = criterion(video_class, labels_evn.cuda())
             loss2 = ExpLogLoss_fn(video_class, labels_evn.cuda())
-            # loss3 = distance_map_loss(Sigmoid_fun(video_class), labels_evn.cuda())+ loss3
             video_event_loss = loss1 + loss2 
             
             precision, recall = compute_accuracy_supervised_sigmoid(Sigmoid_fun(video_class), labels_evn.cuda())
@@ -386,14 +375,18 @@ def train_epoch(Encoder, Decoder,ExpLogLoss_fn, train_dataloader, criterion, cri
 
             with torch.no_grad():
                 out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(feature)
-            e_dim = out_vq_audio.size()[2]
-            out_vq_audio = out_vq_audio.reshape(-1, e_dim)
-            audio_class = Decoder(out_vq_audio)
+            e_dim = audio_vq.size()[2]
+            D = out_vq_audio.size()[2]
+            out_vq_audio = out_vq_audio.reshape(-1, D)
+            audio_vq = audio_vq.reshape(-1,e_dim)
+            video_vq = out_vq_audio[:, :e_dim]
+            text_vq = out_vq_audio[:, 2*e_dim:]
+            out_vq = video_vq + audio_vq + text_vq
 
-            # e_dim = audio_vq.size()[2]
-            # audio_vq = audio_vq.reshape(-1, e_dim)
-            # audio_class = Decoder(audio_vq)
+            # video_vq = out_vq_audio[:, :e_dim]
+            # out_vq = video_vq + audio_vq 
 
+            audio_class = Decoder(out_vq)
             loss1 = criterion(audio_class, labels_evn.cuda())
             loss2 = ExpLogLoss_fn(audio_class, labels_evn.cuda())
             # loss3 = distance_map_loss(Sigmoid_fun(video_class), labels_evn.cuda())
@@ -417,13 +410,31 @@ def train_epoch(Encoder, Decoder,ExpLogLoss_fn, train_dataloader, criterion, cri
             with torch.no_grad():
                 out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(audio_feature)
                 out_vq_video, video_vq = Encoder.Video_VQ_Encoder(video_feature)
-            audio_dim = out_vq_audio.size()[2]
-            video_dim = out_vq_video.size()[2]
-            out_vq_audio = out_vq_audio.reshape(-1, audio_dim)
-            out_vq_video = out_vq_video.reshape(-1, video_dim)
-            audio_class = Decoder(out_vq_audio)
-            video_class = Decoder(out_vq_video)
+            
+            e_dim = video_vq.size()[2]
+            D = out_vq_video.size()[2]
+            out_vq_video = out_vq_video.reshape(-1, D)
+            video_vq = video_vq.reshape(-1,e_dim)
+            audio_vq_v = out_vq_video[:, e_dim:2*e_dim]
+            text_vq_v = out_vq_video[:, 2*e_dim:]
+            out_vq_v = video_vq + audio_vq_v + text_vq_v
 
+            # audio_vq_v = out_vq_video[:, e_dim:]
+            # out_vq_v = video_vq + audio_vq_v
+
+            video_class = Decoder(out_vq_v)
+            e_dim = audio_vq.size()[2]
+            D = out_vq_audio.size()[2]
+            out_vq_audio = out_vq_audio.reshape(-1, D)
+            audio_vq = audio_vq.reshape(-1,e_dim)
+            video_vq_a = out_vq_audio[:, :e_dim]
+            text_vq_a = out_vq_audio[:, 2*e_dim:]
+            out_vq_a = video_vq_a + audio_vq + text_vq_a
+
+            # video_vq_a = out_vq_audio[:, :e_dim]
+            # out_vq_a = video_vq_a + audio_vq 
+
+            audio_class = Decoder(out_vq_a)
             loss1 = criterion(video_class, labels_evn.cuda())
             loss2 = ExpLogLoss_fn(video_class, labels_evn.cuda())
             video_event_loss = loss1 + loss2 
@@ -544,14 +555,18 @@ def validate_epoch(Encoder,Decoder,ExpLogLoss_fn, val_dataloader, criterion, cri
 
         if (args.dataset_name == 'avvp_va'):
             out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(feature)
-            B, T, e_dim = out_vq_audio.size()
-            out_vq_audio = out_vq_audio.reshape(-1, e_dim)
-            audio_class = Decoder(out_vq_audio)
+            B, T, D = out_vq_audio.size()
+            e_dim = audio_vq.size()[2]
+            out_vq_audio = out_vq_audio.reshape(-1, D)
+            audio_vq = audio_vq.reshape(-1,e_dim)
+            video_vq = out_vq_audio[:, :e_dim]
+            text_vq = out_vq_audio[:, 2*e_dim:]
+            out_vq = video_vq + audio_vq + text_vq
 
-            # B, T, e_dim = audio_vq.size()
-            # audio_vq = audio_vq.reshape(-1, e_dim)
-            # audio_class = Decoder(audio_vq)
+            # video_vq = out_vq_audio[:, :e_dim]
+            # out_vq = video_vq + audio_vq 
 
+            audio_class = Decoder(out_vq)
             loss1 = criterion(audio_class, labels_evn.cuda())
             loss2 = ExpLogLoss_fn(audio_class, labels_evn.cuda())
             # loss3 = distance_map_loss(Sigmoid_fun(audio_class), labels_evn.cuda())+ loss3
@@ -570,14 +585,18 @@ def validate_epoch(Encoder,Decoder,ExpLogLoss_fn, val_dataloader, criterion, cri
 
         elif (args.dataset_name == 'avvp_av'):
             out_vq_video, video_vq = Encoder.Video_VQ_Encoder(feature)
-            e_dim = out_vq_video.size()[2]
-            out_vq_video = out_vq_video.reshape(-1, e_dim)
-            video_class = Decoder(out_vq_video)
+            e_dim = video_vq.size()[2]
+            D = out_vq_video.size()[2]
+            out_vq_video = out_vq_video.reshape(-1, D)
+            video_vq = video_vq.reshape(-1,e_dim)
+            audio_vq = out_vq_video[:, e_dim:2*e_dim]
+            text_vq = out_vq_video[:, 2*e_dim:]
+            out_vq = video_vq + audio_vq + text_vq
 
-            # e_dim = video_vq.size()[2]
-            # video_vq = video_vq.reshape(-1, e_dim)
-            # video_class = Decoder(video_vq)
+            # audio_vq = out_vq_video[:, e_dim:]
+            # out_vq = video_vq + audio_vq
 
+            video_class = Decoder(out_vq)
             loss1 = criterion(video_class, labels_evn.cuda())
             loss2 = ExpLogLoss_fn(video_class, labels_evn.cuda())
             # loss3 = distance_map_loss(Sigmoid_fun(video_class), labels_evn.cuda())
@@ -593,10 +612,20 @@ def validate_epoch(Encoder,Decoder,ExpLogLoss_fn, val_dataloader, criterion, cri
             downstream_recall.update(recall.item(), bs * 10)
 
         elif (args.dataset_name == 'avvp'):
-            out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(audio_feature)
-            audio_dim = out_vq_audio.size()[2]
-            out_vq_audio = out_vq_audio.reshape(-1, audio_dim)
-            audio_class = Decoder(out_vq_audio)
+            out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(feature)
+            B, T, D = out_vq_audio.size()
+            e_dim = audio_vq.size()[2]
+            out_vq_audio = out_vq_audio.reshape(-1, D)
+            audio_vq = audio_vq.reshape(-1,e_dim)
+            video_vq_a = out_vq_audio[:, :e_dim]
+            text_vq_a = out_vq_audio[:, 2*e_dim:]
+            out_vq = video_vq_a + audio_vq + text_vq_a
+
+            # video_vq_a = out_vq_audio[:, :, :e_dim]
+            # out_vq_a = video_vq_a + audio_vq 
+
+            audio_class = Decoder(out_vq)
+
             
             audio_loss1 = criterion(audio_class, labels_evn.cuda())
             audio_loss2 = ExpLogLoss_fn(audio_class, labels_evn.cuda())
@@ -610,10 +639,19 @@ def validate_epoch(Encoder,Decoder,ExpLogLoss_fn, val_dataloader, criterion, cri
             # )
 
             out_vq_video, video_vq = Encoder.Video_VQ_Encoder(video_feature)
-            video_dim = out_vq_video.size()[2]
-            out_vq_video = out_vq_video.reshape(-1, video_dim)
-            video_class = Decoder(out_vq_video)
-            
+            e_dim = video_vq.size()[2]
+            D = out_vq_video.size()[2]
+            out_vq_video = out_vq_video.reshape(-1, D)
+            video_vq = video_vq.reshape(-1,e_dim)
+            audio_vq_v = out_vq_video[:, e_dim:2*e_dim]
+            text_vq_v = out_vq_video[:, 2*e_dim:]
+            out_vq_v = video_vq + audio_vq_v + text_vq_v
+
+            # audio_vq_v = out_vq_video[:, :, e_dim:]
+            # out_vq_v = video_vq + audio_vq_v
+
+            video_class = Decoder(out_vq_v)
+
             video_loss1 = criterion(video_class, labels_evn.cuda())
             video_loss2 = ExpLogLoss_fn(video_class, labels_evn.cuda())
             video_total_loss = video_loss1 + video_loss2
