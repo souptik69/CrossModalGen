@@ -1512,28 +1512,28 @@ class Cross_VQEmbeddingEMA_AVT_hierarchical(nn.Module):
 
             # STEP 2: HIERARCHICAL INFLUENCE BETWEEN SEGMENTS
 
-            with torch.no_grad():
-                new_embedding = self.embedding.clone()
+            # with torch.no_grad():
+            #     new_embedding = self.embedding.clone()
                 
-                # video_embedding_new = new_embedding[:, :D]         
-                # audio_embedding_new = new_embedding[:, D:2*D] 
-                # text_embedding_new = new_embedding[:, 2*D:]
+            #     # video_embedding_new = new_embedding[:, :D]         
+            #     # audio_embedding_new = new_embedding[:, D:2*D] 
+            #     # text_embedding_new = new_embedding[:, 2*D:]
                 
-                new_embedding[:, 2*D:] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D]) + ((1/3) * new_embedding[:, 2*D:])    #Text = (1/3)Video + (1/3)Audio + (1/3)Text
-                new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, 2*D:])  #Audio = (4/9)Video + (4/9)Audio + (1/9)Text
-                new_embedding[:, :D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])     #Video = (16/27)Video + (7/27)Audio + (4/27)Text
+            #     new_embedding[:, 2*D:] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D]) + ((1/3) * new_embedding[:, 2*D:])    #Text = (1/3)Video + (1/3)Audio + (1/3)Text
+            #     new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, 2*D:])  #Audio = (4/9)Video + (4/9)Audio + (1/9)Text
+            #     new_embedding[:, :D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])     #Video = (16/27)Video + (7/27)Audio + (4/27)Text
 
-                ### Equal distribution ###
-                # text_emb = ((1/3) * video_embedding_new) + ((1/3) * audio_embedding_new) + ((1/3) * text_embedding_new)   
-                # audio_emb = ((1/3) * video_embedding_new) + ((1/3) * audio_embedding_new) + ((1/3) * text_embedding_new)   
-                # video_emb = ((1/3) * video_embedding_new) + ((1/3) * audio_embedding_new) + ((1/3) * text_embedding_new)    
+            #     ### Equal distribution ###
+            #     # text_emb = ((1/3) * video_embedding_new) + ((1/3) * audio_embedding_new) + ((1/3) * text_embedding_new)   
+            #     # audio_emb = ((1/3) * video_embedding_new) + ((1/3) * audio_embedding_new) + ((1/3) * text_embedding_new)   
+            #     # video_emb = ((1/3) * video_embedding_new) + ((1/3) * audio_embedding_new) + ((1/3) * text_embedding_new)    
 
-                # new_embedding[:, 2*D:] = text_emb    #Text = (1/3)Video + (1/3)Audio + (1/3)Text
-                # new_embedding[:, D:2*D] = audio_emb  #Audio = (1/3)Video + (1/3)Audio + (1/3)Text
-                # new_embedding[:, :D] = video_emb     #Video = (1/3)Video + (1/3)Audio + (1/3)Text
-                ### Equal distribution ###
+            #     # new_embedding[:, 2*D:] = text_emb    #Text = (1/3)Video + (1/3)Audio + (1/3)Text
+            #     # new_embedding[:, D:2*D] = audio_emb  #Audio = (1/3)Video + (1/3)Audio + (1/3)Text
+            #     # new_embedding[:, :D] = video_emb     #Video = (1/3)Video + (1/3)Audio + (1/3)Text
+            #     ### Equal distribution ###
                 
-                self.embedding = new_embedding
+            #     self.embedding = new_embedding
 
 
             # SEGMENT ALIGNMENT Metric

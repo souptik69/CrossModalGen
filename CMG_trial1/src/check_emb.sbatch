@@ -2,7 +2,7 @@
 
 #SBATCH --job-name=Codebook_Viz
 #SBATCH --partition=leinegpu
-#SBATCH --nodelist=leinevmgpu005
+#SBATCH --nodelist=leinevmgpu007
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=1
 #SBATCH --cpus-per-task=32
@@ -14,14 +14,14 @@
 SRCDIR=/project/ag-jafra/Souptik/CMG_New/Experiments
 
 mkdir -p $SRCDIR/CMG_trial1/slurm/0_Check
-mkdir -p $SRCDIR/Misc/visualizations/40k_ep0
+mkdir -p $SRCDIR/Misc/visualizations/40k_ep0_nohier
 
 source ~/.bashrc
 conda activate /project/ag-jafra/Souptik/CMG_New/Experiments/envs/CMG_new
 
 # Configuration
-CHECKPOINT_PATH="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/AVT_model/Best_Text_CPC_noNoise/40k/checkpoint/DCID-model-0.pt"
-OUTPUT_DIR="/project/ag-jafra/Souptik/CMG_New/Experiments/Misc/visualizations/40k_ep0"
+CHECKPOINT_PATH="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/AVT_model/Best_Text_CPC_noNoise/40k_nohier/checkpoint/DCID-model-0.pt"
+OUTPUT_DIR="/project/ag-jafra/Souptik/CMG_New/Experiments/Misc/visualizations/40k_ep0_nohier"
 TOP_K=50
 
 echo "Starting codebook visualization..."

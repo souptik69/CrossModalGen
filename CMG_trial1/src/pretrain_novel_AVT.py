@@ -132,23 +132,9 @@ def main():
 
     '''Dataloader Loading'''
     
-    meta_csv_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data/vggsound-avel100k-new.csv'
-    audio_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/audio80k_features_new'
-    video_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/video80k_features_keras'
-    train_dataloader = DataLoader(
-        AVEDataset(meta_csv_path, audio_fea_base_path, video_fea_base_path, split='train'),
-        batch_size=args.batch_size,
-        shuffle=True,
-        num_workers=8,
-        pin_memory=False,
-        collate_fn=collate_func_AVT
-    )
-
-    ########## 40 k #############
-
-    # meta_csv_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/data/data/vggsound40k/data/vggsound-avel40k.csv'
-    # audio_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/data/data/vggsound40k/feature/audio/zip'
-    # video_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/data/data/vggsound40k/feature/video/zip'
+    # meta_csv_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data/vggsound-avel100k-new.csv'
+    # audio_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/audio80k_features_new'
+    # video_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/video80k_features_keras'
     # train_dataloader = DataLoader(
     #     AVEDataset(meta_csv_path, audio_fea_base_path, video_fea_base_path, split='train'),
     #     batch_size=args.batch_size,
@@ -157,6 +143,20 @@ def main():
     #     pin_memory=False,
     #     collate_fn=collate_func_AVT
     # )
+
+    ########## 40 k #############
+
+    meta_csv_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/data/data/vggsound40k/data/vggsound-avel40k.csv'
+    audio_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/data/data/vggsound40k/feature/audio/zip'
+    video_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/data/data/vggsound40k/feature/video/zip'
+    train_dataloader = DataLoader(
+        AVEDataset(meta_csv_path, audio_fea_base_path, video_fea_base_path, split='train'),
+        batch_size=args.batch_size,
+        shuffle=True,
+        num_workers=8,
+        pin_memory=False,
+        collate_fn=collate_func_AVT
+    )
 
     ########## 40 k #############
 
