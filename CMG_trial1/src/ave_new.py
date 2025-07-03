@@ -104,8 +104,8 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-    # Encoder = AV_VQVAE_Encoder( audio_dim, video_dim, video_output_dim, n_embeddings, embedding_dim)
-    Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, video_output_dim, n_embeddings, embedding_dim)
+    Encoder = AV_VQVAE_Encoder( audio_dim, video_dim, video_output_dim, n_embeddings, embedding_dim)
+    # Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, video_output_dim, n_embeddings, embedding_dim)
     Decoder = Semantic_Decoder(input_dim=embedding_dim , class_num=28)
     Encoder.double()
     Decoder.double()
@@ -120,8 +120,8 @@ def main():
     criterion_event = nn.CrossEntropyLoss().cuda()
 
     if model_resume is True:
-        # path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/AVT_model/Best_Text_CPC_noNoise/40k/checkpoint/DCID-model-5.pt"
-        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/AVT_model/Best_Text_CPC_noNoise/90k/checkpoint/DCID-model-5.pt"
+        # path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/Best_FixMetaModel_AV_final/40k/checkpoint/DCID-model-5.pt"
+        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/Best_FixMetaModel_AV_final/90k/checkpoint/DCID-model-5.pt"
         checkpoints = torch.load(path_checkpoints)
         Encoder.load_state_dict(checkpoints['Encoder_parameters'])
         start_epoch = checkpoints['epoch']
@@ -226,12 +226,12 @@ def train_epoch(Encoder, Decoder, train_dataloader, criterion, criterion_event, 
             with torch.no_grad():# Freeze Encoder
                 out_vq_video, video_vq = Encoder.Video_VQ_Encoder(visual_feature)
             B ,T ,e_dim = video_vq.size()
-            audio_vq = out_vq_video[:, :, e_dim:2*e_dim]    
-            text_vq = out_vq_video[:, :, 2*e_dim:]
-            out_vq = video_vq + audio_vq + text_vq 
+            # audio_vq = out_vq_video[:, :, e_dim:2*e_dim]    
+            # text_vq = out_vq_video[:, :, 2*e_dim:]
+            # out_vq = video_vq + audio_vq + text_vq 
 
-            # audio_vq = out_vq_video[:, :, e_dim:]
-            # out_vq = video_vq + audio_vq
+            audio_vq = out_vq_video[:, :, e_dim:]
+            out_vq = video_vq + audio_vq
 
             video_class = Decoder(out_vq)
             video_event_loss = criterion_event(video_class, labels_event.cuda())
@@ -248,12 +248,12 @@ def train_epoch(Encoder, Decoder, train_dataloader, criterion, criterion_event, 
             with torch.no_grad():# Freeze Encoder
                 out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(audio_feature)
             B ,T ,e_dim = audio_vq.size()
-            video_vq = out_vq_audio[:, :, :e_dim]    
-            text_vq = out_vq_audio[:, :, 2*e_dim:]
-            out_vq = video_vq + audio_vq + text_vq
+            # video_vq = out_vq_audio[:, :, :e_dim]    
+            # text_vq = out_vq_audio[:, :, 2*e_dim:]
+            # out_vq = video_vq + audio_vq + text_vq
 
-            # video_vq = out_vq_audio[:, :, :e_dim]
-            # out_vq = video_vq + audio_vq 
+            video_vq = out_vq_audio[:, :, :e_dim]
+            out_vq = video_vq + audio_vq 
 
             audio_class = Decoder(out_vq)
             audio_event_loss = criterion_event(audio_class, labels_event.cuda())
@@ -273,22 +273,22 @@ def train_epoch(Encoder, Decoder, train_dataloader, criterion, criterion_event, 
                 out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(audio_feature)
 
             B ,T ,e_dim = video_vq.size()
-            audio_vq_v = out_vq_video[:, :, e_dim:2*e_dim]    
-            text_vq_v = out_vq_video[:, :, 2*e_dim:]
-            out_vq_v = video_vq + audio_vq_v + text_vq_v   
+            # audio_vq_v = out_vq_video[:, :, e_dim:2*e_dim]    
+            # text_vq_v = out_vq_video[:, :, 2*e_dim:]
+            # out_vq_v = video_vq + audio_vq_v + text_vq_v   
 
-            # audio_vq_v = out_vq_video[:, :, e_dim:]
-            # out_vq_v = video_vq + audio_vq_v
+            audio_vq_v = out_vq_video[:, :, e_dim:]
+            out_vq_v = video_vq + audio_vq_v
 
             video_class = Decoder(out_vq_v)
 
             B ,T ,e_dim = audio_vq.size()
-            video_vq_a = out_vq_audio[:, :, :e_dim]    
-            text_vq_a = out_vq_audio[:, :, 2*e_dim:]
-            out_vq_a = video_vq_a + audio_vq + text_vq_a   
+            # video_vq_a = out_vq_audio[:, :, :e_dim]    
+            # text_vq_a = out_vq_audio[:, :, 2*e_dim:]
+            # out_vq_a = video_vq_a + audio_vq + text_vq_a   
 
-            # video_vq_a = out_vq_audio[:, :, :e_dim]
-            # out_vq_a = video_vq_a + audio_vq 
+            video_vq_a = out_vq_audio[:, :, :e_dim]
+            out_vq_a = video_vq_a + audio_vq 
 
             audio_class = Decoder(out_vq_a)
 
@@ -372,22 +372,22 @@ def validate_epoch(Encoder,Decoder, val_dataloader, criterion, criterion_event, 
         out_vq_video, video_vq = Encoder.Video_VQ_Encoder(visual_feature)
     
         B ,T ,e_dim = video_vq.size()
-        audio_vq_v = out_vq_video[:, :, e_dim:2*e_dim]    
-        text_vq_v = out_vq_video[:, :, 2*e_dim:]
-        out_vq_v = video_vq + audio_vq_v + text_vq_v   
+        # audio_vq_v = out_vq_video[:, :, e_dim:2*e_dim]    
+        # text_vq_v = out_vq_video[:, :, 2*e_dim:]
+        # out_vq_v = video_vq + audio_vq_v + text_vq_v   
 
-        # audio_vq_v = out_vq_video[:, :, e_dim:]
-        # out_vq_v = video_vq + audio_vq_v
+        audio_vq_v = out_vq_video[:, :, e_dim:]
+        out_vq_v = video_vq + audio_vq_v
 
         video_class = Decoder(out_vq_v)
 
         B ,T ,e_dim = audio_vq.size()
-        video_vq_a = out_vq_audio[:, :, :e_dim]    
-        text_vq_a = out_vq_audio[:, :, 2*e_dim:]
-        out_vq_a = video_vq_a + audio_vq + text_vq_a   
+        # video_vq_a = out_vq_audio[:, :, :e_dim]    
+        # text_vq_a = out_vq_audio[:, :, 2*e_dim:]
+        # out_vq_a = video_vq_a + audio_vq + text_vq_a   
 
-        # video_vq_a = out_vq_audio[:, :, :e_dim]
-        # out_vq_a = video_vq_a + audio_vq 
+        video_vq_a = out_vq_audio[:, :, :e_dim]
+        out_vq_a = video_vq_a + audio_vq 
 
         audio_class = Decoder(out_vq_a)
 

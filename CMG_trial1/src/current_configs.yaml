@@ -11,7 +11,7 @@ weight_decay: 5e-4
 
   # ======================================= Print and snapshot configs ==================================
 snapshot_pref: 
-    /project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/AVT_Tests/AVVP/Best_sum/Old_Decoder/90k/V2A/
+    /project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/AVVP_Tests/Best_sum/New_Decoder/90k/AV/
 print_freq: 1
 eval_freq: 1
 
