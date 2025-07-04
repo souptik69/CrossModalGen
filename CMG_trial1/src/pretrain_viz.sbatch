@@ -2,27 +2,27 @@
 
 #SBATCH --job-name=Pretrain_Viz
 #SBATCH --partition=leinegpu
-#SBATCH --nodelist=leinevmgpu007
+#SBATCH --nodelist=leinevmgpu008
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=1
 #SBATCH --cpus-per-task=32
 #SBATCH --mem-per-cpu=5G 
 #SBATCH --time=15:00:00
-#SBATCH --output=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/0_Check_training_nohier/pretrain_viz_%j.out
-#SBATCH --error=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/0_Check_training_nohier/pretrain_viz_%j.err
+#SBATCH --output=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/0_Check_training_hier_1/pretrain_viz_%j.out
+#SBATCH --error=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/0_Check_training_hier_1/pretrain_viz_%j.err
 
 SRCDIR=/project/ag-jafra/Souptik/CMG_New/Experiments
 
 # Create necessary directories
-mkdir -p $SRCDIR/CMG_trial1/slurm/0_Check_training_nohier
-mkdir -p $SRCDIR/Misc/visualizations_nohier/training_evolution
+mkdir -p $SRCDIR/CMG_trial1/slurm/0_Check_training_hier_1
+mkdir -p $SRCDIR/Misc/visualizations_hier_1/training_evolution
 
 source ~/.bashrc
 conda activate /project/ag-jafra/Souptik/CMG_New/Experiments/envs/CMG_new
 
 # Configuration
 CHECKPOINT_PATH="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/AVT_model/Best_Text_CPC_noNoise/40k/checkpoint/DCID-model-0.pt"
-OUTPUT_DIR="/project/ag-jafra/Souptik/CMG_New/Experiments/Misc/visualizations_nohier/training_evolution"
+OUTPUT_DIR="/project/ag-jafra/Souptik/CMG_New/Experiments/Misc/visualizations_hier_1/training_evolution"
 TOP_K=25
 BATCH_SIZE=64
 LEARNING_RATE=0.0004

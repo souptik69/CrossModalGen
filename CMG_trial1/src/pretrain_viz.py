@@ -83,14 +83,19 @@ def load_checkpoint_and_find_top_vectors(checkpoint_path, top_k=25):
     
     return top_indices
 
-def create_combined_modality_plot(quantizer, top_indices, output_dir, iteration, embedding_dim=256):
+def create_combined_modality_plot(quantizer, top_indices, output_dir, iteration, embedding_dim=256, top_k=25):
     """
     Create the combined modality plot for the specified top vectors
     This shows how video, audio, and text segments of the same vectors cluster together
     """
     # Extract embeddings for top vectors
     embeddings = quantizer.embedding.detach().cpu().numpy()
-    top_embeddings = embeddings[top_indices]
+    ema_counts = quantizer.ema_count.detach().cpu().numpy()
+    top_indices_1 = np.argsort(ema_counts)[-top_k:][::-1]
+    top_embeddings = embeddings[top_indices_1]
+
+    # top_embeddings = embeddings[top_indices]
+
     
     # Extract modality segments from the 768-dimensional embeddings
     # Each vector is split into: video (0:256), audio (256:512), text (512:768)
@@ -123,17 +128,17 @@ def create_combined_modality_plot(quantizer, top_indices, output_dir, iteration,
     
     # Add vector indices as labels for each point
     for i, (x, y) in enumerate(video_2d):
-        plt.annotate(f'{top_indices[i]}', (x, y), 
+        plt.annotate(f'{top_indices_1[i]}', (x, y), 
                    xytext=(5, 5), textcoords='offset points',
                    fontsize=9, alpha=0.8, color='darkred', fontweight='bold')
     
     for i, (x, y) in enumerate(audio_2d):
-        plt.annotate(f'{top_indices[i]}', (x, y), 
+        plt.annotate(f'{top_indices_1[i]}', (x, y), 
                    xytext=(5, 5), textcoords='offset points',
                    fontsize=9, alpha=0.8, color='darkblue', fontweight='bold')
     
     for i, (x, y) in enumerate(text_2d):
-        plt.annotate(f'{top_indices[i]}', (x, y), 
+        plt.annotate(f'{top_indices_1[i]}', (x, y), 
                    xytext=(5, 5), textcoords='offset points',
                    fontsize=9, alpha=0.8, color='darkgreen', fontweight='bold')
     
@@ -291,16 +296,16 @@ def main():
     # Training for 1 epoch with visualizations
     print("\nSTEP 4: Starting training with visualizations")
     print("="*50)
-    print(f"Will create visualizations at iterations: 0, 20, 40, 80, 120, 320, 620")
-    print(f"Tracking top {args.top_k} vectors: {top_indices}")
+    print(f"Will create visualizations at iterations: 0, 20, 40, 80, 120, 160, 320, 620")
+    # print(f"Tracking top {args.top_k} vectors: {top_indices}")
     
     train_with_visualization(CPC, Encoder, Text_ar_lstm, Decoder, train_dataloader, 
-                           criterion, criterion_event, optimizer, top_indices, args.output_dir, logger)
+                           criterion, criterion_event, optimizer, top_indices, args.output_dir, logger, args.top_k)
     
     print("\nVisualization-based pretraining complete!")
 
 def train_with_visualization(CPC, Encoder, Text_ar_lstm, Decoder, train_dataloader, 
-                           criterion, criterion_event, optimizer, top_indices, output_dir, logger):
+                           criterion, criterion_event, optimizer, top_indices, output_dir, logger, top_k=25):
     """
     Train for one epoch while creating visualizations at specific iterations
     """
@@ -331,7 +336,7 @@ def train_with_visualization(CPC, Encoder, Text_ar_lstm, Decoder, train_dataload
             
             with torch.no_grad():
                 create_combined_modality_plot(Encoder.Cross_quantizer, top_indices, 
-                                            output_dir, n_iter)
+                                            output_dir, n_iter, top_k)
             
             # Set models back to training mode
             for m in models:
