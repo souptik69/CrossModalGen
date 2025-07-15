@@ -113,40 +113,81 @@ def create_combined_modality_plot(quantizer, top_indices, output_dir, iteration,
     text_2d = pca_text.fit_transform(text_segments)
     
     # Create the combined plot
-    plt.figure(figsize=(12, 10))
+    # plt.figure(figsize=(12, 10))
     
-    # Plot all modalities together with different colors and markers
-    scatter1 = plt.scatter(video_2d[:, 0], video_2d[:, 1], 
-                          c='red', s=100, marker='o', 
-                          alpha=0.7, label='Video', edgecolors='black', linewidth=0.5)
-    scatter2 = plt.scatter(audio_2d[:, 0], audio_2d[:, 1], 
-                          c='blue', s=100, marker='s', 
-                          alpha=0.7, label='Audio', edgecolors='black', linewidth=0.5)
-    scatter3 = plt.scatter(text_2d[:, 0], text_2d[:, 1], 
-                          c='green', s=100, marker='^', 
-                          alpha=0.7, label='Text', edgecolors='black', linewidth=0.5)
+    # # Plot all modalities together with different colors and markers
+    # scatter1 = plt.scatter(video_2d[:, 0], video_2d[:, 1], 
+    #                       c='red', s=100, marker='o', 
+    #                       alpha=0.7, label='Video', edgecolors='black', linewidth=0.5)
+    # scatter2 = plt.scatter(audio_2d[:, 0], audio_2d[:, 1], 
+    #                       c='blue', s=100, marker='s', 
+    #                       alpha=0.7, label='Audio', edgecolors='black', linewidth=0.5)
+    # scatter3 = plt.scatter(text_2d[:, 0], text_2d[:, 1], 
+    #                       c='green', s=100, marker='^', 
+    #                       alpha=0.7, label='Text', edgecolors='black', linewidth=0.5)
     
-    # Add vector indices as labels for each point
+    # # Add vector indices as labels for each point
+    # for i, (x, y) in enumerate(video_2d):
+    #     plt.annotate(f'{top_indices_1[i]}', (x, y), 
+    #                xytext=(5, 5), textcoords='offset points',
+    #                fontsize=9, alpha=0.8, color='darkred', fontweight='bold')
+    
+    # for i, (x, y) in enumerate(audio_2d):
+    #     plt.annotate(f'{top_indices_1[i]}', (x, y), 
+    #                xytext=(5, 5), textcoords='offset points',
+    #                fontsize=9, alpha=0.8, color='darkblue', fontweight='bold')
+    
+    # for i, (x, y) in enumerate(text_2d):
+    #     plt.annotate(f'{top_indices_1[i]}', (x, y), 
+    #                xytext=(5, 5), textcoords='offset points',
+    #                fontsize=9, alpha=0.8, color='darkgreen', fontweight='bold')
+    
+    # plt.title(f'All Modalities Combined - Iteration {iteration}', fontsize=14, fontweight='bold')
+    # plt.xlabel('PC1', fontsize=12)
+    # plt.ylabel('PC2', fontsize=12)
+    # plt.legend(fontsize=11)
+    # plt.grid(True, alpha=0.3)
+
+    fig, ax = plt.subplots(figsize=(12, 10))
+
+    # Use ax.scatter instead of plt.scatter
+    scatter1 = ax.scatter(video_2d[:, 0], video_2d[:, 1], 
+                        c='red', s=100, marker='o', 
+                        alpha=0.7, label='Video', edgecolors='black', linewidth=0.5)
+    scatter2 = ax.scatter(audio_2d[:, 0], audio_2d[:, 1], 
+                        c='blue', s=100, marker='s', 
+                        alpha=0.7, label='Audio', edgecolors='black', linewidth=0.5)
+    scatter3 = ax.scatter(text_2d[:, 0], text_2d[:, 1], 
+                        c='green', s=100, marker='^', 
+                        alpha=0.7, label='Text', edgecolors='black', linewidth=0.5)
+
+    # Use ax.annotate instead of plt.annotate
     for i, (x, y) in enumerate(video_2d):
-        plt.annotate(f'{top_indices_1[i]}', (x, y), 
-                   xytext=(5, 5), textcoords='offset points',
-                   fontsize=9, alpha=0.8, color='darkred', fontweight='bold')
-    
+        ax.annotate(f'{top_indices_1[i]}', (x, y), 
+                xytext=(5, 5), textcoords='offset points',
+                fontsize=9, alpha=0.8, color='darkred', fontweight='bold')
+
     for i, (x, y) in enumerate(audio_2d):
-        plt.annotate(f'{top_indices_1[i]}', (x, y), 
-                   xytext=(5, 5), textcoords='offset points',
-                   fontsize=9, alpha=0.8, color='darkblue', fontweight='bold')
-    
+        ax.annotate(f'{top_indices_1[i]}', (x, y), 
+                xytext=(5, 5), textcoords='offset points',
+                fontsize=9, alpha=0.8, color='darkblue', fontweight='bold')
+
     for i, (x, y) in enumerate(text_2d):
-        plt.annotate(f'{top_indices_1[i]}', (x, y), 
-                   xytext=(5, 5), textcoords='offset points',
-                   fontsize=9, alpha=0.8, color='darkgreen', fontweight='bold')
-    
-    plt.title(f'All Modalities Combined - Iteration {iteration}', fontsize=14, fontweight='bold')
-    plt.xlabel('PC1', fontsize=12)
-    plt.ylabel('PC2', fontsize=12)
-    plt.legend(fontsize=11)
-    plt.grid(True, alpha=0.3)
+        ax.annotate(f'{top_indices_1[i]}', (x, y), 
+                xytext=(5, 5), textcoords='offset points',
+                fontsize=9, alpha=0.8, color='darkgreen', fontweight='bold')
+
+    # Use ax methods for plot formatting
+    ax.set_title(f'All Modalities Combined - Iteration {iteration}', fontsize=14, fontweight='bold')
+    ax.set_xlabel('PC1', fontsize=12)
+    ax.set_ylabel('PC2', fontsize=12)
+    ax.legend(fontsize=11)
+    ax.grid(True, alpha=0.3)
+
+    # plt.tight_layout() still works with the figure
+    plt.tight_layout()
+
+
     plt.tight_layout()
     
     # Save the plot

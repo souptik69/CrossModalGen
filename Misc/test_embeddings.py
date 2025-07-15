@@ -79,7 +79,7 @@ def get_transformers_embeddings(sentences, tokenizer, model, id2idx):
             
             # Try to get the token's ID in bert_embedding vocabulary
             # This is an approximation since the vocabularies might not match perfectly
-            # In practice, you would need a proper mapping between the two vocabularies
+            # In practice we would need a proper mapping between the two vocabularies
             idx = tokenizer.convert_tokens_to_ids(token)
             is_in_id2idx = idx in id2idx and idx != 0
             
