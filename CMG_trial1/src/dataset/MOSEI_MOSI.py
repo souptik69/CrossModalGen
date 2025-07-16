@@ -26,7 +26,7 @@ class MOSEIDatasetUnsupervised(Dataset):
     Combines train, validation, and test splits from MOSEI for self-supervised learning.
     Returns numpy arrays to match VGGSound collate pattern.
     """
-    def __init__(self, data_path, max_seq_len=10, batch_size=32):
+    def __init__(self, data_path, max_seq_len=10, batch_size=64):
         super(MOSEIDatasetUnsupervised, self).__init__()
         self.data_path = data_path
         self.max_seq_len = max_seq_len
@@ -106,7 +106,7 @@ class MOSEIDatasetSupervised(Dataset):
     - If split is 'test': returns only test data
     Returns numpy arrays to match VGGSound collate pattern.
     """
-    def __init__(self, data_path, split='train', max_seq_len=10, batch_size=32):
+    def __init__(self, data_path, split='train', max_seq_len=10, batch_size=64):
         super(MOSEIDatasetSupervised, self).__init__()
         self.data_path = data_path
         self.split = split
@@ -193,7 +193,7 @@ class MOSIDataset(Dataset):
     Used for cross-dataset evaluation (pretrain on MOSEI, test on MOSI).
     Returns numpy arrays to match VGGSound collate pattern.
     """
-    def __init__(self, data_path, split='test', max_seq_len=10, batch_size=32):
+    def __init__(self, data_path, split='test', max_seq_len=10, batch_size=64):
         super(MOSIDataset, self).__init__()
         self.data_path = data_path
         self.split = split
@@ -303,7 +303,7 @@ def collate_func_AVT(samples):
 # DATALOADER FUNCTIONS
 # ===============================================================================
 
-def get_mosei_unsupervised_dataloader(batch_size=32, max_seq_len=10, num_workers=8):
+def get_mosei_unsupervised_dataloader(batch_size= 64, max_seq_len=10, num_workers=8):
     """
     Creates a DataLoader for unsupervised pretraining on combined MOSEI data.
     
@@ -315,7 +315,7 @@ def get_mosei_unsupervised_dataloader(batch_size=32, max_seq_len=10, num_workers
             text_feature = batch_data['text_fea']      # [batch_size, seq_len, 300]
             # Ignore labels for unsupervised pretraining
     """
-    dataset = MOSEIDatasetUnsupervised(MOSEI_DATA_PATH, max_seq_len=max_seq_len, batch_size=32)
+    dataset = MOSEIDatasetUnsupervised(MOSEI_DATA_PATH, max_seq_len=max_seq_len, batch_size=batch_size)
     return DataLoader(
         dataset,
         batch_size=batch_size,
@@ -326,7 +326,7 @@ def get_mosei_unsupervised_dataloader(batch_size=32, max_seq_len=10, num_workers
     )
 
 
-def get_mosei_supervised_dataloaders(batch_size=32, max_seq_len=10, num_workers=8):
+def get_mosei_supervised_dataloaders(batch_size=64, max_seq_len=10, num_workers=8):
     """
     Creates DataLoaders for supervised training on MOSEI.
     Returns train, validation, and test dataloaders.
@@ -342,9 +342,9 @@ def get_mosei_supervised_dataloaders(batch_size=32, max_seq_len=10, num_workers=
     # Create datasets with modified logic:
     # - train/val splits return combined train+val data
     # - test split returns only test data
-    train_dataset = MOSEIDatasetSupervised(MOSEI_DATA_PATH, split='train', max_seq_len=max_seq_len, batch_size=32)
-    val_dataset = MOSEIDatasetSupervised(MOSEI_DATA_PATH, split='val', max_seq_len=max_seq_len, batch_size=32)  
-    test_dataset = MOSEIDatasetSupervised(MOSEI_DATA_PATH, split='test', max_seq_len=max_seq_len, batch_size=32)
+    train_dataset = MOSEIDatasetSupervised(MOSEI_DATA_PATH, split='train', max_seq_len=max_seq_len, batch_size=batch_size)
+    val_dataset = MOSEIDatasetSupervised(MOSEI_DATA_PATH, split='val', max_seq_len=max_seq_len, batch_size=batch_size)  
+    test_dataset = MOSEIDatasetSupervised(MOSEI_DATA_PATH, split='test', max_seq_len=max_seq_len, batch_size=batch_size)
     
     # Create dataloaders with VGGSound-style collate function
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, 
@@ -360,7 +360,7 @@ def get_mosei_supervised_dataloaders(batch_size=32, max_seq_len=10, num_workers=
     return train_loader, val_loader, test_loader
 
 
-def get_mosi_dataloaders(batch_size=32, max_seq_len=10, num_workers=8):
+def get_mosi_dataloaders(batch_size=64, max_seq_len=10, num_workers=8):
     """
     Creates DataLoaders for MOSI dataset (cross-dataset evaluation).
     Returns train, validation, and test dataloaders.
@@ -374,9 +374,9 @@ def get_mosi_dataloaders(batch_size=32, max_seq_len=10, num_workers=8):
             labels = batch_data['labels']              # [batch_size, 1]
     """
     # Create MOSI datasets for all splits
-    train_dataset = MOSIDataset(MOSI_DATA_PATH, split='train', max_seq_len=max_seq_len, batch_size=32)
-    val_dataset = MOSIDataset(MOSI_DATA_PATH, split='val', max_seq_len=max_seq_len, batch_size=32)
-    test_dataset = MOSIDataset(MOSI_DATA_PATH, split='test', max_seq_len=max_seq_len, batch_size=32)
+    train_dataset = MOSIDataset(MOSI_DATA_PATH, split='train', max_seq_len=max_seq_len, batch_size=batch_size)
+    val_dataset = MOSIDataset(MOSI_DATA_PATH, split='val', max_seq_len=max_seq_len, batch_size=batch_size)
+    test_dataset = MOSIDataset(MOSI_DATA_PATH, split='test', max_seq_len=max_seq_len, batch_size=batch_size)
     
     # Create dataloaders with VGGSound-style collate function
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
@@ -441,7 +441,7 @@ def test_all_dataloaders():
     
     print_progress("\n=== Testing Unsupervised MOSEI Dataset ===")
     try:
-        unsupervised_loader = get_mosei_unsupervised_dataloader(batch_size=64, max_seq_len=10)
+        unsupervised_loader = get_mosei_unsupervised_dataloader(batch_size=32, max_seq_len=10)
         for i, batch_data in enumerate(unsupervised_loader):
             audio_feature = batch_data['audio_fea']
             video_feature = batch_data['video_fea'] 
@@ -461,7 +461,7 @@ def test_all_dataloaders():
     
     print_progress("\n=== Testing Supervised MOSEI Dataset ===")
     try:
-        train_loader, val_loader, test_loader = get_mosei_supervised_dataloaders(batch_size=4, max_seq_len=10)
+        train_loader, val_loader, test_loader = get_mosei_supervised_dataloaders(batch_size=64, max_seq_len=10)
         
         for i, batch_data in enumerate(train_loader):
             audio_feature = batch_data['audio_fea']
@@ -483,7 +483,7 @@ def test_all_dataloaders():
     
     print_progress("\n=== Testing MOSI Dataset ===")
     try:
-        mosi_train, mosi_val, mosi_test = get_mosi_dataloaders(batch_size=4, max_seq_len=10)
+        mosi_train, mosi_val, mosi_test = get_mosi_dataloaders(batch_size=32, max_seq_len=10)
         
         for i, batch_data in enumerate(mosi_test):
             audio_feature = batch_data['audio_fea']

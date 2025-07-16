@@ -1,4 +1,4 @@
-from model.main_model_novel import AVT_VQVAE_Encoder
+from model.main_model_mosei import AVT_VQVAE_Encoder
 import torch
 import torch.nn as nn
 import numpy as np
@@ -20,11 +20,10 @@ def visualize_codebook_embeddings(checkpoint_path, output_dir, top_k=25):
     """
     
     # Model configuration (matching your setup)
-    video_dim = 512
-    text_dim = 768
-    audio_dim = 128
+    video_dim = 35
+    text_dim = 300
+    audio_dim = 74
     text_lstm_dim = 128
-    video_output_dim = 2048
     n_embeddings = 400
     embedding_dim = 256
     
@@ -33,7 +32,7 @@ def visualize_codebook_embeddings(checkpoint_path, output_dir, top_k=25):
     
     # Initialize and load model
     print("Loading model...")
-    Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, video_output_dim, n_embeddings, embedding_dim)
+    Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, n_embeddings, embedding_dim)
     Encoder.double()
     Encoder.to(device)
     

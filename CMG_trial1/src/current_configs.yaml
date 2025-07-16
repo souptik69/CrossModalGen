@@ -1,5 +1,5 @@
 # ======================================= Learning configs ==================================
-n_epoch: 1
+n_epoch: 10
 batch_size: 64
 test_batch_size: 64
 lr: 0.0004
@@ -11,7 +11,7 @@ weight_decay: 5e-4
 
   # ======================================= Print and snapshot configs ==================================
 snapshot_pref: 
-    /project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/AVT_model/Best_Text_CPC_noNoise/40k_check/
+    /project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models/mosei_unsupervised_AV/
 print_freq: 1
 eval_freq: 1
 
