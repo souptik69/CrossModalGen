@@ -25,6 +25,12 @@ parser.add_argument('--output_dir', type=str, default='./results',
 parser.add_argument('--weight_decay', '--wd', type=float,
                     metavar='W', help='weight decay (default: 5e-4)')
 
+# =========================== Testing Mode Configs ============================
+parser.add_argument('--test_mode', type=str, default='MSR', choices=['MSR', 'CMG'], 
+                    help='Testing mode: MSR (Multimodal Sentiment Regression) or CMG (Cross-Modal Generalization)')
+parser.add_argument('--modality', type=str, default='audio', choices=['audio', 'video', 'text'],
+                    help='Modality for CMG mode training/testing (audio, video, or text)')
+
 # =========================== Display Configs ============================
 parser.add_argument('--print_freq', type=int)
 parser.add_argument('--save_freq', type=int)
