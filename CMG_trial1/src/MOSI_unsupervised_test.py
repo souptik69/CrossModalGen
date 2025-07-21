@@ -162,7 +162,7 @@ def main():
 
     if model_resume:
         # Load unsupervised pretrained model
-        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models/mosei_unsupervised_AV/checkpoint/MOSEI-model-9.pt"
+        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models/mosei_unsupervised/checkpoint/MOSEI-model-9.pt"
         logger.info(f"Loading unsupervised model from: {path_checkpoints}")
         checkpoints = torch.load(path_checkpoints)
         Encoder.load_state_dict(checkpoints['Encoder_parameters'])
@@ -178,8 +178,10 @@ def main():
         
         # Validation
         if ((epoch + 1) % args.eval_freq == 0) or (epoch == args.n_epoch - 1):
-            val_mae = validate_epoch(Encoder, Text_ar_lstm, Decoder, test_dataloader, criterion_sentiment, epoch, args)
-            
+            if args.test_mode == 'MSR':
+                val_mae = validate_epoch(Encoder, Text_ar_lstm, Decoder, test_dataloader, criterion_sentiment, epoch, args)
+            else:
+                val_mae = validate_epoch(Encoder, Text_ar_lstm, Decoder, train_dataloader, criterion_sentiment, epoch, args)
             logger.info("-----------------------------")
             logger.info(f"Epoch {epoch} - Training Loss: {loss:.4f}, Validation MAE: {val_mae:.4f}")
             logger.info("-----------------------------")
