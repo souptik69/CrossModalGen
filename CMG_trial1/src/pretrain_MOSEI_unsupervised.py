@@ -20,6 +20,11 @@ from utils import AverageMeter, Prepare_logger, get_and_save_args
 from utils.container import metricsContainer
 from utils.Recorder import Recorder
 import torch.nn.functional as F
+from label_conversion_mosei import (
+    continuous_to_discrete_sentiment, 
+    continuous_to_onehot_sentiment,
+    predictions_to_continuous
+)
 from transformers import BertTokenizer, BertModel
 import pickle
 from collections import Counter
@@ -88,7 +93,7 @@ def main():
     Text_ar_lstm = nn.LSTM(text_dim, text_lstm_dim, num_layers=2, batch_first=True, bidirectional=True)
     Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, n_embeddings, embedding_dim)
     CPC = Cross_CPC_AVT(embedding_dim, hidden_dim=256, context_dim=256, num_layers=2)
-    Decoder = AVT_VQVAE_Decoder(audio_dim, video_dim, text_lstm_dim*2)
+    Decoder = AVT_VQVAE_Decoder(audio_dim, video_dim, text_lstm_dim*2, num_classes=7)
 
     Text_ar_lstm.double()
     Encoder.double()

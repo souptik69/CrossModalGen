@@ -17,7 +17,12 @@ from model.main_model_mosei import AVT_VQVAE_Encoder, AVT_VQVAE_Decoder
 from utils import AverageMeter, Prepare_logger, get_and_save_args
 from utils.container import metricsContainer
 import torch.nn.functional as F
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.metrics import accuracy_score, f1_score, classification_report, confusion_matrix
+from label_conversion_mosei import (
+    continuous_to_discrete_sentiment,
+    predictions_to_continuous,
+    discrete_to_continuous_sentiment
+)
 
 # =================================  seed config ============================
 SEED = 43

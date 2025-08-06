@@ -26,22 +26,22 @@ conda activate /project/ag-jafra/Souptik/CMG_New/Experiments/envs/CMG_new
 # You can modify these variables to run different experiments
 
 # Experiment 1: MSR Mode (Multimodal Sentiment Regression)
-# echo "Running MSR Mode - Multimodal Sentiment Regression"
-# python $SRCDIR/CMG_trial1/src/MOSI_unsupervised_test.py \
-#     --gpu 0 \
-#     --lr 0.0001 \
-#     --clip_gradient 0.5 \
-#     --snapshot_pref "$SRCDIR/CMG_trial1/MOSEI_Tests/MOSI_unsupervised_CMG/MSR_AV/" \
-#     --n_epoch 30 \
-#     --batch_size 32 \
-#     --test_batch_size 32 \
-#     --dataset_name "mosi" \
-#     --model_save_path "$SRCDIR/CMG_trial1/MOSEI_Tests/MOSI_unsupervised_CMG/MSR_AV/" \
-#     --print_freq 1 \
-#     --eval_freq 1 \
-#     --test_mode "MSR"
+echo "Running MSR Mode - Multimodal Sentiment Regression"
+python $SRCDIR/CMG_trial1/src/MOSI_unsupervised_test.py \
+    --gpu 0 \
+    --lr 0.0001 \
+    --clip_gradient 0.5 \
+    --snapshot_pref "$SRCDIR/CMG_trial1/MOSEI_Tests/MOSI_unsupervised_CMG/MSR_AV/" \
+    --n_epoch 30 \
+    --batch_size 32 \
+    --test_batch_size 32 \
+    --dataset_name "mosi" \
+    --model_save_path "$SRCDIR/CMG_trial1/MOSEI_Tests/MOSI_unsupervised_CMG/MSR_AV/" \
+    --print_freq 1 \
+    --eval_freq 1 \
+    --test_mode "MSR"
 
-# echo "MSR Mode completed!"
+echo "MSR Mode completed!"
 
 # Experiment 2: CMG Mode - Audio Training
 echo "Running CMG Mode - Audio Training"

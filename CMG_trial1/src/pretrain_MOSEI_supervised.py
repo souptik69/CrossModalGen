@@ -20,6 +20,11 @@ from utils import AverageMeter, Prepare_logger, get_and_save_args
 from utils.container import metricsContainer
 from utils.Recorder import Recorder
 import torch.nn.functional as F
+from label_conversion_mosei import (
+    continuous_to_discrete_sentiment, 
+    continuous_to_onehot_sentiment,
+    predictions_to_continuous
+)
 from transformers import BertTokenizer, BertModel
 import pickle
 from collections import Counter
@@ -88,7 +93,7 @@ def main():
     Text_ar_lstm = nn.LSTM(text_dim, text_lstm_dim, num_layers=2, batch_first=True, bidirectional=True)
     Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, n_embeddings, embedding_dim)
     CPC = Cross_CPC_AVT(embedding_dim, hidden_dim=256, context_dim=256, num_layers=2)
-    Decoder = AVT_VQVAE_Decoder(audio_dim, video_dim, text_lstm_dim*2)
+    Decoder = AVT_VQVAE_Decoder(audio_dim, video_dim, text_lstm_dim*2, num_classes=7)
 
     Text_ar_lstm.double()
     Encoder.double()
@@ -106,7 +111,8 @@ def main():
     scheduler = MultiStepLR(optimizer, milestones=[10, 20, 30], gamma=0.5)
 
     '''loss'''
-    criterion_sentiment = nn.MSELoss().cuda()
+    # criterion_sentiment = nn.MSELoss().cuda()
+    criterion_sentiment = nn.CrossEntropyLoss().cuda()
     
 
     if model_resume is True:
@@ -204,6 +210,8 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Decoder,train_dataloader, criterion_se
         text_feature_raw, audio_feature, video_feature, labels = batch_data['text_fea'], batch_data['audio_fea'], batch_data['video_fea'], batch_data['labels']
         text_feature_raw = text_feature_raw.double().cuda()
         labels = labels.double().cuda()
+
+        discrete_labels = continuous_to_discrete_sentiment(labels)
 
         batch_dim = text_feature_raw.size()[0]
         hidden_dim = 128
@@ -310,7 +318,7 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Decoder,train_dataloader, criterion_se
                         audio_encoder_result, audio_semantic_result, video_encoder_result, video_semantic_result,
                         text_encoder_result, text_semantic_result,
                         out_vq_audio, audio_vq, out_vq_video, video_vq,
-                        out_vq_text, text_vq, labels, criterion_sentiment)
+                        out_vq_text, text_vq, discrete_labels, criterion_sentiment)
 
         if n_iter % 20 == 0:
             logger.info("equal_num is {} in {}-th iteration.".format(equal_num, n_iter))
@@ -376,7 +384,7 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Decoder,train_dataloader, criterion_se
 def mi_first_forward(CPC, audio_feature, video_feature, text_feature, Decoder,epoch,
                       audio_encoder_result, audio_semantic_result, video_encoder_result, 
                       video_semantic_result, text_encoder_result, text_semantic_result, out_vq_audio,
-                      audio_vq, out_vq_video, video_vq, out_vq_text, text_vq, labels, criterion_sentiment):
+                      audio_vq, out_vq_video, video_vq, out_vq_text, text_vq, discrete_labels, criterion_sentiment):
 
     
     """Cross_CPC"""
@@ -389,10 +397,10 @@ def mi_first_forward(CPC, audio_feature, video_feature, text_feature, Decoder,ep
     audio_recon_loss, video_recon_loss, text_recon_loss, audio_score, video_score, text_score, combined_score \
         = Decoder(audio_feature, video_feature, text_feature, audio_encoder_result, video_encoder_result, text_encoder_result, out_vq_audio, audio_vq, out_vq_video, video_vq, out_vq_text, text_vq)
     
-    video_sentiment_loss = criterion_sentiment(video_score, labels.cuda())
-    audio_sentiment_loss = criterion_sentiment(audio_score, labels.cuda())
-    text_sentiment_loss = criterion_sentiment(text_score, labels.cuda())
-    combined_sentiment_loss = criterion_sentiment(combined_score, labels.cuda())
+    video_sentiment_loss = criterion_sentiment(video_score, discrete_labels.long().cuda())
+    audio_sentiment_loss = criterion_sentiment(audio_score, discrete_labels.long().cuda())
+    text_sentiment_loss = criterion_sentiment(text_score, discrete_labels.long().cuda())
+    combined_sentiment_loss = criterion_sentiment(combined_score, discrete_labels.long().cuda())
 
 
     
