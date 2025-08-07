@@ -298,7 +298,7 @@ def main():
 
     if model_resume:
         # Load unsupervised pretrained model
-        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models/mosei_unsupervised/checkpoint/MOSEI-model-9.pt"
+        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models/unsupervised_class/checkpoint/MOSEI-model-9.pt"
         logger.info(f"Loading unsupervised model from: {path_checkpoints}")
         checkpoints = torch.load(path_checkpoints)
         Encoder.load_state_dict(checkpoints['Encoder_parameters'])

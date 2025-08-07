@@ -1,21 +1,21 @@
 #!/bin/bash
 
-#SBATCH --job-name=MOSEI_supervised_test
+#SBATCH --job-name=MOSEI_supervised_class
 #SBATCH --partition=leinegpu
-#SBATCH --nodelist=leinevmgpu008
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=1
 #SBATCH --cpus-per-task=32
 #SBATCH --mem-per-cpu=5G 
-#SBATCH --time=25:00:00
-#SBATCH --output=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/MOSEI_supervised_test/mosei_%j.out
-#SBATCH --error=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/MOSEI_supervised_test/mosei_%j.err
+#SBATCH --time=1:00:00
+#SBATCH --output=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/MOSEI_supervised_class/mosei_%j.out
+#SBATCH --error=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/MOSEI_supervised_class/mosei_%j.err
 
 # Set source directory
 SRCDIR=/project/ag-jafra/Souptik/CMG_New/Experiments
 
 # Create output directories for logs
-mkdir -p $SRCDIR/CMG_trial1/slurm/MOSEI_supervised_test
+mkdir -p $SRCDIR/CMG_trial1/slurm/MOSEI_supervised_class
+mkdir -p $SRCDIR/CMG_trial1/MOSEI_Tests/MOSEI_supervised_class
 
 # Activate conda environment
 source ~/.bashrc
@@ -26,9 +26,9 @@ conda activate /project/ag-jafra/Souptik/CMG_New/Experiments/envs/CMG_new
 
 # Experiment 1: MSR Mode (Multimodal Sentiment Regression)
 echo "Running MSR Mode - Multimodal Sentiment Regression Testing"
-python $SRCDIR/CMG_trial1/src/MOSEI_supervised_test.py \
+python $SRCDIR/CMG_trial1/src/MOSEI_supervised_class.py \
     --gpu 0 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/MOSEI_Tests/MOSEI_supervised/MSR_AV/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/MOSEI_Tests/MOSEI_supervised_class/MSR/" \
     --batch_size 64 \
     --test_batch_size 64 \
     --dataset_name "mosei" \
@@ -40,9 +40,9 @@ echo "MSR Mode testing completed!"
 
 # Experiment 2: CMG Mode (Cross-Modal Generalization)
 echo "Running CMG Mode - Cross-Modal Generalization Testing"
-python $SRCDIR/CMG_trial1/src/MOSEI_supervised_test.py \
+python $SRCDIR/CMG_trial1/src/MOSEI_supervised_class.py \
     --gpu 0 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/MOSEI_Tests/MOSEI_supervised/CMG_AV/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/MOSEI_Tests/MOSEI_supervised_class/CMG/" \
     --batch_size 64 \
     --test_batch_size 64 \
     --dataset_name "mosei" \

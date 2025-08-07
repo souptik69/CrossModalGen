@@ -275,7 +275,7 @@ def main():
     Decoder.to(device)
 
     # Load supervised pretrained model
-    path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models/mosei_supervised_AV/checkpoint/MOSEI-model-9.pt"
+    path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models/supervised_class/checkpoint/MOSEI-model-9.pt"
     logger.info(f"Loading supervised model from: {path_checkpoints}")
     checkpoints = torch.load(path_checkpoints)
     Encoder.load_state_dict(checkpoints['Encoder_parameters'])
