@@ -279,7 +279,7 @@ def visualize_codebook_embeddings(checkpoint_path, output_dir, top_k=25):
 def main():
     parser = argparse.ArgumentParser(description='Visualize VQ-VAE codebook embeddings')
     parser.add_argument('--checkpoint', type=str, 
-                       default="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Novel_Model_Final/AVT_model/Best_Text_CPC_noNoise/40k/checkpoint/DCID-model-5.pt",
+                       default="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models/supervised_class/checkpoint/MOSEI-model-9.pt",
                        help='Path to model checkpoint')
     parser.add_argument('--output_dir', type=str, 
                        default="/project/ag-jafra/Souptik/CMG_New/Experiments/Misc/visualizations",

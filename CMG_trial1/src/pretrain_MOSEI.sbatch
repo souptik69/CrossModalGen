@@ -4,6 +4,7 @@
 #SBATCH --partition=leinegpu
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=1
+#SBATCH --gres=gpu:a100-80g
 #SBATCH --cpus-per-task=32
 #SBATCH --mem-per-cpu=5G 
 #SBATCH --time=65:00:00
