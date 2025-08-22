@@ -631,13 +631,13 @@ class Cross_VQEmbeddingEMA_AVT_hierarchical(nn.Module):
             with torch.no_grad():
                 new_embedding = self.embedding.clone()
                  
-                new_embedding[:, 2*D:] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D]) + ((1/3) * new_embedding[:, 2*D:])    #Text = (1/3)Video + (1/3)Audio + (1/3)Text
-                new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, 2*D:])  #Audio = (4/9)Video + (4/9)Audio + (1/9)Text
-                new_embedding[:, :D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])     #Video = (16/27)Video + (7/27)Audio + (4/27)Text
-
                 # new_embedding[:, 2*D:] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D]) + ((1/3) * new_embedding[:, 2*D:])    #Text = (1/3)Video + (1/3)Audio + (1/3)Text
-                # new_embedding[:, :D] =  ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])  #Audio = (4/9)Video + (4/9)Audio + (1/9)Text
-                # new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])     #Video = (16/27)Video + (7/27)Audio + (4/27)Text
+                # new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, 2*D:])  #Audio = (4/9)Video + (4/9)Audio + (1/9)Text
+                # new_embedding[:, :D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])     #Video = (16/27)Video + (7/27)Audio + (4/27)Text
+
+                new_embedding[:, 2*D:] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D]) + ((1/3) * new_embedding[:, 2*D:])    #Text = (1/3)Video + (1/3)Audio + (1/3)Text
+                new_embedding[:, :D] =  ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])  #Audio = (4/9)Video + (4/9)Audio + (1/9)Text
+                new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])     #Video = (16/27)Video + (7/27)Audio + (4/27)Text
 
                 
                 self.embedding = new_embedding

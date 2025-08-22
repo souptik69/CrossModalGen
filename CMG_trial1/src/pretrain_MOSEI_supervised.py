@@ -25,6 +25,8 @@ from label_conversion_mosei import (
     continuous_to_onehot_sentiment,
     predictions_to_continuous
 )
+import csv
+import os
 from transformers import BertTokenizer, BertModel
 import pickle
 from collections import Counter
@@ -68,6 +70,18 @@ def main():
         logger.info('\nRuntime args\n\n{}\n'.format(json.dumps(vars(args), indent=4)))
     else:
         logger.info(f'\nLog file will be save in a {args.snapshot_pref}/Eval.log.')
+
+    '''Csv Training loss Iniatialize'''
+    csv_headers = ['epoch', 'total_loss', 'audio_recon_loss', 'video_recon_loss', 'text_recon_loss', 
+               'audio_embedding_loss', 'video_embedding_loss', 'text_embedding_loss', 
+               'cpc_loss', 'cmcm_loss', 'video_sentiment_loss', 'audio_sentiment_loss', 
+               'text_sentiment_loss', 'combined_sentiment_loss']
+
+    csv_file_path = os.path.join(args.snapshot_pref, args.loss_csv_path)
+    with open(csv_file_path, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(csv_headers)
+    logger.info(f"Loss CSV will be saved to: {csv_file_path}")
 
     '''dataset selection'''
     if args.dataset_name == 'mosei':
@@ -130,8 +144,13 @@ def main():
 
     '''Training and Evaluation'''
     for epoch in range(start_epoch+1, args.n_epoch):
-        loss, total_step = train_epoch(CPC, Encoder, Text_ar_lstm, Decoder, train_dataloader, criterion_sentiment,
+        loss, total_step, epoch_losses = train_epoch(CPC, Encoder, Text_ar_lstm, Decoder, train_dataloader, criterion_sentiment,
                                        optimizer, epoch, total_step, args)
+        
+        csv_file_path = os.path.join(args.snapshot_pref, args.loss_csv_path)
+        with open(csv_file_path, 'a', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow([epoch] + epoch_losses)
         
         
         save_path = os.path.join(args.model_save_path, 'MOSEI-model-{}.pt'.format(epoch))
@@ -179,6 +198,21 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Decoder,train_dataloader, criterion_se
     data_time = AverageMeter()
     losses = AverageMeter()
     train_acc = AverageMeter()
+
+    epoch_total_loss = AverageMeter()
+    epoch_audio_recon = AverageMeter()
+    epoch_video_recon = AverageMeter()
+    epoch_text_recon = AverageMeter()
+    epoch_audio_embed = AverageMeter()
+    epoch_video_embed = AverageMeter()
+    epoch_text_embed = AverageMeter()
+    epoch_cpc_loss = AverageMeter()
+    epoch_cmcm_loss = AverageMeter()
+    epoch_video_sentiment = AverageMeter()
+    epoch_audio_sentiment = AverageMeter()
+    epoch_text_sentiment = AverageMeter()
+    epoch_combined_sentiment = AverageMeter()
+
     end_time = time.time()
     models = [CPC,Encoder,Text_ar_lstm,Decoder]
     to_train(models)
@@ -357,6 +391,23 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Decoder,train_dataloader, criterion_se
         loss =  audio_recon_loss + video_recon_loss + text_recon_loss + audio_embedding_loss +  video_embedding_loss + text_embedding_loss\
                 + cpc_loss + cmcm_loss + video_sentiment_loss + audio_sentiment_loss + text_sentiment_loss + combined_sentiment_loss
 
+
+        # Update epoch loss meters
+        batch_size = audio_feature.size(0)
+        epoch_total_loss.update(loss.item(), batch_size)
+        epoch_audio_recon.update(audio_recon_loss.item(), batch_size)
+        epoch_video_recon.update(video_recon_loss.item(), batch_size)
+        epoch_text_recon.update(text_recon_loss.item(), batch_size)
+        epoch_audio_embed.update(audio_embedding_loss.item(), batch_size)
+        epoch_video_embed.update(video_embedding_loss.item(), batch_size)
+        epoch_text_embed.update(text_embedding_loss.item(), batch_size)
+        epoch_cpc_loss.update(cpc_loss.item(), batch_size)
+        epoch_cmcm_loss.update(cmcm_loss.item(), batch_size)
+        epoch_video_sentiment.update(video_sentiment_loss.item(), batch_size)
+        epoch_audio_sentiment.update(audio_sentiment_loss.item(), batch_size)
+        epoch_text_sentiment.update(text_sentiment_loss.item(), batch_size)
+        epoch_combined_sentiment.update(combined_sentiment_loss.item(), batch_size)
+
         if n_iter % 20 == 0:
             _export_log(epoch=epoch, total_step=total_step+n_iter, batch_idx=n_iter, lr=0.0004, loss_meter=metricsContainer.calculate_average("loss"))
         
@@ -375,9 +426,15 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Decoder,train_dataloader, criterion_se
         losses.update(loss.item(), audio_feature.size(0) * 10)
         batch_time.update(time.time() - end_time)
         end_time = time.time()
+    
+    epoch_losses = [epoch_total_loss.avg, epoch_audio_recon.avg, epoch_video_recon.avg, 
+                    epoch_text_recon.avg, epoch_audio_embed.avg, epoch_video_embed.avg, 
+                    epoch_text_embed.avg, epoch_cpc_loss.avg, epoch_cmcm_loss.avg,
+                    epoch_video_sentiment.avg, epoch_audio_sentiment.avg, 
+                    epoch_text_sentiment.avg, epoch_combined_sentiment.avg]
 
 
-    return losses.avg, n_iter + total_step
+    return losses.avg, n_iter + total_step, epoch_losses
 
         
 

@@ -30,6 +30,8 @@ parser.add_argument('--test_mode', type=str, default='MSR', choices=['MSR', 'CMG
                     help='Testing mode: MSR (Multimodal Sentiment Regression) or CMG (Cross-Modal Generalization)')
 parser.add_argument('--modality', type=str, default='audio', choices=['audio', 'video', 'text'],
                     help='Modality for CMG mode training/testing (audio, video, or text)')
+parser.add_argument('--loss_csv_path', type=str, default='training_losses.csv',
+                    help='Path to save training losses CSV file')
 
 # =========================== Display Configs ============================
 parser.add_argument('--print_freq', type=int)
