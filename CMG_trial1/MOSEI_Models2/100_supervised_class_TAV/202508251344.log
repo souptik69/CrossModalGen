@@ -1,0 +1,146 @@
+2025-08-25 13:44:19,620 INFO 
+Creating folder: /project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models2/100_supervised_class_TAV/
+2025-08-25 13:44:19,620 INFO 
+Runtime args
+
+{
+    "dataset_name": "mosei",
+    "n_epoch": 100,
+    "batch_size": 64,
+    "test_batch_size": 64,
+    "lr": 0.0004,
+    "gpu": "0",
+    "snapshot_pref": "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models2/100_supervised_class_TAV/",
+    "resume": "",
+    "evaluate": false,
+    "clip_gradient": 0.5,
+    "loss_weights": 0.5,
+    "start_epoch": 0,
+    "model_save_path": "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models2/100_supervised_class_TAV/checkpoint/",
+    "output_dir": "./results",
+    "weight_decay": 0.0005,
+    "test_mode": "MSR",
+    "modality": "audio",
+    "loss_csv_path": "training_losses.csv",
+    "val_loss_csv_path": "val_losses.csv",
+    "print_freq": 1,
+    "save_freq": null,
+    "eval_freq": 1,
+    "mi_lr": 0.001
+}
+
+2025-08-25 13:44:19,621 INFO Training Loss CSV will be saved to: /project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models2/100_supervised_class_TAV/training_losses.csv
+2025-08-25 13:44:19,622 INFO Validation Loss CSV will be saved to: /project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models2/100_supervised_class_TAV/val_losses.csv
+2025-08-25 13:44:40,021 INFO INITIALIZATION_1 - Vector 345 (first 5 video dims): tensor([-0.0008,  0.0004,  0.0016, -0.0014,  0.0002], device='cuda:0',
+       dtype=torch.float64)
+2025-08-25 13:44:40,025 INFO INITIALIZATION_1 - Vector 345 (first 5 audio dims): tensor([-0.0003,  0.0012, -0.0012, -0.0021, -0.0022], device='cuda:0',
+       dtype=torch.float64)
+2025-08-25 13:44:40,026 INFO INITIALIZATION_1 - Vector 345 (first 5 text dims): tensor([-2.4539e-03, -1.7443e-03,  1.7269e-03,  7.2731e-05,  1.3780e-03],
+       device='cuda:0', dtype=torch.float64)
+2025-08-25 13:44:40,027 INFO INITIALIZATION_1 - Vector 346 (first 5 video dims): tensor([-1.8275e-03,  2.0893e-03,  1.8440e-03, -8.6520e-04, -7.3268e-05],
+       device='cuda:0', dtype=torch.float64)
+2025-08-25 13:44:40,027 INFO INITIALIZATION_1 - Vector 346 (first 5 audio dims): tensor([-0.0021, -0.0020, -0.0022,  0.0007, -0.0019], device='cuda:0',
+       dtype=torch.float64)
+2025-08-25 13:44:40,028 INFO INITIALIZATION_1 - Vector 346 (first 5 text dims): tensor([ 0.0011,  0.0016, -0.0007, -0.0021,  0.0019], device='cuda:0',
+       dtype=torch.float64)
+2025-08-25 13:44:40,029 INFO INITIALIZATION_1 - Vector 45 (first 5 video dims): tensor([ 0.0013, -0.0005,  0.0024, -0.0018,  0.0019], device='cuda:0',
+       dtype=torch.float64)
+2025-08-25 13:44:40,030 INFO INITIALIZATION_1 - Vector 45 (first 5 audio dims): tensor([-0.0019, -0.0016,  0.0009,  0.0018,  0.0013], device='cuda:0',
+       dtype=torch.float64)
+2025-08-25 13:44:40,031 INFO INITIALIZATION_1 - Vector 45 (first 5 text dims): tensor([0.0003, 0.0017, 0.0003, 0.0022, 0.0021], device='cuda:0',
+       dtype=torch.float64)
+2025-08-25 13:44:40,031 INFO Init Codebook min: -0.002499988069757819, max: 0.0024999910965561867
+2025-08-25 13:44:42,508 INFO INITIALIZATION Epoch 0 - Vector 345 (first 5 video dims): tensor([ -91.8299,   28.0278,   87.1056, -136.7556,  -25.8975],
+       device='cuda:0', dtype=torch.float64)
+2025-08-25 13:44:42,509 INFO INITIALIZATION Epoch 0 - Vector 345 (first 5 audio dims): tensor([ -75.9376,   51.7687,   36.3672, -155.1127,  -74.9360],
+       device='cuda:0', dtype=torch.float64)
+2025-08-25 13:44:42,510 INFO INITIALIZATION Epoch 0 - Vector 345 (first 5 text dims): tensor([-117.7243,   -4.3721,   70.0425, -114.5333,  -22.0756],
+       device='cuda:0', dtype=torch.float64)
+2025-08-25 13:44:42,510 INFO INITIALIZATION Epoch 0 - Vector 346 (first 5 video dims): tensor([-145.8658,   93.8795,   41.1355,  -63.2193,  -23.9192],
+       device='cuda:0', dtype=torch.float64)
+2025-08-25 13:44:42,511 INFO INITIALIZATION Epoch 0 - Vector 346 (first 5 audio dims): tensor([-161.8359,   20.4456,  -23.5736,  -30.1861,  -64.0961],
+       device='cuda:0', dtype=torch.float64)
+2025-08-25 13:44:42,517 INFO INITIALIZATION Epoch 0 - Vector 346 (first 5 text dims): tensor([-94.7264,  54.2248, -35.6862, -73.7638,  -0.4033], device='cuda:0',
+       dtype=torch.float64)
+2025-08-25 13:44:42,518 INFO INITIALIZATION Epoch 0 - Vector 45 (first 5 video dims): tensor([ 79.7722,  -1.9331, 145.1324, -72.2149, 141.3484], device='cuda:0',
+       dtype=torch.float64)
+2025-08-25 13:44:42,519 INFO INITIALIZATION Epoch 0 - Vector 45 (first 5 audio dims): tensor([ 59.6393,  -1.5508, 108.8644, -54.2171, 106.0539], device='cuda:0',
+       dtype=torch.float64)
+2025-08-25 13:44:42,519 INFO INITIALIZATION Epoch 0 - Vector 45 (first 5 text dims): tensor([ 53.2213,  41.1076,  88.7101,  12.7204, 131.7748], device='cuda:0',
+       dtype=torch.float64)
+2025-08-25 13:44:42,520 INFO INITIALIZATION Epoch 0 - Count for vector 345: 2.9981261711430362e-05
+2025-08-25 13:44:42,520 INFO INITIALIZATION Epoch 0 - Count for vector 346: 2.9981261711430362e-05
+2025-08-25 13:44:42,520 INFO INITIALIZATION Epoch 0 - Count for vector 45: 0.01002373516552156
+2025-08-25 13:44:42,520 INFO Init Codebook min: -242.08136539105902, max: 242.52478053458609
+2025-08-25 13:44:42,706 INFO equal_num is 0 in 0-th iteration.
+2025-08-25 13:44:42,708 INFO Epoch 0, Batch 0, lr = 0.00040, audio_recon_loss = 569.7062, audio_embed_loss = 0.7497, text_recon_loss = 0.0034, text_embed_loss = 0.7498, video_recon_loss = 7.0071, video_embed_loss = 0.7497, video_sentiment_loss = 1.9564, audio_sentiment_loss = 1.9503, text_sentiment_loss = 1.9511, combined_sentiment_loss = 1.9521, acc_av = 0.0312, acc_at = 0.0156, acc_vt = 0.0312, acc_va = 0.0000, acc_ta = 0.0156, acc_tv = 0.0000, acc_aa = 0.0312, acc_vv = 0.0000, acc_tt = 0.0000, cpc_loss = 26.3643, cmcm_loss = 6.2383, segment_loss = 0.0283, audio_perplexity = 2.1047, video_perplexity = 29.0462, text_perplexity = 7.1987, 
+2025-08-25 13:44:54,342 INFO equal_num is 64 in 20-th iteration.
+2025-08-25 13:44:54,351 INFO Epoch 0, Batch 20, lr = 0.00040, audio_recon_loss = 414.9981, audio_embed_loss = 122.2009, text_recon_loss = 2.7853, text_embed_loss = 103.4908, video_recon_loss = 7.5719, video_embed_loss = 79.0110, video_sentiment_loss = 3.0707, audio_sentiment_loss = 2.8316, text_sentiment_loss = 2.6375, combined_sentiment_loss = 2.5163, acc_av = 0.0180, acc_at = 0.0133, acc_vt = 0.0148, acc_va = 0.0117, acc_ta = 0.0180, acc_tv = 0.0172, acc_aa = 0.0156, acc_vv = 0.1187, acc_tt = 0.0195, cpc_loss = 26.2440, cmcm_loss = 6.2394, segment_loss = 0.0283, audio_perplexity = 1.0000, video_perplexity = 1.0286, text_perplexity = 1.0484, 
+2025-08-25 13:45:06,109 INFO equal_num is 64 in 40-th iteration.
+2025-08-25 13:45:06,115 INFO Epoch 0, Batch 40, lr = 0.00040, audio_recon_loss = 194.1340, audio_embed_loss = 0.1514, text_recon_loss = 0.0100, text_embed_loss = 0.1630, video_recon_loss = 3.7558, video_embed_loss = 0.1491, video_sentiment_loss = 1.6307, audio_sentiment_loss = 1.7478, text_sentiment_loss = 1.6235, combined_sentiment_loss = 1.6218, acc_av = 0.0125, acc_at = 0.0148, acc_vt = 0.0133, acc_va = 0.0180, acc_ta = 0.0180, acc_tv = 0.0164, acc_aa = 0.0148, acc_vv = 0.0492, acc_tt = 0.0164, cpc_loss = 26.2025, cmcm_loss = 6.2383, segment_loss = 0.0285, audio_perplexity = 1.0000, video_perplexity = 1.0000, text_perplexity = 1.0000, 
+2025-08-25 13:45:18,820 INFO 
+===== BATCH (60) DEBUG =====
+2025-08-25 13:45:18,821 INFO Most used vector (253) value (first 5 video dims): tensor([ 0.8231, -0.0934, -1.3596, -0.8811,  0.9297], device='cuda:0',
+       dtype=torch.float64)
+2025-08-25 13:45:18,822 INFO Most used vector (253) value (first 5 audio dims): tensor([ 0.8842, -0.1070, -1.3543, -0.8858,  0.9026], device='cuda:0',
+       dtype=torch.float64)
+2025-08-25 13:45:18,823 INFO Most used vector (253) value (first 5 text dims): tensor([ 0.8993, -0.1604, -1.2949, -0.8534,  0.9025], device='cuda:0',
+       dtype=torch.float64)
+2025-08-25 13:45:18,824 INFO Random (254) vector value (first 5 video dims): tensor([ 0.3931, -2.0497,  1.2277,  1.1552,  1.3194], device='cuda:0',
+       dtype=torch.float64)
+2025-08-25 13:45:18,824 INFO Random 254 vector value (first 5 audio dims): tensor([ 0.3890, -1.9702,  1.0277,  1.4475,  0.7719], device='cuda:0',
+       dtype=torch.float64)
+2025-08-25 13:45:18,825 INFO Random 254 vector value (first 5 text dims): tensor([ 0.3629, -1.7865,  0.1618,  1.5387,  1.1181], device='cuda:0',
+       dtype=torch.float64)
+2025-08-25 13:45:18,826 INFO Random 353 vector value (first 5 video dims): tensor([ 1.7103,  0.3421, -0.0464, -1.5515,  2.1020], device='cuda:0',
+       dtype=torch.float64)
+2025-08-25 13:45:18,827 INFO Random 353 vector value (first 5 audio dims): tensor([ 1.9637,  0.1339,  0.4438, -1.2779,  1.6905], device='cuda:0',
+       dtype=torch.float64)
+2025-08-25 13:45:18,828 INFO Random 353 vector value (first 5 text dims): tensor([ 0.8313,  0.1134,  0.2113, -1.3598,  1.9707], device='cuda:0',
+       dtype=torch.float64)
+2025-08-25 13:45:18,828 INFO Count statistics - min: 0.00137408596836921, max: 762.9355365001604, mean: 2.199911635359103
+2025-08-25 13:45:18,896 INFO Count histogram: tensor([399.,   0.,   0.,   0.,   0.,   0.,   0.,   0.,   0.,   1.],
+       device='cuda:0', dtype=torch.float64)
+2025-08-25 13:45:18,896 INFO Number of dead vectors (count < 0.01): 329
+2025-08-25 13:45:18,897 INFO Embedding stats - mean: 0.0026217147786439065, std: 1.0192144499449713, min: -2.8900744908573643, max: 2.8953681771066027
+2025-08-25 13:45:18,936 INFO equal_num is 0 in 60-th iteration.
+2025-08-25 13:45:18,942 INFO Epoch 0, Batch 60, lr = 0.00040, audio_recon_loss = 126.6815, audio_embed_loss = 0.4796, text_recon_loss = 0.0044, text_embed_loss = 0.4949, video_recon_loss = 2.4505, video_embed_loss = 0.3418, video_sentiment_loss = 1.6353, audio_sentiment_loss = 1.7180, text_sentiment_loss = 1.6068, combined_sentiment_loss = 1.7054, acc_av = 0.0086, acc_at = 0.0187, acc_vt = 0.0102, acc_va = 0.0164, acc_ta = 0.0086, acc_tv = 0.0219, acc_aa = 0.0195, acc_vv = 0.0273, acc_tt = 0.0141, cpc_loss = 26.2070, cmcm_loss = 6.2399, segment_loss = 0.0295, audio_perplexity = 1.0340, video_perplexity = 1.0000, text_perplexity = 1.1471, 
+2025-08-25 13:45:31,726 INFO equal_num is 64 in 80-th iteration.
+2025-08-25 13:45:31,731 INFO Epoch 0, Batch 80, lr = 0.00040, audio_recon_loss = 48.0341, audio_embed_loss = 0.2407, text_recon_loss = 0.0027, text_embed_loss = 0.2444, video_recon_loss = 1.3776, video_embed_loss = 0.2640, video_sentiment_loss = 1.6071, audio_sentiment_loss = 2.2938, text_sentiment_loss = 1.7822, combined_sentiment_loss = 2.1242, acc_av = 0.0187, acc_at = 0.0133, acc_vt = 0.0164, acc_va = 0.0164, acc_ta = 0.0117, acc_tv = 0.0203, acc_aa = 0.0141, acc_vv = 0.0156, acc_tt = 0.0180, cpc_loss = 26.2053, cmcm_loss = 6.2393, segment_loss = 0.0316, audio_perplexity = 1.0081, video_perplexity = 1.0000, text_perplexity = 1.0168, 
+2025-08-25 13:45:44,464 INFO equal_num is 0 in 100-th iteration.
+2025-08-25 13:45:44,469 INFO Epoch 0, Batch 100, lr = 0.00040, audio_recon_loss = 24.2351, audio_embed_loss = 0.3776, text_recon_loss = 0.0012, text_embed_loss = 0.3303, video_recon_loss = 0.6040, video_embed_loss = 0.4512, video_sentiment_loss = 1.6859, audio_sentiment_loss = 1.6531, text_sentiment_loss = 1.6130, combined_sentiment_loss = 1.6314, acc_av = 0.0125, acc_at = 0.0187, acc_vt = 0.0156, acc_va = 0.0219, acc_ta = 0.0102, acc_tv = 0.0195, acc_aa = 0.0180, acc_vv = 0.0117, acc_tt = 0.0141, cpc_loss = 26.2065, cmcm_loss = 6.2418, segment_loss = 0.0344, audio_perplexity = 1.0000, video_perplexity = 1.0406, text_perplexity = 1.0000, 
+2025-08-25 13:45:57,317 INFO 
+===== BATCH (120) DEBUG =====
+2025-08-25 13:45:57,319 INFO Most used vector (253) value (first 5 video dims): tensor([ 0.9862, -0.3766, -1.2565, -0.6901,  0.7749], device='cuda:0',
+       dtype=torch.float64)
+2025-08-25 13:45:57,320 INFO Most used vector (253) value (first 5 audio dims): tensor([ 1.0508, -0.4152, -1.2497, -0.6860,  0.7363], device='cuda:0',
+       dtype=torch.float64)
+2025-08-25 13:45:57,320 INFO Most used vector (253) value (first 5 text dims): tensor([ 1.0940, -0.4972, -1.2150, -0.5824,  0.7170], device='cuda:0',
+       dtype=torch.float64)
+2025-08-25 13:45:57,321 INFO Random (254) vector value (first 5 video dims): tensor([ 0.1401, -0.7305,  0.4376,  0.4117,  0.4702], device='cuda:0',
+       dtype=torch.float64)
+2025-08-25 13:45:57,322 INFO Random 254 vector value (first 5 audio dims): tensor([ 0.1386, -0.7022,  0.3663,  0.5159,  0.2751], device='cuda:0',
+       dtype=torch.float64)
+2025-08-25 13:45:57,323 INFO Random 254 vector value (first 5 text dims): tensor([ 0.1293, -0.6367,  0.0577,  0.5484,  0.3985], device='cuda:0',
+       dtype=torch.float64)
+2025-08-25 13:45:57,324 INFO Random 353 vector value (first 5 video dims): tensor([ 0.6095,  0.1219, -0.0165, -0.5530,  0.7491], device='cuda:0',
+       dtype=torch.float64)
+2025-08-25 13:45:57,324 INFO Random 353 vector value (first 5 audio dims): tensor([ 0.6999,  0.0477,  0.1582, -0.4554,  0.6025], device='cuda:0',
+       dtype=torch.float64)
+2025-08-25 13:45:57,325 INFO Random 353 vector value (first 5 text dims): tensor([ 0.2963,  0.0404,  0.0753, -0.4846,  0.7024], device='cuda:0',
+       dtype=torch.float64)
+2025-08-25 13:45:57,325 INFO Count statistics - min: 0.0021095217866856967, max: 1004.2927565701348, mean: 3.3773443804837893
+2025-08-25 13:45:57,326 INFO Count histogram: tensor([398.,   0.,   1.,   0.,   0.,   0.,   0.,   0.,   0.,   1.],
+       device='cuda:0', dtype=torch.float64)
+2025-08-25 13:45:57,327 INFO Number of dead vectors (count < 0.01): 339
+2025-08-25 13:45:57,327 INFO Embedding stats - mean: 0.0007972218714959846, std: 0.3828774770429462, min: -1.4311767659028172, max: 1.7415911319788149
+2025-08-25 13:45:57,358 INFO equal_num is 0 in 120-th iteration.
+2025-08-25 13:45:57,363 INFO Epoch 0, Batch 120, lr = 0.00040, audio_recon_loss = 26.0217, audio_embed_loss = 0.3077, text_recon_loss = 0.0005, text_embed_loss = 0.2938, video_recon_loss = 0.3151, video_embed_loss = 0.3578, video_sentiment_loss = 1.6498, audio_sentiment_loss = 1.7190, text_sentiment_loss = 1.5309, combined_sentiment_loss = 1.5827, acc_av = 0.0156, acc_at = 0.0187, acc_vt = 0.0133, acc_va = 0.0156, acc_ta = 0.0148, acc_tv = 0.0234, acc_aa = 0.0312, acc_vv = 0.0164, acc_tt = 0.0148, cpc_loss = 26.2030, cmcm_loss = 6.2860, segment_loss = 0.0396, audio_perplexity = 1.5355, video_perplexity = 1.0000, text_perplexity = 1.0000, 
+2025-08-25 13:46:10,067 INFO equal_num is 0 in 140-th iteration.
+2025-08-25 13:46:10,074 INFO Epoch 0, Batch 140, lr = 0.00040, audio_recon_loss = 9.8727, audio_embed_loss = 0.3094, text_recon_loss = 0.0003, text_embed_loss = 0.3154, video_recon_loss = 0.2351, video_embed_loss = 0.3780, video_sentiment_loss = 1.5470, audio_sentiment_loss = 1.5587, text_sentiment_loss = 1.5405, combined_sentiment_loss = 1.5492, acc_av = 0.0187, acc_at = 0.0172, acc_vt = 0.0172, acc_va = 0.0156, acc_ta = 0.0094, acc_tv = 0.0141, acc_aa = 0.0297, acc_vv = 0.0117, acc_tt = 0.0148, cpc_loss = 26.2020, cmcm_loss = 6.2515, segment_loss = 0.0473, audio_perplexity = 1.3769, video_perplexity = 1.0121, text_perplexity = 1.0000, 
+2025-08-25 13:46:23,449 INFO equal_num is 0 in 160-th iteration.
+2025-08-25 13:46:23,455 INFO Epoch 0, Batch 160, lr = 0.00040, audio_recon_loss = 4.5827, audio_embed_loss = 0.3027, text_recon_loss = 0.0007, text_embed_loss = 0.3059, video_recon_loss = 0.1837, video_embed_loss = 0.4109, video_sentiment_loss = 1.6320, audio_sentiment_loss = 1.6793, text_sentiment_loss = 1.7581, combined_sentiment_loss = 1.6827, acc_av = 0.0148, acc_at = 0.0156, acc_vt = 0.0117, acc_va = 0.0172, acc_ta = 0.0156, acc_tv = 0.0102, acc_aa = 0.0266, acc_vv = 0.0617, acc_tt = 0.0187, cpc_loss = 26.1993, cmcm_loss = 6.6631, segment_loss = 0.0587, audio_perplexity = 1.2684, video_perplexity = 2.2885, text_perplexity = 1.0006, 
+2025-08-25 13:46:35,192 INFO equal_num is 0 in 180-th iteration.
+2025-08-25 13:46:35,202 INFO Epoch 0, Batch 180, lr = 0.00040, audio_recon_loss = 1.3105, audio_embed_loss = 0.3182, text_recon_loss = 0.0003, text_embed_loss = 0.3772, video_recon_loss = 0.1444, video_embed_loss = 0.4383, video_sentiment_loss = 1.5989, audio_sentiment_loss = 1.6468, text_sentiment_loss = 1.6330, combined_sentiment_loss = 1.6508, acc_av = 0.0227, acc_at = 0.0156, acc_vt = 0.0148, acc_va = 0.0219, acc_ta = 0.0133, acc_tv = 0.0125, acc_aa = 0.0281, acc_vv = 0.0578, acc_tt = 0.0133, cpc_loss = 26.1855, cmcm_loss = 6.3434, segment_loss = 0.1227, audio_perplexity = 1.3723, video_perplexity = 3.0526, text_perplexity = 1.2684, 
+2025-08-25 13:46:48,673 INFO equal_num is 0 in 200-th iteration.
+2025-08-25 13:46:48,678 INFO Epoch 0, Batch 200, lr = 0.00040, audio_recon_loss = 0.4186, audio_embed_loss = 0.3073, text_recon_loss = 0.0002, text_embed_loss = 0.3423, video_recon_loss = 0.1097, video_embed_loss = 0.4193, video_sentiment_loss = 1.6454, audio_sentiment_loss = 1.6203, text_sentiment_loss = 1.6185, combined_sentiment_loss = 1.6015, acc_av = 0.0180, acc_at = 0.0156, acc_vt = 0.0156, acc_va = 0.0133, acc_ta = 0.0148, acc_tv = 0.0195, acc_aa = 0.0305, acc_vv = 0.0586, acc_tt = 0.0086, cpc_loss = 26.2109, cmcm_loss = 6.2596, segment_loss = 0.2122, audio_perplexity = 1.0647, video_perplexity = 1.9599, text_perplexity = 1.0018, 

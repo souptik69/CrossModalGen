@@ -11,15 +11,15 @@
 SRCDIR=/project/ag-jafra/Souptik/CMG_New/Experiments
 
 mkdir -p $SRCDIR/CMG_trial1/slurm/0_Check_MOSEI_class
-mkdir -p $SRCDIR/Misc/visualizations/MOSEI_class_unsuper_9_50
+mkdir -p $SRCDIR/Misc/visualizations/MOSEI_class_unsuper_99
 
 source ~/.bashrc
 conda activate /project/ag-jafra/Souptik/CMG_New/Experiments/envs/CMG_new
 
 # Configuration
-CHECKPOINT_PATH="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models/unsupervised_class/checkpoint/MOSEI-model-9.pt"
-OUTPUT_DIR="/project/ag-jafra/Souptik/CMG_New/Experiments/Misc/visualizations/MOSEI_class_unsuper_9_50"
-TOP_K=50
+CHECKPOINT_PATH="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models/100_unsupervised_class_Video/checkpoint/MOSEI-model-99.pt"
+OUTPUT_DIR="/project/ag-jafra/Souptik/CMG_New/Experiments/Misc/visualizations/MOSEI_class_unsuper_99"
+TOP_K=25
 
 echo "Starting codebook visualization..."
 echo "Checkpoint: $CHECKPOINT_PATH"

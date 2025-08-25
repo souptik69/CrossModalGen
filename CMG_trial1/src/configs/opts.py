@@ -32,6 +32,8 @@ parser.add_argument('--modality', type=str, default='audio', choices=['audio', '
                     help='Modality for CMG mode training/testing (audio, video, or text)')
 parser.add_argument('--loss_csv_path', type=str, default='training_losses.csv',
                     help='Path to save training losses CSV file')
+parser.add_argument('--val_loss_csv_path', type=str, default='val_losses.csv',
+                    help='Path to save validation losses CSV file')
 
 # =========================== Display Configs ============================
 parser.add_argument('--print_freq', type=int)

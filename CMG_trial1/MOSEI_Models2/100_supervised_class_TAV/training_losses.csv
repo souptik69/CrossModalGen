@@ -1,0 +1,1 @@
+epoch,total_loss,audio_recon_loss,video_recon_loss,text_recon_loss,audio_embedding_loss,video_embedding_loss,text_embedding_loss,cpc_loss,cmcm_loss,video_sentiment_loss,audio_sentiment_loss,text_sentiment_loss,combined_sentiment_loss

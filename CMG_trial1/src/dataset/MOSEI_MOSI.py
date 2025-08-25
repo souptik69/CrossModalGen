@@ -128,11 +128,29 @@ class MOSEIDatasetSupervised(Dataset):
                 batch_size=batch_size
             )
             
+            
             # Determine which splits to use based on the requested split
-            if split in ['train', 'val']:
-                # For train or val split, combine train+val data
-                print_progress("Combining train and validation splits for supervised training...")
-                splits_to_process = [("train", traindata), ("val", validdata)]
+            # if split in ['train', 'val']:
+            #     # For train or val split, combine train+val data
+            #     print_progress("Combining train and validation splits for supervised training...")
+            #     splits_to_process = [("train", traindata), ("val", validdata)]
+            # elif split == 'test':
+            #     # For test split, use only test data
+            #     print_progress("Using test split only...")
+            #     splits_to_process = [("test", testdata)]
+            # else:
+            #     raise ValueError(f"Invalid split: {split}. Must be 'train', 'val', or 'test'")
+
+
+            # Determine which splits to use based on the requested split
+            if split == 'train':
+                # For train split, use only train data
+                print_progress("Using train split only...")
+                splits_to_process = [("train", traindata)]
+            elif split == 'val':
+                # For val split, use only val data
+                print_progress("Using validation split only...")
+                splits_to_process = [("val", validdata)]
             elif split == 'test':
                 # For test split, use only test data
                 print_progress("Using test split only...")

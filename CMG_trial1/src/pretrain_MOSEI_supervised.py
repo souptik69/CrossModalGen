@@ -77,11 +77,23 @@ def main():
                'cpc_loss', 'cmcm_loss', 'video_sentiment_loss', 'audio_sentiment_loss', 
                'text_sentiment_loss', 'combined_sentiment_loss']
 
+
     csv_file_path = os.path.join(args.snapshot_pref, args.loss_csv_path)
     with open(csv_file_path, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(csv_headers)
-    logger.info(f"Loss CSV will be saved to: {csv_file_path}")
+    logger.info(f"Training Loss CSV will be saved to: {csv_file_path}")
+
+    '''Validation CSV Initialize'''
+    val_csv_headers = ['epoch', 'val_video_sentiment_loss', 'val_audio_sentiment_loss', 
+                    'val_text_sentiment_loss', 'val_combined_sentiment_loss']
+
+
+    val_csv_file_path = os.path.join(args.snapshot_pref, args.val_loss_csv_path)
+    with open(val_csv_file_path, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(val_csv_headers)
+    logger.info(f"Validation Loss CSV will be saved to: {val_csv_file_path}")
 
     '''dataset selection'''
     if args.dataset_name == 'mosei':
@@ -151,12 +163,22 @@ def main():
         with open(csv_file_path, 'a', newline='') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow([epoch] + epoch_losses)
+
+        # Validation epoch
+        val_losses = val_epoch(CPC, Encoder, Text_ar_lstm, Decoder, val_loader, criterion_sentiment, epoch)
+        
+        # Save validation losses to CSV
+        val_csv_file_path = os.path.join(args.snapshot_pref, args.val_loss_csv_path)
+        with open(val_csv_file_path, 'a', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow([epoch] + val_losses)
         
         
         save_path = os.path.join(args.model_save_path, 'MOSEI-model-{}.pt'.format(epoch))
         save_models(CPC, Encoder, Text_ar_lstm, Decoder, optimizer, epoch, total_step, save_path)
         logger.info(f"epoch: ******************************************* {epoch}")
-        logger.info(f"loss: {loss}")
+        logger.info(f"Training loss: {loss}")
+        logger.info(f"Validation losses - Video: {val_losses[0]:.4f}, Audio: {val_losses[1]:.4f}, Text: {val_losses[2]:.4f}, Combined: {val_losses[3]:.4f}")
         scheduler.step()
 
 
@@ -324,26 +346,26 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Decoder,train_dataloader, criterion_se
                 logger.info(f"Number of dead vectors (count < 0.01): {(quantizer.ema_count < 0.01).sum()}")
                 logger.info(f"Embedding stats - mean: {quantizer.embedding.mean()}, std: {quantizer.embedding.std()}, min: {quantizer.embedding.min()}, max: {quantizer.embedding.max()}")
 
-        if n_iter == 350:
-            quantizer = Encoder.Cross_quantizer
-            with torch.no_grad():
-                most_used_idx = torch.argmax(quantizer.ema_count)
-                random_idx1 = (most_used_idx + 1) % 400
-                random_idx2 = (most_used_idx + 100) % 400
-                logger.info(f"\n===== BATCH ({n_iter}) DEBUG =====")
-                logger.info(f"Most used vector ({most_used_idx}) value (first 5 video dims): {quantizer.embedding[most_used_idx, :5]}")
-                logger.info(f"Most used vector ({most_used_idx}) value (first 5 audio dims): {quantizer.embedding[most_used_idx, 256:261]}")
-                logger.info(f"Most used vector ({most_used_idx}) value (first 5 text dims): {quantizer.embedding[most_used_idx, 512:517]}")
-                logger.info(f"Random ({random_idx1}) vector value (first 5 video dims): {quantizer.embedding[random_idx1, :5]}")
-                logger.info(f"Random {random_idx1} vector value (first 5 audio dims): {quantizer.embedding[random_idx1, 256:261]}")
-                logger.info(f"Random {random_idx1} vector value (first 5 text dims): {quantizer.embedding[random_idx1, 512:517]}")
-                logger.info(f"Random {random_idx2} vector value (first 5 video dims): {quantizer.embedding[random_idx2, :5]}")
-                logger.info(f"Random {random_idx2} vector value (first 5 audio dims): {quantizer.embedding[random_idx2, 256:261]}")
-                logger.info(f"Random {random_idx2} vector value (first 5 text dims): {quantizer.embedding[random_idx2, 512:517]}")
-                logger.info(f"Count statistics - min: {quantizer.ema_count.min()}, max: {quantizer.ema_count.max()}, mean: {quantizer.ema_count.mean()}")
-                logger.info(f"Count histogram: {torch.histc(quantizer.ema_count, bins=10, min=0, max=quantizer.ema_count.max())}")
-                logger.info(f"Number of dead vectors (count < 0.01): {(quantizer.ema_count < 0.01).sum()}")
-                logger.info(f"Embedding stats - mean: {quantizer.embedding.mean()}, std: {quantizer.embedding.std()}, min: {quantizer.embedding.min()}, max: {quantizer.embedding.max()}")
+        # if n_iter == 350:
+        #     quantizer = Encoder.Cross_quantizer
+        #     with torch.no_grad():
+        #         most_used_idx = torch.argmax(quantizer.ema_count)
+        #         random_idx1 = (most_used_idx + 1) % 400
+        #         random_idx2 = (most_used_idx + 100) % 400
+        #         logger.info(f"\n===== BATCH ({n_iter}) DEBUG =====")
+        #         logger.info(f"Most used vector ({most_used_idx}) value (first 5 video dims): {quantizer.embedding[most_used_idx, :5]}")
+        #         logger.info(f"Most used vector ({most_used_idx}) value (first 5 audio dims): {quantizer.embedding[most_used_idx, 256:261]}")
+        #         logger.info(f"Most used vector ({most_used_idx}) value (first 5 text dims): {quantizer.embedding[most_used_idx, 512:517]}")
+        #         logger.info(f"Random ({random_idx1}) vector value (first 5 video dims): {quantizer.embedding[random_idx1, :5]}")
+        #         logger.info(f"Random {random_idx1} vector value (first 5 audio dims): {quantizer.embedding[random_idx1, 256:261]}")
+        #         logger.info(f"Random {random_idx1} vector value (first 5 text dims): {quantizer.embedding[random_idx1, 512:517]}")
+        #         logger.info(f"Random {random_idx2} vector value (first 5 video dims): {quantizer.embedding[random_idx2, :5]}")
+        #         logger.info(f"Random {random_idx2} vector value (first 5 audio dims): {quantizer.embedding[random_idx2, 256:261]}")
+        #         logger.info(f"Random {random_idx2} vector value (first 5 text dims): {quantizer.embedding[random_idx2, 512:517]}")
+        #         logger.info(f"Count statistics - min: {quantizer.ema_count.min()}, max: {quantizer.ema_count.max()}, mean: {quantizer.ema_count.mean()}")
+        #         logger.info(f"Count histogram: {torch.histc(quantizer.ema_count, bins=10, min=0, max=quantizer.ema_count.max())}")
+        #         logger.info(f"Number of dead vectors (count < 0.01): {(quantizer.ema_count < 0.01).sum()}")
+        #         logger.info(f"Embedding stats - mean: {quantizer.embedding.mean()}, std: {quantizer.embedding.std()}, min: {quantizer.embedding.min()}, max: {quantizer.embedding.max()}")
 
         accuracy1, accuracy2, accuracy3, accuracy4, accuracy5, accuracy6, accuracy7, accuracy8, accuracy9, cpc_loss, \
         audio_recon_loss, video_recon_loss, text_recon_loss, audio_score, video_score, text_score, combined_score,  \
@@ -465,6 +487,76 @@ def mi_first_forward(CPC, audio_feature, video_feature, text_feature, Decoder,ep
            audio_recon_loss, video_recon_loss, text_recon_loss, audio_score, video_score, text_score, combined_score,\
             video_sentiment_loss, audio_sentiment_loss, text_sentiment_loss, combined_sentiment_loss
 
+
+
+@torch.no_grad()
+def val_epoch(CPC, Encoder, Text_ar_lstm, Decoder, val_dataloader, criterion_sentiment, epoch):
+    """Validation epoch - only compute sentiment losses"""
     
+    # Set models to evaluation mode
+    models = [CPC, Encoder, Text_ar_lstm, Decoder]
+    to_eval(models)
+    
+    # Initialize validation loss meters
+    val_video_sentiment = AverageMeter()
+    val_audio_sentiment = AverageMeter()
+    val_text_sentiment = AverageMeter()
+    val_combined_sentiment = AverageMeter()
+    
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    with torch.no_grad():  # No gradient computation for validation
+        for n_iter, batch_data in enumerate(val_dataloader):
+            
+            # Process input data (same as training)
+            text_feature_raw, audio_feature, video_feature, labels = batch_data['text_fea'], batch_data['audio_fea'], batch_data['video_fea'], batch_data['labels']
+            text_feature_raw = text_feature_raw.double().cuda()
+            labels = labels.double().cuda()
+            discrete_labels = continuous_to_discrete_sentiment(labels)
+            
+            # LSTM processing
+            batch_dim = text_feature_raw.size()[0]
+            hidden_dim = 128
+            num_layers = 2
+            text_hidden = (torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda(),
+                      torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda())
+            text_feature, text_hidden = Text_ar_lstm(text_feature_raw, text_hidden)
+            
+            text_feature = text_feature.cuda().to(torch.float64)
+            audio_feature = audio_feature.cuda().to(torch.float64)
+            video_feature = video_feature.cuda().to(torch.float64)
+            
+            # Forward pass through encoder
+            audio_semantic_result, audio_encoder_result, video_semantic_result, video_encoder_result, \
+            text_semantic_result, text_encoder_result, \
+            out_vq_video, video_vq, out_vq_audio, audio_vq,\
+            out_vq_text, text_vq, video_embedding_loss, audio_embedding_loss, text_embedding_loss, \
+            video_perplexity, audio_perplexity, text_perplexity, equal_num, cmcm_loss, segment_loss \
+            = Encoder(audio_feature, video_feature, text_feature, epoch)
+            
+            # Forward pass through decoder to get sentiment scores
+            audio_recon_loss, video_recon_loss, text_recon_loss, audio_score, video_score, text_score, combined_score \
+                = Decoder(audio_feature, video_feature, text_feature, audio_encoder_result, video_encoder_result, text_encoder_result, out_vq_audio, audio_vq, out_vq_video, video_vq, out_vq_text, text_vq)
+            
+            # Compute only sentiment losses
+            video_sentiment_loss = criterion_sentiment(video_score, discrete_labels.long().cuda())
+            audio_sentiment_loss = criterion_sentiment(audio_score, discrete_labels.long().cuda())
+            text_sentiment_loss = criterion_sentiment(text_score, discrete_labels.long().cuda())
+            combined_sentiment_loss = criterion_sentiment(combined_score, discrete_labels.long().cuda())
+            
+            # Update validation loss meters
+            batch_size = audio_feature.size(0)
+            val_video_sentiment.update(video_sentiment_loss.item(), batch_size)
+            val_audio_sentiment.update(audio_sentiment_loss.item(), batch_size)
+            val_text_sentiment.update(text_sentiment_loss.item(), batch_size)
+            val_combined_sentiment.update(combined_sentiment_loss.item(), batch_size)
+    
+    # Return validation losses
+    val_losses = [val_video_sentiment.avg, val_audio_sentiment.avg, val_text_sentiment.avg, val_combined_sentiment.avg]
+    return val_losses
+
+
+
+
 if __name__ == '__main__':
     main()

@@ -3,19 +3,19 @@
 #SBATCH --job-name=MOSEI_supervised_class
 #SBATCH --partition=leinegpu
 #SBATCH --nodes=1
-#SBATCH --gpus-per-node=1
+#SBATCH --gres=gpu:a100-10g:1
 #SBATCH --cpus-per-task=32
 #SBATCH --mem-per-cpu=5G 
 #SBATCH --time=3:00:00
-#SBATCH --output=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/MOSEI_supervised_class_AV/mosei_%j.out
-#SBATCH --error=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/MOSEI_supervised_class_AV/mosei_%j.err
+#SBATCH --output=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/MOSEI_supervised_class_49_TAV/mosei_%j.out
+#SBATCH --error=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/MOSEI_supervised_class_49_TAV/mosei_%j.err
 
 # Set source directory
 SRCDIR=/project/ag-jafra/Souptik/CMG_New/Experiments
 
 # Create output directories for logs
-mkdir -p $SRCDIR/CMG_trial1/slurm/MOSEI_supervised_class_AV
-mkdir -p $SRCDIR/CMG_trial1/MOSEI_Tests/MOSEI_supervised_class_AV
+mkdir -p $SRCDIR/CMG_trial1/slurm/MOSEI_supervised_class_49_TAV
+mkdir -p $SRCDIR/CMG_trial1/MOSEI_Tests/MOSEI_supervised_class_49_TAV
 
 # Activate conda environment
 source ~/.bashrc
@@ -28,7 +28,7 @@ conda activate /project/ag-jafra/Souptik/CMG_New/Experiments/envs/CMG_new
 echo "Running MSR Mode - Multimodal Sentiment Regression Testing"
 python $SRCDIR/CMG_trial1/src/MOSEI_supervised_class.py \
     --gpu 0 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/MOSEI_Tests/MOSEI_supervised_class_AV/MSR/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/MOSEI_Tests/MOSEI_supervised_class_49_TAV/MSR/" \
     --batch_size 64 \
     --test_batch_size 64 \
     --dataset_name "mosei" \
@@ -42,7 +42,7 @@ echo "MSR Mode testing completed!"
 echo "Running CMG Mode - Cross-Modal Generalization Testing"
 python $SRCDIR/CMG_trial1/src/MOSEI_supervised_class.py \
     --gpu 0 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/MOSEI_Tests/MOSEI_supervised_class_AV/CMG/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/MOSEI_Tests/MOSEI_supervised_class_49_TAV/CMG/" \
     --batch_size 64 \
     --test_batch_size 64 \
     --dataset_name "mosei" \
