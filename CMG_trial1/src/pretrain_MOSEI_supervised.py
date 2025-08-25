@@ -119,7 +119,9 @@ def main():
     Text_ar_lstm = nn.LSTM(text_dim, text_lstm_dim, num_layers=2, batch_first=True, bidirectional=True)
     Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, n_embeddings, embedding_dim)
     CPC = Cross_CPC_AVT(embedding_dim, hidden_dim=256, context_dim=256, num_layers=2)
-    Decoder = AVT_VQVAE_Decoder(audio_dim, video_dim, text_lstm_dim*2, num_classes=7)
+    # Decoder = AVT_VQVAE_Decoder(audio_dim, video_dim, text_lstm_dim*2, num_classes=7)
+
+    Decoder = AVT_VQVAE_Decoder(audio_dim, video_dim, text_lstm_dim*2)
 
     Text_ar_lstm.double()
     Encoder.double()
@@ -137,8 +139,8 @@ def main():
     scheduler = MultiStepLR(optimizer, milestones=[10, 20, 30], gamma=0.5)
 
     '''loss'''
-    # criterion_sentiment = nn.MSELoss().cuda()
-    criterion_sentiment = nn.CrossEntropyLoss().cuda()
+    criterion_sentiment = nn.MSELoss().cuda()
+    # criterion_sentiment = nn.CrossEntropyLoss().cuda()
     
 
     if model_resume is True:
@@ -267,7 +269,8 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Decoder,train_dataloader, criterion_se
         text_feature_raw = text_feature_raw.double().cuda()
         labels = labels.double().cuda()
 
-        discrete_labels = continuous_to_discrete_sentiment(labels)
+        # discrete_labels = continuous_to_discrete_sentiment(labels)
+        discrete_labels = labels
 
         batch_dim = text_feature_raw.size()[0]
         hidden_dim = 128
@@ -476,10 +479,15 @@ def mi_first_forward(CPC, audio_feature, video_feature, text_feature, Decoder,ep
     audio_recon_loss, video_recon_loss, text_recon_loss, audio_score, video_score, text_score, combined_score \
         = Decoder(audio_feature, video_feature, text_feature, audio_encoder_result, video_encoder_result, text_encoder_result, out_vq_audio, audio_vq, out_vq_video, video_vq, out_vq_text, text_vq)
     
-    video_sentiment_loss = criterion_sentiment(video_score, discrete_labels.long().cuda())
-    audio_sentiment_loss = criterion_sentiment(audio_score, discrete_labels.long().cuda())
-    text_sentiment_loss = criterion_sentiment(text_score, discrete_labels.long().cuda())
-    combined_sentiment_loss = criterion_sentiment(combined_score, discrete_labels.long().cuda())
+    # video_sentiment_loss = criterion_sentiment(video_score, discrete_labels.long().cuda())
+    # audio_sentiment_loss = criterion_sentiment(audio_score, discrete_labels.long().cuda())
+    # text_sentiment_loss = criterion_sentiment(text_score, discrete_labels.long().cuda())
+    # combined_sentiment_loss = criterion_sentiment(combined_score, discrete_labels.long().cuda())
+
+    video_sentiment_loss = criterion_sentiment(video_score, discrete_labels)
+    audio_sentiment_loss = criterion_sentiment(audio_score, discrete_labels)
+    text_sentiment_loss = criterion_sentiment(text_score, discrete_labels)
+    combined_sentiment_loss = criterion_sentiment(combined_score, discrete_labels)
 
 
     
@@ -512,7 +520,8 @@ def val_epoch(CPC, Encoder, Text_ar_lstm, Decoder, val_dataloader, criterion_sen
             text_feature_raw, audio_feature, video_feature, labels = batch_data['text_fea'], batch_data['audio_fea'], batch_data['video_fea'], batch_data['labels']
             text_feature_raw = text_feature_raw.double().cuda()
             labels = labels.double().cuda()
-            discrete_labels = continuous_to_discrete_sentiment(labels)
+            # discrete_labels = continuous_to_discrete_sentiment(labels)
+            discrete_labels = labels
             
             # LSTM processing
             batch_dim = text_feature_raw.size()[0]
@@ -526,23 +535,26 @@ def val_epoch(CPC, Encoder, Text_ar_lstm, Decoder, val_dataloader, criterion_sen
             audio_feature = audio_feature.cuda().to(torch.float64)
             video_feature = video_feature.cuda().to(torch.float64)
             
-            # Forward pass through encoder
-            audio_semantic_result, audio_encoder_result, video_semantic_result, video_encoder_result, \
-            text_semantic_result, text_encoder_result, \
-            out_vq_video, video_vq, out_vq_audio, audio_vq,\
-            out_vq_text, text_vq, video_embedding_loss, audio_embedding_loss, text_embedding_loss, \
-            video_perplexity, audio_perplexity, text_perplexity, equal_num, cmcm_loss, segment_loss \
-            = Encoder(audio_feature, video_feature, text_feature, epoch)
-            
-            # Forward pass through decoder to get sentiment scores
-            audio_recon_loss, video_recon_loss, text_recon_loss, audio_score, video_score, text_score, combined_score \
-                = Decoder(audio_feature, video_feature, text_feature, audio_encoder_result, video_encoder_result, text_encoder_result, out_vq_audio, audio_vq, out_vq_video, video_vq, out_vq_text, text_vq)
-            
+            with torch.no_grad():
+            # Get VQ representations
+                out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(audio_feature)
+                out_vq_video, video_vq = Encoder.Video_VQ_Encoder(video_feature)
+                out_vq_text, text_vq = Encoder.Text_VQ_Encoder(text_feature)
+
+            combined_score = Decoder.combined_sentiment_decoder(out_vq_video, out_vq_audio, out_vq_text)
+            audio_score = Decoder.audio_sentiment_decoder(out_vq_audio)
+            video_score = Decoder.video_sentiment_decoder(out_vq_video)
+            text_score = Decoder.text_sentiment_decoder(out_vq_text)
             # Compute only sentiment losses
-            video_sentiment_loss = criterion_sentiment(video_score, discrete_labels.long().cuda())
-            audio_sentiment_loss = criterion_sentiment(audio_score, discrete_labels.long().cuda())
-            text_sentiment_loss = criterion_sentiment(text_score, discrete_labels.long().cuda())
-            combined_sentiment_loss = criterion_sentiment(combined_score, discrete_labels.long().cuda())
+            # video_sentiment_loss = criterion_sentiment(video_score, discrete_labels.long().cuda())
+            # audio_sentiment_loss = criterion_sentiment(audio_score, discrete_labels.long().cuda())
+            # text_sentiment_loss = criterion_sentiment(text_score, discrete_labels.long().cuda())
+            # combined_sentiment_loss = criterion_sentiment(combined_score, discrete_labels.long().cuda())
+
+            video_sentiment_loss = criterion_sentiment(video_score, discrete_labels)
+            audio_sentiment_loss = criterion_sentiment(audio_score, discrete_labels)
+            text_sentiment_loss = criterion_sentiment(text_score, discrete_labels)
+            combined_sentiment_loss = criterion_sentiment(combined_score, discrete_labels)
             
             # Update validation loss meters
             batch_size = audio_feature.size(0)

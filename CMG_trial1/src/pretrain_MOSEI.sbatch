@@ -7,14 +7,14 @@
 #SBATCH --cpus-per-task=32
 #SBATCH --mem-per-cpu=5G 
 #SBATCH --time=65:00:00
-#SBATCH --output=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/New_100_class_MOSEI_supervised_TAV/pretrain_%j.out
-#SBATCH --error=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/New_100_class_MOSEI_supervised_TAV/pretrain_%j.err
+#SBATCH --output=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/1_New_100_reg_MOSEI_supervised_TAV/pretrain_%j.out
+#SBATCH --error=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/1_New_100_reg_MOSEI_supervised_TAV/pretrain_%j.err
 
 SRCDIR=/project/ag-jafra/Souptik/CMG_New/Experiments
 
-mkdir -p $SRCDIR/CMG_trial1/slurm/New_100_class_MOSEI_supervised_TAV
+mkdir -p $SRCDIR/CMG_trial1/slurm/1_New_100_reg_MOSEI_supervised_TAV
 
-mkdir -p $SRCDIR/CMG_trial1/MOSEI_Models2/100_supervised_class_TAV/checkpoint
+mkdir -p $SRCDIR/CMG_trial1/MOSEI_Models2/100_supervised_reg_TAV_1/checkpoint
 
 
 source ~/.bashrc
@@ -25,12 +25,12 @@ python $SRCDIR/CMG_trial1/src/pretrain_MOSEI_supervised.py \
     --gpu 0 \
     --lr 0.0004 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/MOSEI_Models2/100_supervised_class_TAV/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/MOSEI_Models2/100_supervised_reg_TAV_1/" \
     --n_epoch 100 \
     --batch_size 64 \
     --test_batch_size 64 \
     --dataset_name "mosei" \
-    --model_save_path "$SRCDIR/CMG_trial1/MOSEI_Models2/100_supervised_class_TAV/checkpoint/" \
+    --model_save_path "$SRCDIR/CMG_trial1/MOSEI_Models2/100_supervised_reg_TAV_1/checkpoint/" \
     --print_freq 1 \
     --loss_csv_path "training_losses.csv" \
     --val_loss_csv_path "val_losses.csv"
