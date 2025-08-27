@@ -106,7 +106,7 @@ class MOSEIDatasetSupervised(Dataset):
     - If split is 'test': returns only test data
     Returns numpy arrays to match VGGSound collate pattern.
     """
-    def __init__(self, data_path, split='train', max_seq_len=10, batch_size=64):
+    def __init__(self, data_path, split='train', max_seq_len=50, batch_size=64):
         super(MOSEIDatasetSupervised, self).__init__()
         self.data_path = data_path
         self.split = split
@@ -344,7 +344,7 @@ def get_mosei_unsupervised_dataloader(batch_size= 64, max_seq_len=10, num_worker
     )
 
 
-def get_mosei_supervised_dataloaders(batch_size=64, max_seq_len=10, num_workers=8):
+def get_mosei_supervised_dataloaders(batch_size=64, max_seq_len=50, num_workers=8):
     """
     Creates DataLoaders for supervised training on MOSEI.
     Returns train, validation, and test dataloaders.

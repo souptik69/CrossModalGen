@@ -130,25 +130,36 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     Text_ar_lstm = nn.LSTM(text_dim, text_lstm_dim, num_layers=2, batch_first=True, bidirectional=True)
-    Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, n_embeddings, embedding_dim)
-    Decoder = AVT_VQVAE_Decoder(audio_dim, video_dim, text_lstm_dim*2)
+    Video_ar_lstm = nn.LSTM(video_dim, text_lstm_dim, num_layers=2, batch_first=True, bidirectional=True)
+    Audio_ar_lstm = nn.LSTM(audio_dim, text_lstm_dim, num_layers=2, batch_first=True, bidirectional=True)
+    Encoder = AVT_VQVAE_Encoder(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2, n_embeddings, embedding_dim)
+    Decoder = AVT_VQVAE_Decoder(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2)
+
+    # Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_dim, n_embeddings, embedding_dim)
+    # Decoder = AVT_VQVAE_Decoder(audio_dim, video_dim, text_dim)
 
     Text_ar_lstm.double()
+    Video_ar_lstm.double()
+    Audio_ar_lstm.double()
     Encoder.double()
     Decoder.double()
 
     '''Load trained supervised model'''
     Text_ar_lstm.to(device)
+    Video_ar_lstm.to(device)
+    Audio_ar_lstm.to(device)
     Encoder.to(device)
     Decoder.to(device)
 
     # Load supervised pretrained model
-    path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models/mosei_supervised_AV/checkpoint/MOSEI-model-9.pt"
+    path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models2/LSTM_New_100_supervised_reg_TAV/checkpoint/MOSEI-model-99.pt"
     logger.info(f"Loading supervised model from: {path_checkpoints}")
     checkpoints = torch.load(path_checkpoints)
     Encoder.load_state_dict(checkpoints['Encoder_parameters'])
     Decoder.load_state_dict(checkpoints['Decoder_parameters'])
     Text_ar_lstm.load_state_dict(checkpoints['Text_ar_lstm_parameters'])
+    Video_ar_lstm.load_state_dict(checkpoints['Video_ar_lstm_parameters'])
+    Audio_ar_lstm.load_state_dict(checkpoints['Audio_ar_lstm_parameters'])
     start_epoch = checkpoints['epoch']
     logger.info("Loaded supervised model from epoch {}".format(start_epoch))
 
@@ -156,12 +167,12 @@ def main():
     logger.info(f"Starting testing in {args.test_mode} mode...")
     
     if args.test_mode == 'MSR':
-        test_msr_mode(Encoder, Text_ar_lstm, Decoder, test_dataloader, args)
+        test_msr_mode(Encoder, Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder, test_dataloader, args)
     else:  # CMG mode
-        test_cmg_mode(Encoder, Text_ar_lstm, Decoder, test_dataloader, args)
+        test_cmg_mode(Encoder, Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder, test_dataloader, args)
 
 @torch.no_grad()
-def test_msr_mode(Encoder, Text_ar_lstm, Decoder, test_dataloader, args):
+def test_msr_mode(Encoder, Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder, test_dataloader, args):
     """Test Multimodal Sentiment Regression (MSR) mode"""
     logger.info("=" * 80)
     logger.info("TESTING MSR MODE - MULTIMODAL SENTIMENT REGRESSION")
@@ -174,9 +185,13 @@ def test_msr_mode(Encoder, Text_ar_lstm, Decoder, test_dataloader, args):
 
     Encoder.eval()
     Text_ar_lstm.eval()
+    Video_ar_lstm.eval()
+    Audio_ar_lstm.eval()
     Decoder.eval()
     Encoder.cuda()
     Text_ar_lstm.cuda()
+    Video_ar_lstm.cuda()
+    Audio_ar_lstm.cuda()
     Decoder.cuda()
 
     all_preds = []
@@ -187,16 +202,28 @@ def test_msr_mode(Encoder, Text_ar_lstm, Decoder, test_dataloader, args):
         data_time.update(time.time() - end_time)
 
         # Feed input to model
-        text_feature_raw, audio_feature, video_feature, labels = batch_data['text_fea'], batch_data['audio_fea'], batch_data['video_fea'], batch_data['labels']
+        text_feature_raw, audio_feature_raw, video_feature_raw, labels = batch_data['text_fea'], batch_data['audio_fea'], batch_data['video_fea'], batch_data['labels']
         text_feature_raw = text_feature_raw.double().cuda()
+        video_feature_raw = video_feature_raw.double().cuda()
+        audio_feature_raw = audio_feature_raw.double().cuda()
         labels = labels.double().cuda()
 
         batch_dim = text_feature_raw.size()[0]
         hidden_dim = 128
         num_layers = 2
+
         text_hidden = (torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda(),
                       torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda())
         text_feature, text_hidden = Text_ar_lstm(text_feature_raw, text_hidden)
+
+        video_hidden = (torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda(),
+                  torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda())
+        video_feature, video_hidden = Video_ar_lstm(video_feature_raw, video_hidden)
+
+        audio_hidden = (torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda(),
+                  torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda())
+        audio_feature, audio_hidden = Audio_ar_lstm(audio_feature_raw, audio_hidden)
+
 
         text_feature = text_feature.cuda().to(torch.float64)
         audio_feature = audio_feature.cuda().to(torch.float64)
@@ -246,7 +273,7 @@ def test_msr_mode(Encoder, Text_ar_lstm, Decoder, test_dataloader, args):
     logger.info(f"Results saved to {results_path}")
 
 @torch.no_grad()
-def test_cmg_mode(Encoder, Text_ar_lstm, Decoder, test_dataloader, args):
+def test_cmg_mode(Encoder, Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder, test_dataloader, args):
     """Test Cross-Modal Generalization (CMG) mode"""
     logger.info("=" * 80)
     logger.info("TESTING CMG MODE - CROSS-MODAL GENERALIZATION")
@@ -258,9 +285,13 @@ def test_cmg_mode(Encoder, Text_ar_lstm, Decoder, test_dataloader, args):
 
     Encoder.eval()
     Text_ar_lstm.eval()
+    Video_ar_lstm.eval()
+    Audio_ar_lstm.eval()
     Decoder.eval()
     Encoder.cuda()
     Text_ar_lstm.cuda()
+    Video_ar_lstm.cuda()
+    Audio_ar_lstm.cuda()
     Decoder.cuda()
 
     # Collections for all three modalities
@@ -274,16 +305,29 @@ def test_cmg_mode(Encoder, Text_ar_lstm, Decoder, test_dataloader, args):
         data_time.update(time.time() - end_time)
 
         # Feed input to model
-        text_feature_raw, audio_feature, video_feature, labels = batch_data['text_fea'], batch_data['audio_fea'], batch_data['video_fea'], batch_data['labels']
+        text_feature_raw, audio_feature_raw, video_feature_raw, labels = batch_data['text_fea'], batch_data['audio_fea'], batch_data['video_fea'], batch_data['labels']
         text_feature_raw = text_feature_raw.double().cuda()
+        video_feature_raw = video_feature_raw.double().cuda()
+        audio_feature_raw = audio_feature_raw.double().cuda()
         labels = labels.double().cuda()
 
         batch_dim = text_feature_raw.size()[0]
         hidden_dim = 128
         num_layers = 2
+
         text_hidden = (torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda(),
                       torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda())
         text_feature, text_hidden = Text_ar_lstm(text_feature_raw, text_hidden)
+
+        video_hidden = (torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda(),
+                  torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda())
+        video_feature, video_hidden = Video_ar_lstm(video_feature_raw, video_hidden)
+
+        audio_hidden = (torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda(),
+                  torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda())
+        audio_feature, audio_hidden = Audio_ar_lstm(audio_feature_raw, audio_hidden)
+
+
 
         text_feature = text_feature.cuda().to(torch.float64)
         audio_feature = audio_feature.cuda().to(torch.float64)

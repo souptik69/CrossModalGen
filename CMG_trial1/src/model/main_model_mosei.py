@@ -210,7 +210,7 @@ class Sentiment_Decoder(nn.Module):
         sentiment_score = self.sentiment_regressor(input_feat)  # Continuous sentiment
         return sentiment_score
 
-# """ Modified Sentiment Downstream Decoder for Classification """
+""" Modified Sentiment Downstream Decoder for Classification """
 # class Sentiment_Decoder(nn.Module):
 #     def __init__(self, input_dim, num_classes=7):
 #         super(Sentiment_Decoder, self).__init__()
@@ -235,14 +235,14 @@ class Sentiment_Decoder_Combined(nn.Module):
         self.sentiment_regressor = nn.Linear(input_dim, 1)  # Single continuous output
         
     def forward(self, video_vq, audio_vq, text_vq):
-        input_vq =  video_vq + audio_vq + text_vq
-        # input_vq =  (video_vq + audio_vq + text_vq)/3
+        # input_vq =  video_vq + audio_vq + text_vq
+        input_vq =  (video_vq + audio_vq + text_vq)/3
         input_feat = self.linear(input_vq)
         input_feat, _ = input_feat.max(1)  # Temporal pooling for sequence
         sentiment_score = self.sentiment_regressor(input_feat)  # Continuous sentiment
         return sentiment_score
 
-# """ Modified Combined Sentiment Decoder for Classification """
+""" Modified Combined Sentiment Decoder for Classification """
 # class Sentiment_Decoder_Combined(nn.Module):
 #     def __init__(self, input_dim, num_classes=7):
 #         super(Sentiment_Decoder_Combined, self).__init__()
@@ -251,8 +251,8 @@ class Sentiment_Decoder_Combined(nn.Module):
 #         self.dropout = nn.Dropout(0.1)  # Add dropout for classification
         
 #     def forward(self, video_vq, audio_vq, text_vq):
-#         input_vq = video_vq + audio_vq + text_vq
-#         # input_vq = (video_vq + audio_vq + text_vq) / 3
+#         # input_vq = video_vq + audio_vq + text_vq
+#         input_vq = (video_vq + audio_vq + text_vq) / 3
 #         input_feat = self.linear(input_vq)
 #         input_feat, _ = input_feat.max(1)  # Temporal pooling for sequence
 #         input_feat = self.dropout(input_feat)  # Apply dropout
@@ -640,9 +640,9 @@ class Cross_VQEmbeddingEMA_AVT_hierarchical(nn.Module):
                 new_embedding = self.embedding.clone()
 
                 '''T -> A -> V''' 
-                new_embedding[:, 2*D:] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D]) + ((1/3) * new_embedding[:, 2*D:])    #Text = (1/3)Video + (1/3)Audio + (1/3)Text
-                new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, 2*D:])  #Audio = (4/9)Video + (4/9)Audio + (1/9)Text
-                new_embedding[:, :D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])     #Video = (16/27)Video + (7/27)Audio + (4/27)Text
+                # new_embedding[:, 2*D:] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D]) + ((1/3) * new_embedding[:, 2*D:])    #Text = (1/3)Video + (1/3)Audio + (1/3)Text
+                # new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, 2*D:])  #Audio = (4/9)Video + (4/9)Audio + (1/9)Text
+                # new_embedding[:, :D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])     #Video = (16/27)Video + (7/27)Audio + (4/27)Text
 
                 '''T -> V -> A''' 
                 # new_embedding[:, 2*D:] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D]) + ((1/3) * new_embedding[:, 2*D:])    #Text = (1/3)Video + (1/3)Audio + (1/3)Text
@@ -650,9 +650,9 @@ class Cross_VQEmbeddingEMA_AVT_hierarchical(nn.Module):
                 # new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])     #Video = (16/27)Video + (7/27)Audio + (4/27)Text
 
                 '''V -> A -> T'''
-                # new_embedding[:, :D] =  ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])
-                # new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])
-                # new_embedding[:, 2*D:] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D]) + ((1/3) * new_embedding[:, 2*D:])
+                new_embedding[:, :D] =  ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])
+                new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])
+                new_embedding[:, 2*D:] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D]) + ((1/3) * new_embedding[:, 2*D:])
 
                 '''A -> V -> T'''
                 # new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])
