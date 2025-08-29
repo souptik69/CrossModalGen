@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import StepLR, MultiStepLR
 import numpy as np
 from configs.opts import parser
-from model.main_model_mosei import AVT_VQVAE_Encoder, AVT_VQVAE_Decoder
+from model.main_model_mosei import AVT_VQVAE_Encoder, Sentiment_Decoder_Combined, Sentiment_Decoder
 from utils import AverageMeter, Prepare_logger, get_and_save_args
 from utils.container import metricsContainer
 import torch.nn.functional as F
@@ -140,7 +140,10 @@ def main():
     # Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, n_embeddings, embedding_dim)
     Encoder = AVT_VQVAE_Encoder(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2, n_embeddings, embedding_dim)
     # Decoder = AVT_VQVAE_Decoder(audio_dim, video_dim, text_lstm_dim*2)
-    Decoder = AVT_VQVAE_Decoder(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2)
+    if args.test_mode == 'MSR':
+        Decoder = Sentiment_Decoder_Combined(input_dim=embedding_dim * 3)
+    else:
+        Decoder = Sentiment_Decoder(input_dim=embedding_dim * 3)
 
     Text_ar_lstm.double()
     Video_ar_lstm.double()
@@ -154,31 +157,19 @@ def main():
     Audio_ar_lstm.to(device)
     Encoder.to(device)
     Decoder.to(device)
-    
-    if args.test_mode == 'MSR':
-        # For MSR mode, train the combined sentiment decoder
-        optimizer = torch.optim.Adam(Decoder.combined_sentiment_decoder.parameters(), lr=args.lr)
-    else:  # CMG mode
-        # For CMG mode, train individual sentiment decoder based on modality
-        if args.modality == 'audio':
-            optimizer = torch.optim.Adam(Decoder.audio_sentiment_decoder.parameters(), lr=args.lr)
-        elif args.modality == 'video':
-            optimizer = torch.optim.Adam(Decoder.video_sentiment_decoder.parameters(), lr=args.lr)
-        else:  # text
-            optimizer = torch.optim.Adam(Decoder.text_sentiment_decoder.parameters(), lr=args.lr)
+    optimizer = torch.optim.Adam(Decoder.parameters(), lr=args.lr)
     
     scheduler = MultiStepLR(optimizer, milestones=[10, 20, 30], gamma=0.5)
 
     '''loss'''
     criterion_sentiment = nn.MSELoss().cuda()
 
-    if model_resume:
+    if model_resume is True:
         # Load unsupervised pretrained model
         path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models/mosei_unsupervised/checkpoint/MOSEI-model-9.pt"
         logger.info(f"Loading unsupervised model from: {path_checkpoints}")
         checkpoints = torch.load(path_checkpoints)
         Encoder.load_state_dict(checkpoints['Encoder_parameters'])
-        Decoder.load_state_dict(checkpoints['Decoder_parameters'])
         Text_ar_lstm.load_state_dict(checkpoints['Text_ar_lstm_parameters'])
         Video_ar_lstm.load_state_dict(checkpoints['Video_ar_lstm_parameters'])
         Audio_ar_lstm.load_state_dict(checkpoints['Audio_ar_lstm_parameters'])
@@ -250,12 +241,8 @@ def train_epoch(Encoder, Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder, tr
     losses = AverageMeter()
     end_time = time.time()
     
-    models = [Decoder]  # Only train decoder, freeze encoder
+    models = [Encoder, Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder] 
     to_train(models)
-    Encoder.eval()  # Freeze encoder
-    Text_ar_lstm.eval()  # Freeze text LSTM
-    Video_ar_lstm.eval()
-    Audio_ar_lstm.eval()
     
     Encoder.cuda()
     Text_ar_lstm.cuda()
@@ -304,7 +291,7 @@ def train_epoch(Encoder, Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder, tr
 
         if args.test_mode == 'MSR':
             # Multimodal Sentiment Regression
-            combined_score = Decoder.combined_sentiment_decoder(out_vq_video, out_vq_audio, out_vq_text)
+            combined_score = Decoder(out_vq_video, out_vq_audio, out_vq_text)
             sentiment_loss = criterion_sentiment(combined_score, labels)
             
             loss_items = {
@@ -315,19 +302,19 @@ def train_epoch(Encoder, Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder, tr
         else:  # CMG mode
             # Cross-Modal Generalization - train on one modality
             if args.modality == 'audio':
-                audio_score = Decoder.audio_sentiment_decoder(out_vq_audio)
+                audio_score = Decoder(out_vq_audio)
                 sentiment_loss = criterion_sentiment(audio_score, labels)
                 loss_items = {
                     "audio_sentiment_loss": sentiment_loss.item(),
                 }
             elif args.modality == 'video':
-                video_score = Decoder.video_sentiment_decoder(out_vq_video)
+                video_score = Decoder(out_vq_video)
                 sentiment_loss = criterion_sentiment(video_score, labels)
                 loss_items = {
                     "video_sentiment_loss": sentiment_loss.item(),
                 }
             else:  # text
-                text_score = Decoder.text_sentiment_decoder(out_vq_text)
+                text_score = Decoder(out_vq_text)
                 sentiment_loss = criterion_sentiment(text_score, labels)
                 loss_items = {
                     "text_sentiment_loss": sentiment_loss.item(),
@@ -419,7 +406,7 @@ def validate_epoch(Encoder, Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder,
 
         if args.test_mode == 'MSR':
             # Test multimodal
-            combined_score = Decoder.combined_sentiment_decoder(out_vq_video, out_vq_audio, out_vq_text)
+            combined_score = Decoder(out_vq_video, out_vq_audio, out_vq_text)
             loss = criterion_sentiment(combined_score, labels)
             all_preds.append(combined_score)
             
@@ -427,9 +414,9 @@ def validate_epoch(Encoder, Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder,
             # Test trained modality and cross-modal generalization
             if args.modality == 'audio':
                 # Trained on audio, test on video and text
-                audio_score = Decoder.audio_sentiment_decoder(out_vq_audio)
-                video_score = Decoder.video_sentiment_decoder(out_vq_video)
-                text_score = Decoder.text_sentiment_decoder(out_vq_text)
+                audio_score = Decoder(out_vq_audio)
+                video_score = Decoder(out_vq_video)
+                text_score = Decoder(out_vq_text)
                 
                 loss = criterion_sentiment(audio_score, labels)
                 all_preds.append(audio_score)
@@ -438,9 +425,9 @@ def validate_epoch(Encoder, Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder,
                 
             elif args.modality == 'video':
                 # Trained on video, test on audio and text
-                video_score = Decoder.video_sentiment_decoder(out_vq_video)
-                audio_score = Decoder.audio_sentiment_decoder(out_vq_audio)
-                text_score = Decoder.text_sentiment_decoder(out_vq_text)
+                video_score = Decoder(out_vq_video)
+                audio_score = Decoder(out_vq_audio)
+                text_score = Decoder(out_vq_text)
                 
                 loss = criterion_sentiment(video_score, labels)
                 all_preds.append(video_score)
@@ -449,9 +436,9 @@ def validate_epoch(Encoder, Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder,
                 
             else:  # text
                 # Trained on text, test on audio and video
-                text_score = Decoder.text_sentiment_decoder(out_vq_text)
-                audio_score = Decoder.audio_sentiment_decoder(out_vq_audio)
-                video_score = Decoder.video_sentiment_decoder(out_vq_video)
+                text_score = Decoder(out_vq_text)
+                audio_score = Decoder(out_vq_audio)
+                video_score = Decoder(out_vq_video)
                 
                 loss = criterion_sentiment(text_score, labels)
                 all_preds.append(text_score)

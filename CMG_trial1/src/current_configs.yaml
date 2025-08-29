@@ -11,7 +11,7 @@ weight_decay: 5e-4
 
   # ======================================= Print and snapshot configs ==================================
 snapshot_pref: 
-    /project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models2/NoLSTM_seq50_50_supervised_reg_TAV_multimodal/
+    /project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models2/2_NoLSTM_seq50_50_supervised_reg_TAV_multimodal/
 print_freq: 1
 eval_freq: 1
 

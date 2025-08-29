@@ -343,7 +343,7 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder,
                 logger.info(f"Embedding stats - mean: {quantizer.embedding.mean()}, std: {quantizer.embedding.std()}, min: {quantizer.embedding.min()}, max: {quantizer.embedding.max()}")
 
         accuracy1, accuracy2, accuracy3, accuracy4, accuracy5, accuracy6, accuracy7, accuracy8, accuracy9, cpc_loss, \
-        audio_recon_loss, video_recon_loss, text_recon_loss, audio_score, video_score, text_score, combined_score  \
+        audio_recon_loss, video_recon_loss, text_recon_loss \
         = mi_first_forward(CPC, audio_feature, video_feature, text_feature, Decoder,epoch,
                         audio_encoder_result, audio_semantic_result, video_encoder_result, video_semantic_result,
                         text_encoder_result, text_semantic_result,
@@ -436,14 +436,14 @@ def mi_first_forward(CPC, audio_feature, video_feature, text_feature, Decoder,ep
     cpc_loss = CPC(audio_semantic_result, video_semantic_result, text_semantic_result)
 
 
-    audio_recon_loss, video_recon_loss, text_recon_loss, audio_score, video_score, text_score, combined_score \
+    audio_recon_loss, video_recon_loss, text_recon_loss \
         = Decoder(audio_feature, video_feature, text_feature, audio_encoder_result, video_encoder_result, text_encoder_result, out_vq_audio, audio_vq, out_vq_video, video_vq, out_vq_text, text_vq)
     
 
 
     
     return accuracy1, accuracy2, accuracy3, accuracy4, accuracy5, accuracy6, accuracy7, accuracy8, accuracy9, cpc_loss,\
-           audio_recon_loss, video_recon_loss, text_recon_loss, audio_score, video_score, text_score, combined_score
+           audio_recon_loss, video_recon_loss, text_recon_loss
 
 
 if __name__ == '__main__':
