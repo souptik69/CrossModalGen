@@ -97,12 +97,6 @@ def main():
     parser.set_defaults(**dataset_configs)
     args = parser.parse_args()
     
-    # Add custom arguments
-    # parser.add_argument('--test_mode', type=str, default='MSR', choices=['MSR', 'CMG'], 
-    #                    help='Testing mode: MSR (Multimodal Sentiment Regression) or CMG (Cross-Modal Generalization)')
-    # parser.add_argument('--modality', type=str, default='audio', choices=['audio', 'video', 'text'],
-    #                    help='Modality for CMG mode training')
-    # args = parser.parse_args()
     
     # select GPUs
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
@@ -118,11 +112,15 @@ def main():
     '''dataset selection'''
     if args.dataset_name == 'mosi':
         from dataset.MOSEI_MOSI import get_mosi_dataloaders
+    elif args.dataset_name == 'mosei':
+        from dataset.MOSEI_MOSI import get_mosei_unsupervised_split_dataloaders
     else:
         raise NotImplementedError
-
-    train_dataloader, val_loader, test_dataloader = get_mosi_dataloaders(batch_size=args.batch_size, max_seq_len=10, num_workers=8)
-
+    
+    if args.dataset_name == 'mosi':
+        train_dataloader, val_loader, test_dataloader = get_mosi_dataloaders(batch_size=args.batch_size, max_seq_len=50, num_workers=8)
+    elif args.dataset_name == 'mosei':
+        unsupervised_dataloader, train_dataloader, test_dataloader = get_mosei_unsupervised_split_dataloaders(batch_size=args.batch_size, max_seq_len=50, num_workers=8)
     '''model setting'''
     video_dim = 35
     text_dim = 300
@@ -136,15 +134,24 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     Text_ar_lstm = nn.LSTM(text_dim, text_lstm_dim, num_layers=2, batch_first=True, bidirectional=True)
-    Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, n_embeddings, embedding_dim)
-    Decoder = AVT_VQVAE_Decoder(audio_dim, video_dim, text_lstm_dim*2)
+    Video_ar_lstm = nn.LSTM(video_dim, text_lstm_dim, num_layers=2, batch_first=True, bidirectional=True)
+    Audio_ar_lstm = nn.LSTM(audio_dim, text_lstm_dim, num_layers=2, batch_first=True, bidirectional=True)
+
+    # Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, n_embeddings, embedding_dim)
+    Encoder = AVT_VQVAE_Encoder(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2, n_embeddings, embedding_dim)
+    # Decoder = AVT_VQVAE_Decoder(audio_dim, video_dim, text_lstm_dim*2)
+    Decoder = AVT_VQVAE_Decoder(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2)
 
     Text_ar_lstm.double()
+    Video_ar_lstm.double()
+    Audio_ar_lstm.double()
     Encoder.double()
     Decoder.double()
 
     '''optimizer setting'''
     Text_ar_lstm.to(device)
+    Video_ar_lstm.to(device)
+    Audio_ar_lstm.to(device)
     Encoder.to(device)
     Decoder.to(device)
     
@@ -173,20 +180,22 @@ def main():
         Encoder.load_state_dict(checkpoints['Encoder_parameters'])
         Decoder.load_state_dict(checkpoints['Decoder_parameters'])
         Text_ar_lstm.load_state_dict(checkpoints['Text_ar_lstm_parameters'])
+        Video_ar_lstm.load_state_dict(checkpoints['Video_ar_lstm_parameters'])
+        Audio_ar_lstm.load_state_dict(checkpoints['Audio_ar_lstm_parameters'])
         start_epoch = checkpoints['epoch']
         logger.info("Resume from number {}-th model.".format(start_epoch))
 
     '''Training and Evaluation'''
     for epoch in range(start_epoch+1, args.n_epoch):
-        loss, total_step = train_epoch(Encoder, Text_ar_lstm, Decoder, train_dataloader, criterion_sentiment,
+        loss, total_step = train_epoch(Encoder, Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder, train_dataloader, criterion_sentiment,
                                        optimizer, epoch, total_step, args)
         
         # Validation
         if ((epoch + 1) % args.eval_freq == 0) or (epoch == args.n_epoch - 1):
             if args.test_mode == 'MSR':
-                val_mae = validate_epoch(Encoder, Text_ar_lstm, Decoder, test_dataloader, criterion_sentiment, epoch, args)
+                val_mae = validate_epoch(Encoder, Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder, test_dataloader, criterion_sentiment, epoch, args)
             else:
-                val_mae = validate_epoch(Encoder, Text_ar_lstm, Decoder, train_dataloader, criterion_sentiment, epoch, args)
+                val_mae = validate_epoch(Encoder, Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder, train_dataloader, criterion_sentiment, epoch, args)
             logger.info("-----------------------------")
             logger.info(f"Epoch {epoch} - Training Loss: {loss:.4f}, Validation MAE: {val_mae:.4f}")
             logger.info("-----------------------------")
@@ -195,7 +204,7 @@ def main():
             if val_mae < best_mae:
                 best_mae = val_mae
                 best_mae_epoch = epoch
-                save_best_model(Encoder, Text_ar_lstm, Decoder, optimizer, epoch, total_step, args)
+                save_best_model(Encoder, Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder, optimizer, epoch, total_step, args)
                 
         scheduler.step()
 
@@ -217,10 +226,12 @@ def to_train(all_models):
     for m in all_models:
         m.train()
 
-def save_best_model(Encoder, Text_ar_lstm, Decoder, optimizer, epoch_num, total_step, args):
+def save_best_model(Encoder, Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder, optimizer, epoch_num, total_step, args):
     state_dict = {
         'Encoder_parameters': Encoder.state_dict(),
         'Text_ar_lstm_parameters': Text_ar_lstm.state_dict(),
+        'Video_ar_lstm_parameters': Video_ar_lstm.state_dict(),
+        'Audio_ar_lstm_parameters': Audio_ar_lstm.state_dict(),
         'Decoder_parameters': Decoder.state_dict(),
         'optimizer': optimizer.state_dict(),
         'epoch': epoch_num,
@@ -233,7 +244,7 @@ def save_best_model(Encoder, Text_ar_lstm, Decoder, optimizer, epoch_num, total_
     torch.save(state_dict, model_path)
     logger.info(f'Saved best model to {model_path}')
 
-def train_epoch(Encoder, Text_ar_lstm, Decoder, train_dataloader, criterion_sentiment, optimizer, epoch, total_step, args):
+def train_epoch(Encoder, Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder, train_dataloader, criterion_sentiment, optimizer, epoch, total_step, args):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -243,9 +254,13 @@ def train_epoch(Encoder, Text_ar_lstm, Decoder, train_dataloader, criterion_sent
     to_train(models)
     Encoder.eval()  # Freeze encoder
     Text_ar_lstm.eval()  # Freeze text LSTM
+    Video_ar_lstm.eval()
+    Audio_ar_lstm.eval()
     
     Encoder.cuda()
     Text_ar_lstm.cuda()
+    Video_ar_lstm.cuda()
+    Audio_ar_lstm.cuda()
     Decoder.cuda()
     optimizer.zero_grad()
 
@@ -253,8 +268,10 @@ def train_epoch(Encoder, Text_ar_lstm, Decoder, train_dataloader, criterion_sent
         data_time.update(time.time() - end_time)
         
         # Feed input to model
-        text_feature_raw, audio_feature, video_feature, labels = batch_data['text_fea'], batch_data['audio_fea'], batch_data['video_fea'], batch_data['labels']
+        text_feature_raw, audio_feature_raw, video_feature_raw, labels = batch_data['text_fea'], batch_data['audio_fea'], batch_data['video_fea'], batch_data['labels']
         text_feature_raw = text_feature_raw.double().cuda()
+        video_feature_raw = video_feature_raw.double().cuda()
+        audio_feature_raw = audio_feature_raw.double().cuda()
         labels = labels.double().cuda()
 
         batch_dim = text_feature_raw.size()[0]
@@ -262,9 +279,18 @@ def train_epoch(Encoder, Text_ar_lstm, Decoder, train_dataloader, criterion_sent
         num_layers = 2
         text_hidden = (torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda(),
                       torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda())
+
+        video_hidden = (torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda(),
+                        torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda())
+
+        audio_hidden = (torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda(),
+                        torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda())
         
         with torch.no_grad():
             text_feature, text_hidden = Text_ar_lstm(text_feature_raw, text_hidden)
+            video_feature, video_hidden = Video_ar_lstm(video_feature_raw, video_hidden)
+            audio_feature, audio_hidden = Audio_ar_lstm(audio_feature_raw, audio_hidden)
+
 
         text_feature = text_feature.cuda().to(torch.float64)
         audio_feature = audio_feature.cuda().to(torch.float64)
@@ -331,7 +357,7 @@ def train_epoch(Encoder, Text_ar_lstm, Decoder, train_dataloader, criterion_sent
     return losses.avg, n_iter + total_step
 
 @torch.no_grad()
-def validate_epoch(Encoder, Text_ar_lstm, Decoder, test_dataloader, criterion_sentiment, epoch, args):
+def validate_epoch(Encoder, Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder, test_dataloader, criterion_sentiment, epoch, args):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -339,9 +365,13 @@ def validate_epoch(Encoder, Text_ar_lstm, Decoder, test_dataloader, criterion_se
 
     Encoder.eval()
     Text_ar_lstm.eval()
+    Video_ar_lstm.eval()
+    Audio_ar_lstm.eval()
     Decoder.eval()
     Encoder.cuda()
     Text_ar_lstm.cuda()
+    Video_ar_lstm.cuda()
+    Audio_ar_lstm.cuda()
     Decoder.cuda()
 
     all_preds = []
@@ -356,16 +386,27 @@ def validate_epoch(Encoder, Text_ar_lstm, Decoder, test_dataloader, criterion_se
         data_time.update(time.time() - end_time)
 
         # Feed input to model
-        text_feature_raw, audio_feature, video_feature, labels = batch_data['text_fea'], batch_data['audio_fea'], batch_data['video_fea'], batch_data['labels']
+        text_feature_raw, audio_feature_raw, video_feature_raw, labels = batch_data['text_fea'], batch_data['audio_fea'], batch_data['video_fea'], batch_data['labels']
         text_feature_raw = text_feature_raw.double().cuda()
+        video_feature_raw = video_feature_raw.double().cuda()
+        audio_feature_raw = audio_feature_raw.double().cuda()
         labels = labels.double().cuda()
 
         batch_dim = text_feature_raw.size()[0]
         hidden_dim = 128
         num_layers = 2
+
         text_hidden = (torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda(),
                       torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda())
         text_feature, text_hidden = Text_ar_lstm(text_feature_raw, text_hidden)
+
+        video_hidden = (torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda(),
+                  torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda())
+        video_feature, video_hidden = Video_ar_lstm(video_feature_raw, video_hidden)
+
+        audio_hidden = (torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda(),
+                  torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda())
+        audio_feature, audio_hidden = Audio_ar_lstm(audio_feature_raw, audio_hidden)
 
         text_feature = text_feature.cuda().to(torch.float64)
         audio_feature = audio_feature.cuda().to(torch.float64)

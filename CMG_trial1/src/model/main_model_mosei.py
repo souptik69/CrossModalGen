@@ -198,66 +198,75 @@ class AVT_VQVAE_Encoder(nn.Module):
 
 
 """ Sentiment Downstream Decoder for Sentiment Label regression """
-class Sentiment_Decoder(nn.Module):
-    def __init__(self, input_dim):
-        super(Sentiment_Decoder, self).__init__()
-        self.linear = nn.Linear(input_dim, input_dim)
-        self.sentiment_regressor = nn.Linear(input_dim, 1)  # Single continuous output
-        
-    def forward(self, input_vq):
-        input_feat = self.linear(input_vq)
-        input_feat, _ = input_feat.max(1)  # Temporal pooling for sequence
-        sentiment_score = self.sentiment_regressor(input_feat)  # Continuous sentiment
-        return sentiment_score
-
-""" Modified Sentiment Downstream Decoder for Classification """
 # class Sentiment_Decoder(nn.Module):
-#     def __init__(self, input_dim, num_classes=7):
+#     def __init__(self, input_dim):
 #         super(Sentiment_Decoder, self).__init__()
 #         self.linear = nn.Linear(input_dim, input_dim)
-#         self.sentiment_classifier = nn.Linear(input_dim, num_classes)  # Output 7 classes instead of 1
-#         self.dropout = nn.Dropout(0.1)  # Add dropout for classification
+#         self.sentiment_regressor = nn.Linear(input_dim, 1)  # Single continuous output
         
 #     def forward(self, input_vq):
 #         input_feat = self.linear(input_vq)
 #         input_feat, _ = input_feat.max(1)  # Temporal pooling for sequence
-#         input_feat = self.dropout(input_feat)  # Apply dropout
-#         sentiment_logits = self.sentiment_classifier(input_feat)  # Output logits for 7 classes
-#         return sentiment_logits  # Shape: [batch_size, 7]
+#         sentiment_score = self.sentiment_regressor(input_feat)  # Continuous sentiment
+#         return sentiment_score
 
+""" New Sentiment Downstream Decoder for Sentiment Label regression """
+class Sentiment_Decoder(nn.Module):
+    def __init__(self, input_dim):
+        super(Sentiment_Decoder, self).__init__()
+        self.linear_1 = nn.Linear(input_dim, input_dim)
+        self.linear_2 = nn.Linear(input_dim, 256)
+        self.linear_3 = nn.Linear(256,256)
+        self.relu = nn.ReLU()
+        self.dropout = nn.Dropout(0.1)
+        self.sentiment_regressor = nn.Linear(256, 1)  # Single continuous output
+        
+    def forward(self, input_vq):
+        input_feat_1 = self.linear_1(input_vq)
+        input_feat_2 = self.linear_2(input_feat_1)
+        input_feat_3 = self.dropout(self.relu(self.linear_3(input_feat_2)))
+        input_feat_3 = input_feat_3 +  input_feat_2
+        input_feat_3, _ = input_feat_3.max(1)  # Temporal pooling for sequence
+        sentiment_score = self.sentiment_regressor(input_feat_3)  # Continuous sentiment
+        return sentiment_score
 
 
 """ Sentiment Downstream Decoder for Sentiment Label regression combined """
+# class Sentiment_Decoder_Combined(nn.Module):
+#     def __init__(self, input_dim):
+#         super(Sentiment_Decoder_Combined, self).__init__()
+#         self.linear = nn.Linear(input_dim, input_dim)
+#         self.sentiment_regressor = nn.Linear(input_dim, 1)  # Single continuous output
+        
+#     def forward(self, video_vq, audio_vq, text_vq):
+#         # input_vq =  video_vq + audio_vq + text_vq
+#         input_vq =  (video_vq + audio_vq + text_vq)/3
+#         input_feat = self.linear(input_vq)
+#         input_feat, _ = input_feat.max(1)  # Temporal pooling for sequence
+#         sentiment_score = self.sentiment_regressor(input_feat)  # Continuous sentiment
+#         return sentiment_score
+
+
+""" New Sentiment Downstream Decoder for Sentiment Label regression combined """
 class Sentiment_Decoder_Combined(nn.Module):
     def __init__(self, input_dim):
         super(Sentiment_Decoder_Combined, self).__init__()
-        self.linear = nn.Linear(input_dim, input_dim)
-        self.sentiment_regressor = nn.Linear(input_dim, 1)  # Single continuous output
+        self.linear_1 = nn.Linear(input_dim, input_dim)
+        self.linear_2 = nn.Linear(input_dim, 256)
+        self.linear_3 = nn.Linear(256,256)
+        self.relu = nn.ReLU()
+        self.dropout = nn.Dropout(0.1)
+        self.sentiment_regressor = nn.Linear(256, 1)  # Single continuous output
         
     def forward(self, video_vq, audio_vq, text_vq):
-        # input_vq =  video_vq + audio_vq + text_vq
         input_vq =  (video_vq + audio_vq + text_vq)/3
-        input_feat = self.linear(input_vq)
-        input_feat, _ = input_feat.max(1)  # Temporal pooling for sequence
-        sentiment_score = self.sentiment_regressor(input_feat)  # Continuous sentiment
+        input_feat_1 = self.linear_1(input_vq)
+        input_feat_2 = self.linear_2(input_feat_1)
+        input_feat_3 = self.dropout(self.relu(self.linear_3(input_feat_2)))
+        input_feat_3 = input_feat_3 +  input_feat_2
+        input_feat_3, _ = input_feat_3.max(1)  # Temporal pooling for sequence
+        sentiment_score = self.sentiment_regressor(input_feat_3)  # Continuous sentiment
         return sentiment_score
-
-""" Modified Combined Sentiment Decoder for Classification """
-# class Sentiment_Decoder_Combined(nn.Module):
-#     def __init__(self, input_dim, num_classes=7):
-#         super(Sentiment_Decoder_Combined, self).__init__()
-#         self.linear = nn.Linear(input_dim, input_dim)
-#         self.sentiment_classifier = nn.Linear(input_dim, num_classes)  # Output 7 classes
-#         self.dropout = nn.Dropout(0.1)  # Add dropout for classification
-        
-#     def forward(self, video_vq, audio_vq, text_vq):
-#         # input_vq = video_vq + audio_vq + text_vq
-#         input_vq = (video_vq + audio_vq + text_vq) / 3
-#         input_feat = self.linear(input_vq)
-#         input_feat, _ = input_feat.max(1)  # Temporal pooling for sequence
-#         input_feat = self.dropout(input_feat)  # Apply dropout
-#         sentiment_logits = self.sentiment_classifier(input_feat)  # Output logits for 7 classes
-#         return sentiment_logits  # Shape: [batch_size, 7]
 
 
 
@@ -314,24 +323,18 @@ class Video_Decoder(nn.Module):
         video_decoder_result = self.video_rec(video_encoder_result)
         return video_decoder_result
 
-
+'''Decoder for both uni-modal and combined sentiment regression and reconstruction. To be used for unsupervised pre-training'''
 class AVT_VQVAE_Decoder(nn.Module):
-    def __init__(self, audio_dim, video_dim, text_dim, num_classes=7):
+    def __init__(self, audio_dim, video_dim, text_dim):
         super(AVT_VQVAE_Decoder, self).__init__()
         self.hidden_dim = 256 #embedding_dim
         self.video_dim = video_dim
         self.audio_dim = audio_dim
         self.text_dim = text_dim
-        self.num_classes = num_classes
         self.Video_decoder = Video_Decoder(video_dim, self.hidden_dim)
         self.Audio_decoder = Audio_Decoder(audio_dim, self.hidden_dim)
         self.Text_decoder = Text_Decoder(text_dim, self.hidden_dim)
 
-        # self.video_sentiment_decoder = Sentiment_Decoder(self.hidden_dim * 3, num_classes)
-        # self.audio_sentiment_decoder = Sentiment_Decoder(self.hidden_dim * 3, num_classes)
-        # self.text_sentiment_decoder = Sentiment_Decoder(self.hidden_dim * 3, num_classes)
-        # self.combined_sentiment_decoder = Sentiment_Decoder_Combined(self.hidden_dim * 3, num_classes)
-        
         self.video_sentiment_decoder = Sentiment_Decoder(self.hidden_dim * 3)
         self.audio_sentiment_decoder = Sentiment_Decoder(self.hidden_dim * 3)
         self.text_sentiment_decoder = Sentiment_Decoder(self.hidden_dim * 3)
@@ -356,6 +359,72 @@ class AVT_VQVAE_Decoder(nn.Module):
 
 
         return audio_recon_loss, video_recon_loss, text_recon_loss, audio_score, video_score, text_score, combined_score
+
+
+'''Decoder for uni-modal sentiment regression and reconstruction. To be used for supervised training for uni-modal use case'''
+class AVT_VQVAE_Decoder_modal(nn.Module):
+    def __init__(self, audio_dim, video_dim, text_dim):
+        super(AVT_VQVAE_Decoder_modal, self).__init__()
+        self.hidden_dim = 256 #embedding_dim
+        self.video_dim = video_dim
+        self.audio_dim = audio_dim
+        self.text_dim = text_dim
+        self.Video_decoder = Video_Decoder(video_dim, self.hidden_dim)
+        self.Audio_decoder = Audio_Decoder(audio_dim, self.hidden_dim)
+        self.Text_decoder = Text_Decoder(text_dim, self.hidden_dim)
+        
+        self.video_sentiment_decoder = Sentiment_Decoder(self.hidden_dim * 3)
+        self.audio_sentiment_decoder = Sentiment_Decoder(self.hidden_dim * 3)
+        self.text_sentiment_decoder = Sentiment_Decoder(self.hidden_dim * 3)
+
+
+    def forward(self, audio_feat, video_feat, text_feat, audio_encoder_result, video_encoder_result, text_encoder_result, out_vq_audio, audio_vq, out_vq_video, video_vq, out_vq_text, text_vq):
+        video_feat = video_feat.cuda()
+        audio_feat = audio_feat.cuda()
+        text_feat = text_feat.cuda()
+        video_recon_result = self.Video_decoder(video_encoder_result, out_vq_video)
+        audio_recon_result = self.Audio_decoder(audio_encoder_result, out_vq_audio)
+        text_recon_result = self.Text_decoder(text_encoder_result, out_vq_text)
+        video_recon_loss = F.mse_loss(video_recon_result, video_feat)
+        audio_recon_loss = F.mse_loss(audio_recon_result, audio_feat)
+        text_recon_loss = F.mse_loss(text_recon_result, text_feat)
+
+        video_score = self.video_sentiment_decoder(out_vq_video)
+        audio_score = self.audio_sentiment_decoder(out_vq_audio)
+        text_score = self.text_sentiment_decoder(out_vq_text)
+
+        return audio_recon_loss, video_recon_loss, text_recon_loss, audio_score, video_score, text_score
+
+
+'''Decoder for combined sentiment regression and reconstruction. To be used for supervised training for combined/multi-modal use case'''
+class AVT_VQVAE_Decoder_combined(nn.Module):
+    def __init__(self, audio_dim, video_dim, text_dim):
+        super(AVT_VQVAE_Decoder_combined, self).__init__()
+        self.hidden_dim = 256 #embedding_dim
+        self.video_dim = video_dim
+        self.audio_dim = audio_dim
+        self.text_dim = text_dim
+        self.Video_decoder = Video_Decoder(video_dim, self.hidden_dim)
+        self.Audio_decoder = Audio_Decoder(audio_dim, self.hidden_dim)
+        self.Text_decoder = Text_Decoder(text_dim, self.hidden_dim)
+        self.combined_sentiment_decoder = Sentiment_Decoder_Combined(self.hidden_dim * 3)
+
+
+    def forward(self, audio_feat, video_feat, text_feat, audio_encoder_result, video_encoder_result, text_encoder_result, out_vq_audio, audio_vq, out_vq_video, video_vq, out_vq_text, text_vq):
+        video_feat = video_feat.cuda()
+        audio_feat = audio_feat.cuda()
+        text_feat = text_feat.cuda()
+        video_recon_result = self.Video_decoder(video_encoder_result, out_vq_video)
+        audio_recon_result = self.Audio_decoder(audio_encoder_result, out_vq_audio)
+        text_recon_result = self.Text_decoder(text_encoder_result, out_vq_text)
+        video_recon_loss = F.mse_loss(video_recon_result, video_feat)
+        audio_recon_loss = F.mse_loss(audio_recon_result, audio_feat)
+        text_recon_loss = F.mse_loss(text_recon_result, text_feat)
+
+        combined_score = self.combined_sentiment_decoder(out_vq_video, out_vq_audio, out_vq_text)
+
+
+        return audio_recon_loss, video_recon_loss, text_recon_loss, combined_score
 
 
 class Cross_VQEmbeddingEMA_AVT_hierarchical(nn.Module):
@@ -640,19 +709,19 @@ class Cross_VQEmbeddingEMA_AVT_hierarchical(nn.Module):
                 new_embedding = self.embedding.clone()
 
                 '''T -> A -> V''' 
-                # new_embedding[:, 2*D:] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D]) + ((1/3) * new_embedding[:, 2*D:])    #Text = (1/3)Video + (1/3)Audio + (1/3)Text
-                # new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, 2*D:])  #Audio = (4/9)Video + (4/9)Audio + (1/9)Text
-                # new_embedding[:, :D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])     #Video = (16/27)Video + (7/27)Audio + (4/27)Text
+                new_embedding[:, 2*D:] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D]) + ((1/3) * new_embedding[:, 2*D:])    #Text = (1/3)Video + (1/3)Audio + (1/3)Text
+                new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, 2*D:])  #Audio = (4/9)Video + (4/9)Audio + (1/9)Text
+                new_embedding[:, :D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])     #Video = (16/27)Video + (7/27)Audio + (4/27)Text
 
                 '''T -> V -> A''' 
                 # new_embedding[:, 2*D:] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D]) + ((1/3) * new_embedding[:, 2*D:])    #Text = (1/3)Video + (1/3)Audio + (1/3)Text
                 # new_embedding[:, :D] =  ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])  #Audio = (4/9)Video + (4/9)Audio + (1/9)Text
                 # new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])     #Video = (16/27)Video + (7/27)Audio + (4/27)Text
 
-                '''V -> A -> T'''
-                new_embedding[:, :D] =  ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])
-                new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])
-                new_embedding[:, 2*D:] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D]) + ((1/3) * new_embedding[:, 2*D:])
+                # '''V -> A -> T'''
+                # new_embedding[:, :D] =  ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])
+                # new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])
+                # new_embedding[:, 2*D:] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D]) + ((1/3) * new_embedding[:, 2*D:])
 
                 '''A -> V -> T'''
                 # new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])

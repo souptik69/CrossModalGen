@@ -14,7 +14,7 @@ from tensorboardX import SummaryWriter
 from torch.optim.lr_scheduler import StepLR, MultiStepLR
 import numpy as np
 from configs.opts import parser
-from model.main_model_mosei import AVT_VQVAE_Encoder, AVT_VQVAE_Decoder
+from model.main_model_mosei import AVT_VQVAE_Encoder, AVT_VQVAE_Decoder_combined
 from model.CPC import Cross_CPC, Cross_CPC_AVT
 from utils import AverageMeter, Prepare_logger, get_and_save_args
 from utils.container import metricsContainer
@@ -74,8 +74,7 @@ def main():
     '''Csv Training loss Iniatialize'''
     csv_headers = ['epoch', 'total_loss', 'audio_recon_loss', 'video_recon_loss', 'text_recon_loss', 
                'audio_embedding_loss', 'video_embedding_loss', 'text_embedding_loss', 
-               'cpc_loss', 'cmcm_loss', 'video_sentiment_loss', 'audio_sentiment_loss', 
-               'text_sentiment_loss', 'combined_sentiment_loss']
+               'cpc_loss', 'cmcm_loss', 'combined_sentiment_loss']
 
 
     csv_file_path = os.path.join(args.snapshot_pref, args.loss_csv_path)
@@ -85,8 +84,7 @@ def main():
     logger.info(f"Training Loss CSV will be saved to: {csv_file_path}")
 
     '''Validation CSV Initialize'''
-    val_csv_headers = ['epoch', 'val_video_sentiment_loss', 'val_audio_sentiment_loss', 
-                    'val_text_sentiment_loss', 'val_combined_sentiment_loss']
+    val_csv_headers = ['epoch', 'val_combined_sentiment_loss']
 
 
     val_csv_file_path = os.path.join(args.snapshot_pref, args.val_loss_csv_path)
@@ -119,12 +117,14 @@ def main():
     Text_ar_lstm = nn.LSTM(text_dim, text_lstm_dim, num_layers=2, batch_first=True, bidirectional=True)
     Video_ar_lstm = nn.LSTM(video_dim, text_lstm_dim, num_layers=2, batch_first=True, bidirectional=True)
     Audio_ar_lstm = nn.LSTM(audio_dim, text_lstm_dim, num_layers=2, batch_first=True, bidirectional=True)
-    # Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, n_embeddings, embedding_dim)
-    Encoder = AVT_VQVAE_Encoder(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2, n_embeddings, embedding_dim)
-    CPC = Cross_CPC_AVT(embedding_dim, hidden_dim=256, context_dim=256, num_layers=2)
-    # Decoder = AVT_VQVAE_Decoder(audio_dim, video_dim, text_lstm_dim*2, num_classes=7)
 
-    Decoder = AVT_VQVAE_Decoder(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2)
+    # Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_dim, n_embeddings, embedding_dim)
+    Encoder = AVT_VQVAE_Encoder(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2, n_embeddings, embedding_dim)
+
+    CPC = Cross_CPC_AVT(embedding_dim, hidden_dim=256, context_dim=256, num_layers=2)
+
+    # Decoder = AVT_VQVAE_Decoder(audio_dim, video_dim, text_dim)
+    Decoder = AVT_VQVAE_Decoder_combined(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2)
 
 
     Text_ar_lstm.double()
@@ -186,11 +186,11 @@ def main():
             writer.writerow([epoch] + val_losses)
         
         
-        save_path = os.path.join(args.model_save_path, 'MOSEI-model-{}.pt'.format(epoch))
+        save_path = os.path.join(args.model_save_path, 'MOSEI-model-supervised-multimodal-{}.pt'.format(epoch))
         save_models(CPC, Encoder, Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder, optimizer, epoch, total_step, save_path)
         logger.info(f"epoch: ******************************************* {epoch}")
         logger.info(f"Training loss: {loss}")
-        logger.info(f"Validation losses - Video: {val_losses[0]:.4f}, Audio: {val_losses[1]:.4f}, Text: {val_losses[2]:.4f}, Combined: {val_losses[3]:.4f}")
+        logger.info(f"Validation losses - Combined: {val_losses[0]:.4f}")
         scheduler.step()
 
 
@@ -304,6 +304,10 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder,
                   torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda())
         audio_feature, audio_hidden = Audio_ar_lstm(audio_feature_raw, audio_hidden)
 
+        # text_feature = text_feature_raw
+        # audio_feature = audio_feature_raw
+        # video_feature = video_feature_raw
+
         text_feature = text_feature.cuda().to(torch.float64)
         audio_feature = audio_feature.cuda().to(torch.float64)
         video_feature = video_feature.cuda().to(torch.float64)
@@ -353,7 +357,7 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder,
                 logger.info(f"Number of dead vectors (count < 0.01): {(quantizer.ema_count < 0.01).sum()}")
                 logger.info(f"Embedding stats - mean: {quantizer.embedding.mean()}, std: {quantizer.embedding.std()}, min: {quantizer.embedding.min()}, max: {quantizer.embedding.max()}")
 
-        if n_iter == 120:
+        if n_iter == 200:
             quantizer = Encoder.Cross_quantizer
             with torch.no_grad():
                 most_used_idx = torch.argmax(quantizer.ema_count)
@@ -376,8 +380,7 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder,
 
 
         accuracy1, accuracy2, accuracy3, accuracy4, accuracy5, accuracy6, accuracy7, accuracy8, accuracy9, cpc_loss, \
-        audio_recon_loss, video_recon_loss, text_recon_loss, audio_score, video_score, text_score, combined_score,  \
-        video_sentiment_loss, audio_sentiment_loss, text_sentiment_loss, combined_sentiment_loss \
+        audio_recon_loss, video_recon_loss, text_recon_loss, combined_score, combined_sentiment_loss \
         = mi_first_forward(CPC, audio_feature, video_feature, text_feature, Decoder,epoch,
                         audio_encoder_result, audio_semantic_result, video_encoder_result, video_semantic_result,
                         text_encoder_result, text_semantic_result,
@@ -394,9 +397,6 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder,
             "text_embed_loss": text_embedding_loss.item(),
             "video_recon_loss": video_recon_loss.item(),
             "video_embed_loss": video_embedding_loss.item(),
-            "video_sentiment_loss": video_sentiment_loss.item(),
-            "audio_sentiment_loss": audio_sentiment_loss.item(),
-            "text_sentiment_loss": text_sentiment_loss.item(),
             "combined_sentiment_loss": combined_sentiment_loss.item(),
             "acc_av": accuracy1.item(),
             "acc_at": accuracy2.item(),
@@ -419,7 +419,7 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder,
 
         # VGG downstream
         loss =  audio_recon_loss + video_recon_loss + text_recon_loss + audio_embedding_loss +  video_embedding_loss + text_embedding_loss\
-                + cpc_loss + cmcm_loss + video_sentiment_loss + audio_sentiment_loss + text_sentiment_loss + combined_sentiment_loss
+                + cpc_loss + cmcm_loss + combined_sentiment_loss
 
 
         # Update epoch loss meters
@@ -433,9 +433,6 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder,
         epoch_text_embed.update(text_embedding_loss.item(), batch_size)
         epoch_cpc_loss.update(cpc_loss.item(), batch_size)
         epoch_cmcm_loss.update(cmcm_loss.item(), batch_size)
-        epoch_video_sentiment.update(video_sentiment_loss.item(), batch_size)
-        epoch_audio_sentiment.update(audio_sentiment_loss.item(), batch_size)
-        epoch_text_sentiment.update(text_sentiment_loss.item(), batch_size)
         epoch_combined_sentiment.update(combined_sentiment_loss.item(), batch_size)
 
         if n_iter % 20 == 0:
@@ -460,8 +457,7 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder,
     epoch_losses = [epoch_total_loss.avg, epoch_audio_recon.avg, epoch_video_recon.avg, 
                     epoch_text_recon.avg, epoch_audio_embed.avg, epoch_video_embed.avg, 
                     epoch_text_embed.avg, epoch_cpc_loss.avg, epoch_cmcm_loss.avg,
-                    epoch_video_sentiment.avg, epoch_audio_sentiment.avg, 
-                    epoch_text_sentiment.avg, epoch_combined_sentiment.avg]
+                    epoch_combined_sentiment.avg]
 
 
     return losses.avg, n_iter + total_step, epoch_losses
@@ -481,24 +477,15 @@ def mi_first_forward(CPC, audio_feature, video_feature, text_feature, Decoder,ep
     cpc_loss = CPC(audio_semantic_result, video_semantic_result, text_semantic_result)
 
 
-    audio_recon_loss, video_recon_loss, text_recon_loss, audio_score, video_score, text_score, combined_score \
+    audio_recon_loss, video_recon_loss, text_recon_loss, combined_score \
         = Decoder(audio_feature, video_feature, text_feature, audio_encoder_result, video_encoder_result, text_encoder_result, out_vq_audio, audio_vq, out_vq_video, video_vq, out_vq_text, text_vq)
     
-    # video_sentiment_loss = criterion_sentiment(video_score, discrete_labels.long().cuda())
-    # audio_sentiment_loss = criterion_sentiment(audio_score, discrete_labels.long().cuda())
-    # text_sentiment_loss = criterion_sentiment(text_score, discrete_labels.long().cuda())
-    # combined_sentiment_loss = criterion_sentiment(combined_score, discrete_labels.long().cuda())
-
-    video_sentiment_loss = criterion_sentiment(video_score, discrete_labels)
-    audio_sentiment_loss = criterion_sentiment(audio_score, discrete_labels)
-    text_sentiment_loss = criterion_sentiment(text_score, discrete_labels)
     combined_sentiment_loss = criterion_sentiment(combined_score, discrete_labels)
 
 
     
     return accuracy1, accuracy2, accuracy3, accuracy4, accuracy5, accuracy6, accuracy7, accuracy8, accuracy9, cpc_loss,\
-           audio_recon_loss, video_recon_loss, text_recon_loss, audio_score, video_score, text_score, combined_score,\
-            video_sentiment_loss, audio_sentiment_loss, text_sentiment_loss, combined_sentiment_loss
+           audio_recon_loss, video_recon_loss, text_recon_loss, combined_score, combined_sentiment_loss
 
 
 
@@ -546,6 +533,10 @@ def val_epoch(CPC, Encoder, Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder,
                     torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda())
             audio_feature, audio_hidden = Audio_ar_lstm(audio_feature_raw, audio_hidden)
 
+            # text_feature = text_feature_raw
+            # audio_feature = audio_feature_raw
+            # video_feature = video_feature_raw
+
             text_feature = text_feature.cuda().to(torch.float64)
             audio_feature = audio_feature.cuda().to(torch.float64)
             video_feature = video_feature.cuda().to(torch.float64)
@@ -557,29 +548,16 @@ def val_epoch(CPC, Encoder, Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder,
                 out_vq_text, text_vq = Encoder.Text_VQ_Encoder(text_feature)
 
             combined_score = Decoder.combined_sentiment_decoder(out_vq_video, out_vq_audio, out_vq_text)
-            audio_score = Decoder.audio_sentiment_decoder(out_vq_audio)
-            video_score = Decoder.video_sentiment_decoder(out_vq_video)
-            text_score = Decoder.text_sentiment_decoder(out_vq_text)
-            # Compute only sentiment losses
-            # video_sentiment_loss = criterion_sentiment(video_score, discrete_labels.long().cuda())
-            # audio_sentiment_loss = criterion_sentiment(audio_score, discrete_labels.long().cuda())
-            # text_sentiment_loss = criterion_sentiment(text_score, discrete_labels.long().cuda())
-            # combined_sentiment_loss = criterion_sentiment(combined_score, discrete_labels.long().cuda())
 
-            video_sentiment_loss = criterion_sentiment(video_score, discrete_labels)
-            audio_sentiment_loss = criterion_sentiment(audio_score, discrete_labels)
-            text_sentiment_loss = criterion_sentiment(text_score, discrete_labels)
+            # Compute only sentiment losses
             combined_sentiment_loss = criterion_sentiment(combined_score, discrete_labels)
             
             # Update validation loss meters
             batch_size = audio_feature.size(0)
-            val_video_sentiment.update(video_sentiment_loss.item(), batch_size)
-            val_audio_sentiment.update(audio_sentiment_loss.item(), batch_size)
-            val_text_sentiment.update(text_sentiment_loss.item(), batch_size)
             val_combined_sentiment.update(combined_sentiment_loss.item(), batch_size)
     
     # Return validation losses
-    val_losses = [val_video_sentiment.avg, val_audio_sentiment.avg, val_text_sentiment.avg, val_combined_sentiment.avg]
+    val_losses = [val_combined_sentiment.avg]
     return val_losses
 
 

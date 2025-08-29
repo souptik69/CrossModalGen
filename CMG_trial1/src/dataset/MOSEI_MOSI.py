@@ -23,10 +23,10 @@ def print_progress(message):
 class MOSEIDatasetUnsupervised(Dataset):
     """
     Dataset class for unsupervised pretraining on combined MOSEI data.
-    Combines train, validation, and test splits from MOSEI for self-supervised learning.
+    Combines train, validation splits from MOSEI for self-supervised learning.
     Returns numpy arrays to match VGGSound collate pattern.
     """
-    def __init__(self, data_path, max_seq_len=10, batch_size=64):
+    def __init__(self, data_path, max_seq_len=50, batch_size=64):
         super(MOSEIDatasetUnsupervised, self).__init__()
         self.data_path = data_path
         self.max_seq_len = max_seq_len
@@ -48,11 +48,12 @@ class MOSEIDatasetUnsupervised(Dataset):
             )
             
             # Combine all data for unsupervised pretraining
-            print_progress("Combining train, validation, and test splits...")
+            print_progress("Combining train, validation splits...")
             self.combined_data = []
             
             # Extract data from each split
-            for split_name, dataloader in [("train", traindata), ("val", validdata), ("test", testdata)]:
+            # for split_name, dataloader in [("train", traindata), ("val", validdata), ("test", testdata)]:
+            for split_name, dataloader in [("train", traindata), ("val", validdata)]:
                 print_progress(f"Processing {split_name} split...")
                 for batch_idx, batch in enumerate(dataloader):
                     # MultiBench returns: [visual_features, audio_features, text_features, labels]
@@ -71,6 +72,123 @@ class MOSEIDatasetUnsupervised(Dataset):
                         self.combined_data.append(sample)
                         
             print_progress(f"Successfully loaded {len(self.combined_data)} samples for unsupervised pretraining")
+            
+        except Exception as e:
+            print_progress(f"Error loading MOSEI data: {e}")
+            import traceback
+            print_progress(f"Traceback: {traceback.format_exc()}")
+            self.combined_data = []
+    
+    def __getitem__(self, index):
+        """
+        Returns numpy arrays to match VGGSound collate pattern.
+        This is crucial for the torch.from_numpy(np.asarray(...)) pattern to work efficiently.
+        """
+        sample = self.combined_data[index]
+        
+        # Convert tensors to numpy arrays (removing .float() calls)
+        # This ensures compatibility with VGGSound-style collate function
+        audio_feature = sample['audio'].numpy() if isinstance(sample['audio'], torch.Tensor) else sample['audio']
+        video_feature = sample['visual'].numpy() if isinstance(sample['visual'], torch.Tensor) else sample['visual']
+        text_feature = sample['text'].numpy() if isinstance(sample['text'], torch.Tensor) else sample['text']
+        labels = sample['labels'].numpy() if isinstance(sample['labels'], torch.Tensor) else sample['labels']
+        video_id = sample['video_id']
+        
+        return audio_feature, video_feature, text_feature, labels, video_id
+    
+    def __len__(self):
+        return len(self.combined_data)
+
+
+class MOSEIDatasetUnsupervisedSplit(Dataset):
+    """
+    Dataset class for unsupervised pretraining on MOSEI data with split functionality.
+    - If split is 'train': combines train+validation splits for self-supervised learning
+    - If split is 'test_train': uses first 80% of test data
+    - If split is 'test_val': uses last 20% of test data
+    Returns numpy arrays to match VGGSound collate pattern.
+    """
+    def __init__(self, data_path, split='train', max_seq_len=50, batch_size=64):
+        super(MOSEIDatasetUnsupervisedSplit, self).__init__()
+        self.data_path = data_path
+        self.split = split
+        self.max_seq_len = max_seq_len
+        
+        print_progress(f"Loading MOSEI dataset for unsupervised pretraining (split: {split})...")
+        
+        try:
+            from datasets.affect.get_data import get_dataloader
+            
+            # Load all three splits from MOSEI
+            filepath = os.path.join(data_path, 'mosei_senti_data.pkl')
+            traindata, validdata, testdata = get_dataloader(
+                filepath, 
+                robust_test=False, 
+                max_pad=True, 
+                data_type='mosei', 
+                max_seq_len=max_seq_len,
+                batch_size=batch_size
+            )
+            
+            self.combined_data = []
+            
+            if split == 'train':
+                # Combine train and validation splits like the original unsupervised class
+                print_progress("Combining train and validation splits...")
+                splits_to_process = [("train", traindata), ("val", validdata)]
+                
+                for split_name, dataloader in splits_to_process:
+                    print_progress(f"Processing {split_name} split...")
+                    for batch_idx, batch in enumerate(dataloader):
+                        visual_feat, audio_feat, text_feat, labels = batch
+                        batch_size_actual = visual_feat.shape[0]
+                        
+                        for i in range(batch_size_actual):
+                            sample = {
+                                'visual': visual_feat[i],  # Shape: [seq_len, 35]
+                                'audio': audio_feat[i],    # Shape: [seq_len, 74] 
+                                'text': text_feat[i],      # Shape: [seq_len, 300]
+                                'labels': labels[i],       # Shape: [1] - sentiment score
+                                'video_id': f"mosei_{split_name}_{batch_idx}_{i}"
+                            }
+                            self.combined_data.append(sample)
+                            
+            elif split in ['test_train', 'test_val']:
+                # Process test data and split it 80-20
+                print_progress("Processing test split for 80-20 division...")
+                test_samples = []
+                
+                for batch_idx, batch in enumerate(testdata):
+                    visual_feat, audio_feat, text_feat, labels = batch
+                    batch_size_actual = visual_feat.shape[0]
+                    
+                    for i in range(batch_size_actual):
+                        sample = {
+                            'visual': visual_feat[i],  # Shape: [seq_len, 35]
+                            'audio': audio_feat[i],    # Shape: [seq_len, 74] 
+                            'text': text_feat[i],      # Shape: [seq_len, 300]
+                            'labels': labels[i],       # Shape: [1] - sentiment score
+                            'video_id': f"mosei_test_{batch_idx}_{i}"
+                        }
+                        test_samples.append(sample)
+                
+                # Perform 80-20 split
+                total_samples = len(test_samples)
+                split_idx = int(0.8 * total_samples)
+                
+                if split == 'test_train':
+                    # First 80% for test_train
+                    self.combined_data = test_samples[:split_idx]
+                    print_progress(f"Using first 80% of test data: {len(self.combined_data)} samples")
+                elif split == 'test_val':
+                    # Last 20% for test_val
+                    self.combined_data = test_samples[split_idx:]
+                    print_progress(f"Using last 20% of test data: {len(self.combined_data)} samples")
+                    
+            else:
+                raise ValueError(f"Invalid split: {split}. Must be 'train', 'test_train', or 'test_val'")
+                        
+            print_progress(f"Successfully loaded {len(self.combined_data)} samples for unsupervised pretraining ({split})")
             
         except Exception as e:
             print_progress(f"Error loading MOSEI data: {e}")
@@ -128,31 +246,14 @@ class MOSEIDatasetSupervised(Dataset):
                 batch_size=batch_size
             )
             
-            
-            # Determine which splits to use based on the requested split
-            # if split in ['train', 'val']:
-            #     # For train or val split, combine train+val data
-            #     print_progress("Combining train and validation splits for supervised training...")
-            #     splits_to_process = [("train", traindata), ("val", validdata)]
-            # elif split == 'test':
-            #     # For test split, use only test data
-            #     print_progress("Using test split only...")
-            #     splits_to_process = [("test", testdata)]
-            # else:
-            #     raise ValueError(f"Invalid split: {split}. Must be 'train', 'val', or 'test'")
-
-
             # Determine which splits to use based on the requested split
             if split == 'train':
-                # For train split, use only train data
                 print_progress("Using train split only...")
                 splits_to_process = [("train", traindata)]
             elif split == 'val':
-                # For val split, use only val data
                 print_progress("Using validation split only...")
                 splits_to_process = [("val", validdata)]
             elif split == 'test':
-                # For test split, use only test data
                 print_progress("Using test split only...")
                 splits_to_process = [("test", testdata)]
             else:
@@ -209,15 +310,18 @@ class MOSIDataset(Dataset):
     """
     Dataset class for MOSI data loading.
     Used for cross-dataset evaluation (pretrain on MOSEI, test on MOSI).
+    - If split is 'train': returns combined train+val data
+    - If split is 'val': returns only val data
+    - If split is 'test': returns only test data
     Returns numpy arrays to match VGGSound collate pattern.
     """
-    def __init__(self, data_path, split='test', max_seq_len=10, batch_size=64):
+    def __init__(self, data_path, split='test', max_seq_len=50, batch_size=64):
         super(MOSIDataset, self).__init__()
         self.data_path = data_path
         self.split = split
         self.max_seq_len = max_seq_len
         
-        print_progress(f"Loading MOSI {split} dataset...")
+        print_progress(f"Loading MOSI dataset (split: {split})...")
         
         try:
             from datasets.affect.get_data import get_dataloader
@@ -232,32 +336,37 @@ class MOSIDataset(Dataset):
                 batch_size=batch_size
             )
             
-            # Select the appropriate split
             if split == 'train':
-                selected_dataloader = traindata
+                print_progress("Combining train and validation splits...")
+                splits_to_process = [("train", traindata), ("val", validdata)]
             elif split == 'val':
-                selected_dataloader = validdata  
+                print_progress("Using validation split only...")
+                splits_to_process = [("val", validdata)]
             elif split == 'test':
-                selected_dataloader = testdata
+                print_progress("Using test split only...")
+                splits_to_process = [("test", testdata)]
             else:
                 raise ValueError(f"Invalid split: {split}. Must be 'train', 'val', or 'test'")
                 
+            # Process the selected splits
             print_progress(f"Processing MOSI {split} split...")
             self.data = []
             
-            for batch_idx, batch in enumerate(selected_dataloader):
-                visual_feat, audio_feat, text_feat, labels = batch
-                batch_size_actual = visual_feat.shape[0]
-                
-                for i in range(batch_size_actual):
-                    sample = {
-                        'visual': visual_feat[i],   # [seq_len, 35]
-                        'audio': audio_feat[i],     # [seq_len, 74]
-                        'text': text_feat[i],       # [seq_len, 300] 
-                        'labels': labels[i],        # [1]
-                        'video_id': f"mosi_{split}_{batch_idx}_{i}"
-                    }
-                    self.data.append(sample)
+            for split_name, dataloader in splits_to_process:
+                print_progress(f"Processing {split_name} split...")
+                for batch_idx, batch in enumerate(dataloader):
+                    visual_feat, audio_feat, text_feat, labels = batch
+                    batch_size_actual = visual_feat.shape[0]
+                    
+                    for i in range(batch_size_actual):
+                        sample = {
+                            'visual': visual_feat[i],   # [seq_len, 35]
+                            'audio': audio_feat[i],     # [seq_len, 74]
+                            'text': text_feat[i],       # [seq_len, 300] 
+                            'labels': labels[i],        # [1]
+                            'video_id': f"mosi_{split_name}_{batch_idx}_{i}"
+                        }
+                        self.data.append(sample)
                     
             print_progress(f"Successfully loaded {len(self.data)} samples from MOSI {split}")
             
@@ -321,7 +430,7 @@ def collate_func_AVT(samples):
 # DATALOADER FUNCTIONS
 # ===============================================================================
 
-def get_mosei_unsupervised_dataloader(batch_size= 64, max_seq_len=10, num_workers=8):
+def get_mosei_unsupervised_dataloader(batch_size= 64, max_seq_len=50, num_workers=8):
     """
     Creates a DataLoader for unsupervised pretraining on combined MOSEI data.
     
@@ -342,6 +451,49 @@ def get_mosei_unsupervised_dataloader(batch_size= 64, max_seq_len=10, num_worker
         pin_memory=False,
         collate_fn=collate_func_AVT  # VGGSound-style collate function
     )
+
+
+def get_mosei_unsupervised_split_dataloaders(batch_size=64, max_seq_len=50, num_workers=8):
+    """
+    Creates DataLoaders for unsupervised pretraining with split functionality.
+    Returns train, test_train, and test_val dataloaders.
+    
+    Usage:
+        train_loader, test_train_loader, test_val_loader = get_mosei_unsupervised_split_dataloaders(batch_size=args.batch_size)
+        
+        # For unsupervised pretraining on train+val data
+        for batch_data in train_loader:
+            audio_feature = batch_data['audio_fea']    # [batch_size, seq_len, 74]
+            video_feature = batch_data['video_fea']    # [batch_size, seq_len, 35]
+            text_feature = batch_data['text_fea']      # [batch_size, seq_len, 300]
+            # Ignore labels for unsupervised pretraining
+            
+        # For evaluation on test splits
+        for batch_data in test_train_loader:
+            # 80% of test data for training evaluation
+            pass
+            
+        for batch_data in test_val_loader:
+            # 20% of test data for validation evaluation
+            pass
+    """
+    # Create datasets for different splits
+    train_dataset = MOSEIDatasetUnsupervisedSplit(MOSEI_DATA_PATH, split='train', max_seq_len=max_seq_len, batch_size=batch_size)
+    test_train_dataset = MOSEIDatasetUnsupervisedSplit(MOSEI_DATA_PATH, split='test_train', max_seq_len=max_seq_len, batch_size=batch_size)
+    test_val_dataset = MOSEIDatasetUnsupervisedSplit(MOSEI_DATA_PATH, split='test_val', max_seq_len=max_seq_len, batch_size=batch_size)
+    
+    # Create dataloaders with VGGSound-style collate function
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
+                             num_workers=num_workers, pin_memory=False,
+                             collate_fn=collate_func_AVT)
+    test_train_loader = DataLoader(test_train_dataset, batch_size=batch_size, shuffle=False,
+                                  num_workers=num_workers, pin_memory=False,
+                                  collate_fn=collate_func_AVT)
+    test_val_loader = DataLoader(test_val_dataset, batch_size=batch_size, shuffle=False,
+                                num_workers=num_workers, pin_memory=False,
+                                collate_fn=collate_func_AVT)
+    
+    return train_loader, test_train_loader, test_val_loader
 
 
 def get_mosei_supervised_dataloaders(batch_size=64, max_seq_len=50, num_workers=8):
@@ -378,7 +530,7 @@ def get_mosei_supervised_dataloaders(batch_size=64, max_seq_len=50, num_workers=
     return train_loader, val_loader, test_loader
 
 
-def get_mosi_dataloaders(batch_size=64, max_seq_len=10, num_workers=8):
+def get_mosi_dataloaders(batch_size=64, max_seq_len=50, num_workers=8):
     """
     Creates DataLoaders for MOSI dataset (cross-dataset evaluation).
     Returns train, validation, and test dataloaders.
@@ -476,6 +628,70 @@ def test_all_dataloaders():
         print_progress("✅ MOSEI Unsupervised test passed!")
     except Exception as e:
         print_progress(f"❌ MOSEI Unsupervised test failed: {e}")
+
+    print_progress("\n=== Testing MOSEI Unsupervised Split Dataset ===")
+    try:
+        train_loader, test_train_loader, test_val_loader = get_mosei_unsupervised_split_dataloaders(batch_size=32, max_seq_len=10)
+        
+        # Test train split (train+val combined)
+        for i, batch_data in enumerate(train_loader):
+            audio_feature = batch_data['audio_fea']
+            video_feature = batch_data['video_fea'] 
+            text_feature = batch_data['text_fea']
+            
+            print_progress(f"Unsupervised Split Train Batch {i}:")
+            print_progress(f"  Audio shape: {audio_feature.shape}, dtype: {audio_feature.dtype}")
+            print_progress(f"  Video shape: {video_feature.shape}, dtype: {video_feature.dtype}")
+            print_progress(f"  Text shape: {text_feature.shape}, dtype: {text_feature.dtype}")
+            print_progress(f"  Labels available: {'labels' in batch_data}")
+            
+            if i == 0:  # Only check first batch
+                break
+        
+        # Test test_train split (80% of test data)
+        for i, batch_data in enumerate(test_train_loader):
+            audio_feature = batch_data['audio_fea']
+            video_feature = batch_data['video_fea'] 
+            text_feature = batch_data['text_fea']
+            
+            print_progress(f"Unsupervised Split Test-Train Batch {i}:")
+            print_progress(f"  Audio shape: {audio_feature.shape}, dtype: {audio_feature.dtype}")
+            print_progress(f"  Video shape: {video_feature.shape}, dtype: {video_feature.dtype}")
+            print_progress(f"  Text shape: {text_feature.shape}, dtype: {text_feature.dtype}")
+            
+            if i == 0:  # Only check first batch
+                break
+        
+        # Test test_val split (20% of test data)
+        for i, batch_data in enumerate(test_val_loader):
+            audio_feature = batch_data['audio_fea']
+            video_feature = batch_data['video_fea'] 
+            text_feature = batch_data['text_fea']
+            
+            print_progress(f"Unsupervised Split Test-Val Batch {i}:")
+            print_progress(f"  Audio shape: {audio_feature.shape}, dtype: {audio_feature.dtype}")
+            print_progress(f"  Video shape: {video_feature.shape}, dtype: {video_feature.dtype}")
+            print_progress(f"  Text shape: {text_feature.shape}, dtype: {text_feature.dtype}")
+            
+            if i == 0:  # Only check first batch
+                break
+                
+        # Verify the 80-20 split worked correctly
+        train_dataset_size = len(train_loader.dataset)
+        test_train_size = len(test_train_loader.dataset)
+        test_val_size = len(test_val_loader.dataset)
+        
+        print_progress(f"Dataset sizes:")
+        print_progress(f"  Train (train+val): {train_dataset_size} samples")
+        print_progress(f"  Test-Train (80%): {test_train_size} samples")
+        print_progress(f"  Test-Val (20%): {test_val_size} samples")
+        print_progress(f"  Test split ratio: {test_train_size / (test_train_size + test_val_size):.2f} / {test_val_size / (test_train_size + test_val_size):.2f}")
+        
+        print_progress("✅ MOSEI Unsupervised Split test passed!")
+    except Exception as e:
+        print_progress(f"❌ MOSEI Unsupervised Split test failed: {e}")
+        import traceback
+        print_progress(f"Traceback: {traceback.format_exc()}")
     
     print_progress("\n=== Testing Supervised MOSEI Dataset ===")
     try:

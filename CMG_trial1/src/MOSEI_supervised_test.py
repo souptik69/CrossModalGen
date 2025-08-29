@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import StepLR, MultiStepLR
 import numpy as np
 from configs.opts import parser
-from model.main_model_mosei import AVT_VQVAE_Encoder, AVT_VQVAE_Decoder
+from model.main_model_mosei import AVT_VQVAE_Encoder, AVT_VQVAE_Decoder_modal, AVT_VQVAE_Decoder_combined
 from utils import AverageMeter, Prepare_logger, get_and_save_args
 from utils.container import metricsContainer
 import torch.nn.functional as F
@@ -94,12 +94,7 @@ def main():
     dataset_configs = get_and_save_args(parser)
     parser.set_defaults(**dataset_configs)
     args = parser.parse_args()
-    # Add custom arguments
-    # parser.add_argument('--test_mode', type=str, default='MSR', choices=['MSR', 'CMG'], 
-    #                    help='Testing mode: MSR (Multimodal Sentiment Regression) or CMG (Cross-Modal Generalization)')
-    # parser.add_argument('--modality', type=str, default='audio', choices=['audio', 'video', 'text'],
-    #                    help='Modality for CMG mode testing')
-    # args = parser.parse_args()
+
     
     # select GPUs
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
@@ -118,7 +113,7 @@ def main():
     else:
         raise NotImplementedError
 
-    train_dataloader, val_loader, test_dataloader = get_mosei_supervised_dataloaders(batch_size=args.batch_size, max_seq_len=10, num_workers=8)
+    train_dataloader, val_loader, test_dataloader = get_mosei_supervised_dataloaders(batch_size=args.batch_size, max_seq_len=50, num_workers=8)
 
     '''model setting'''
     video_dim = 35
@@ -133,8 +128,10 @@ def main():
     Video_ar_lstm = nn.LSTM(video_dim, text_lstm_dim, num_layers=2, batch_first=True, bidirectional=True)
     Audio_ar_lstm = nn.LSTM(audio_dim, text_lstm_dim, num_layers=2, batch_first=True, bidirectional=True)
     Encoder = AVT_VQVAE_Encoder(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2, n_embeddings, embedding_dim)
-    Decoder = AVT_VQVAE_Decoder(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2)
-
+    if args.test_mode == 'MSR':
+        Decoder = AVT_VQVAE_Decoder_combined(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2)
+    else:
+        Decoder = AVT_VQVAE_Decoder_modal(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2)
     # Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_dim, n_embeddings, embedding_dim)
     # Decoder = AVT_VQVAE_Decoder(audio_dim, video_dim, text_dim)
 
@@ -152,7 +149,11 @@ def main():
     Decoder.to(device)
 
     # Load supervised pretrained model
-    path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models2/LSTM_New_100_supervised_reg_TAV/checkpoint/MOSEI-model-99.pt"
+    if args.test_mode == 'MSR':
+        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models2/NoLSTM_seq50_100_supervised_reg_TAV/checkpoint/MOSEI-model-5.pt"
+    else:
+        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models2/NoLSTM_seq50_100_supervised_reg_TAV/checkpoint/MOSEI-model-5.pt"
+
     logger.info(f"Loading supervised model from: {path_checkpoints}")
     checkpoints = torch.load(path_checkpoints)
     Encoder.load_state_dict(checkpoints['Encoder_parameters'])
@@ -223,6 +224,10 @@ def test_msr_mode(Encoder, Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder, 
         audio_hidden = (torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda(),
                   torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda())
         audio_feature, audio_hidden = Audio_ar_lstm(audio_feature_raw, audio_hidden)
+
+        # text_feature = text_feature_raw
+        # audio_feature = audio_feature_raw
+        # video_feature = video_feature_raw
 
 
         text_feature = text_feature.cuda().to(torch.float64)
@@ -326,6 +331,10 @@ def test_cmg_mode(Encoder, Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder, 
         audio_hidden = (torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda(),
                   torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda())
         audio_feature, audio_hidden = Audio_ar_lstm(audio_feature_raw, audio_hidden)
+
+        # text_feature = text_feature_raw
+        # audio_feature = audio_feature_raw
+        # video_feature = video_feature_raw
 
 
 

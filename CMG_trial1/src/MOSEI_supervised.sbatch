@@ -7,15 +7,15 @@
 #SBATCH --cpus-per-task=32
 #SBATCH --mem-per-cpu=5G 
 #SBATCH --time=3:00:00
-#SBATCH --output=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/LSTM_New_100_supervised_reg_TAV_99/mosei_%j.out
-#SBATCH --error=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/LSTM_New_100_supervised_reg_TAV_99/mosei_%j.err
+#SBATCH --output=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/NoLSTM_seq50_100_supervised_reg_TAV/mosei_%j.out
+#SBATCH --error=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/NoLSTM_seq50_100_supervised_reg_TAV/mosei_%j.err
 
 # Set source directory
 SRCDIR=/project/ag-jafra/Souptik/CMG_New/Experiments
 
 # Create output directories for logs
-mkdir -p $SRCDIR/CMG_trial1/slurm/LSTM_New_100_supervised_reg_TAV_99
-mkdir -p $SRCDIR/CMG_trial1/MOSEI_Tests_1/LSTM_New_100_supervised_reg_TAV_99
+mkdir -p $SRCDIR/CMG_trial1/slurm/NoLSTM_seq50_100_supervised_reg_TAV
+mkdir -p $SRCDIR/CMG_trial1/MOSEI_Tests_1/NoLSTM_seq50_100_supervised_reg_TAV_5
 
 # Activate conda environment
 source ~/.bashrc
@@ -28,7 +28,7 @@ conda activate /project/ag-jafra/Souptik/CMG_New/Experiments/envs/CMG_new
 echo "Running MSR Mode - Multimodal Sentiment Regression Testing"
 python $SRCDIR/CMG_trial1/src/MOSEI_supervised_test.py \
     --gpu 0 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/MOSEI_Tests_1/LSTM_New_100_supervised_reg_TAV_99/MSR/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/MOSEI_Tests_1/NoLSTM_seq50_100_supervised_reg_TAV_5/MSR/" \
     --batch_size 64 \
     --test_batch_size 64 \
     --dataset_name "mosei" \
@@ -38,11 +38,12 @@ python $SRCDIR/CMG_trial1/src/MOSEI_supervised_test.py \
 
 echo "MSR Mode testing completed!"
 
+mkdir -p $SRCDIR/CMG_trial1/MOSEI_Tests_1/NoLSTM_seq50_100_supervised_reg_TAV_5
 # Experiment 2: CMG Mode (Cross-Modal Generalization)
 echo "Running CMG Mode - Cross-Modal Generalization Testing"
 python $SRCDIR/CMG_trial1/src/MOSEI_supervised_test.py \
     --gpu 0 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/MOSEI_Tests_1/LSTM_New_100_supervised_reg_TAV_99/CMG/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/MOSEI_Tests_1/NoLSTM_seq50_100_supervised_reg_TAV_5/CMG/" \
     --batch_size 64 \
     --test_batch_size 64 \
     --dataset_name "mosei" \
