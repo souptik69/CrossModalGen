@@ -32,7 +32,8 @@ def visualize_codebook_embeddings(checkpoint_path, output_dir, top_k=25):
     
     # Initialize and load model
     print("Loading model...")
-    Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, n_embeddings, embedding_dim)
+    # Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, n_embeddings, embedding_dim)
+    Encoder = AVT_VQVAE_Encoder(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2, n_embeddings, embedding_dim)
     Encoder.double()
     Encoder.to(device)
     

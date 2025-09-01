@@ -107,11 +107,13 @@ def main():
     Video_ar_lstm = nn.LSTM(video_dim, text_lstm_dim, num_layers=2, batch_first=True, bidirectional=True)
     Audio_ar_lstm = nn.LSTM(audio_dim, text_lstm_dim, num_layers=2, batch_first=True, bidirectional=True)
 
-    # Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, n_embeddings, embedding_dim)
-    Encoder = AVT_VQVAE_Encoder(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2, n_embeddings, embedding_dim)
+    Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_dim, n_embeddings, embedding_dim)
+    # Encoder = AVT_VQVAE_Encoder(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2, n_embeddings, embedding_dim)
+
     CPC = Cross_CPC_AVT(embedding_dim, hidden_dim=256, context_dim=256, num_layers=2)
-    # Decoder = AVT_VQVAE_Decoder(audio_dim, video_dim, text_lstm_dim*2, num_classes=7)
-    Decoder = AVT_VQVAE_Decoder(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2)
+
+    Decoder = AVT_VQVAE_Decoder(audio_dim, video_dim, text_dim)
+    # Decoder = AVT_VQVAE_Decoder(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2)
 
     Text_ar_lstm.double()
     Video_ar_lstm.double()
@@ -128,8 +130,10 @@ def main():
     Encoder.to(device)
     CPC.to(device)
     Decoder.to(device)
-    optimizer = torch.optim.Adam(chain(Text_ar_lstm.parameters(),Video_ar_lstm.parameters(),Audio_ar_lstm.parameters(), \
-                                       Encoder.parameters(), CPC.parameters(), Decoder.parameters()), lr=args.lr)
+    # optimizer = torch.optim.Adam(chain(Text_ar_lstm.parameters(),Video_ar_lstm.parameters(),Audio_ar_lstm.parameters(), \
+    #                                    Encoder.parameters(), CPC.parameters(), Decoder.parameters()), lr=args.lr)
+
+    optimizer = torch.optim.Adam(chain(Encoder.parameters(), CPC.parameters(), Decoder.parameters()), lr=args.lr)
     scheduler = MultiStepLR(optimizer, milestones=[10, 20, 30], gamma=0.5)
     
 
@@ -258,19 +262,23 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder,
         audio_feature_raw = audio_feature_raw.double().cuda()
 
         batch_dim = text_feature_raw.size()[0]
-        hidden_dim = 128
-        num_layers = 2
-        text_hidden = (torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda(),
-                  torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda())
-        text_feature, text_hidden = Text_ar_lstm(text_feature_raw, text_hidden)
+        # hidden_dim = 128
+        # num_layers = 2
+        # text_hidden = (torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda(),
+        #           torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda())
+        # text_feature, text_hidden = Text_ar_lstm(text_feature_raw, text_hidden)
 
-        video_hidden = (torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda(),
-                  torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda())
-        video_feature, video_hidden = Video_ar_lstm(video_feature_raw, video_hidden)
+        # video_hidden = (torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda(),
+        #           torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda())
+        # video_feature, video_hidden = Video_ar_lstm(video_feature_raw, video_hidden)
 
-        audio_hidden = (torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda(),
-                  torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda())
-        audio_feature, audio_hidden = Audio_ar_lstm(audio_feature_raw, audio_hidden)
+        # audio_hidden = (torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda(),
+        #           torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda())
+        # audio_feature, audio_hidden = Audio_ar_lstm(audio_feature_raw, audio_hidden)
+
+        text_feature = text_feature_raw
+        audio_feature = audio_feature_raw
+        video_feature = video_feature_raw
 
         text_feature = text_feature.cuda().to(torch.float64)
         audio_feature = audio_feature.cuda().to(torch.float64)

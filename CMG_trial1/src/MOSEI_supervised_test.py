@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import StepLR, MultiStepLR
 import numpy as np
 from configs.opts import parser
-from model.main_model_mosei import AVT_VQVAE_Encoder, AVT_VQVAE_Decoder_modal, AVT_VQVAE_Decoder_combined
+from model.main_model_mosei import AVT_VQVAE_Encoder, AVT_VQVAE_Decoder, AVT_VQVAE_Decoder_modal, AVT_VQVAE_Decoder_combined
 from utils import AverageMeter, Prepare_logger, get_and_save_args
 from utils.container import metricsContainer
 import torch.nn.functional as F
@@ -74,6 +74,8 @@ def eval_mosei_senti_return(results, truths, exclude_zero=False):
 def eval_mosei_senti_print(results, truths, modality_name="", exclude_zero=False):
     """Print out MOSEI metrics given results and ground truth."""
     mae, corr, mult_a7, mult_a5, f_score, binary_acc = eval_mosei_senti_return(results, truths, exclude_zero)
+    test_preds = results.view(-1).cpu().detach().numpy()
+    test_truth = truths.view(-1).cpu().detach().numpy()
     
     logger.info("=" * 50)
     logger.info(f"MOSEI Sentiment Evaluation Results - {modality_name}:")
@@ -83,6 +85,78 @@ def eval_mosei_senti_print(results, truths, modality_name="", exclude_zero=False
     logger.info(f"mult_acc_5 (5-class): {mult_a5:.4f}")
     logger.info(f"F1 score: {f_score:.4f}")
     logger.info(f"Binary Accuracy (2-class): {binary_acc:.4f}")
+
+       # === DETAILED PREDICTION vs GROUND TRUTH ANALYSIS ===
+    logger.info("=" * 50)
+    logger.info("PREDICTION vs GROUND TRUTH ANALYSIS:")
+    
+    # Sample of predictions vs ground truth
+    logger.info("Sample Predictions vs Ground Truth (first 20):")
+    logger.info("Pred\t| Truth\t| Diff\t| AbsDiff")
+    logger.info("-" * 40)
+    for i in range(min(30, len(test_preds))):
+        diff = test_preds[i] - test_truth[i]
+        logger.info(f"{test_preds[i]:.3f}\t| {test_truth[i]:.3f}\t| {diff:+.3f}\t| {abs(diff):.3f}")
+    
+    # Distribution statistics
+    logger.info("-" * 50)
+    logger.info("DISTRIBUTION STATISTICS:")
+    logger.info(f"Predictions  - Mean: {np.mean(test_preds):.4f}, Std: {np.std(test_preds):.4f}")
+    logger.info(f"Ground Truth - Mean: {np.mean(test_truth):.4f}, Std: {np.std(test_truth):.4f}")
+    logger.info(f"Predictions  - Min: {np.min(test_preds):.4f}, Max: {np.max(test_preds):.4f}")
+    logger.info(f"Ground Truth - Min: {np.min(test_truth):.4f}, Max: {np.max(test_truth):.4f}")
+    
+    # Error analysis by sentiment ranges
+    logger.info("-" * 50)
+    logger.info("ERROR ANALYSIS BY SENTIMENT RANGES:")
+    
+    # Negative sentiment (-3 to -1)
+    neg_mask = test_truth < -1
+    if np.sum(neg_mask) > 0:
+        neg_mae = np.mean(np.abs(test_preds[neg_mask] - test_truth[neg_mask]))
+        logger.info(f"Negative sentiment (< -1): {np.sum(neg_mask)} samples, MAE: {neg_mae:.4f}")
+    
+    # Neutral sentiment (-1 to 1)
+    neu_mask = (test_truth >= -1) & (test_truth <= 1)
+    if np.sum(neu_mask) > 0:
+        neu_mae = np.mean(np.abs(test_preds[neu_mask] - test_truth[neu_mask]))
+        logger.info(f"Neutral sentiment (-1 to 1): {np.sum(neu_mask)} samples, MAE: {neu_mae:.4f}")
+    
+    # Positive sentiment (> 1)
+    pos_mask = test_truth > 1
+    if np.sum(pos_mask) > 0:
+        pos_mae = np.mean(np.abs(test_preds[pos_mask] - test_truth[pos_mask]))
+        logger.info(f"Positive sentiment (> 1): {np.sum(pos_mask)} samples, MAE: {pos_mae:.4f}")
+    
+    # Prediction bias analysis
+    logger.info("-" * 50)
+    logger.info("PREDICTION BIAS ANALYSIS:")
+    bias = np.mean(test_preds) - np.mean(test_truth)
+    logger.info(f"Overall Bias (pred_mean - truth_mean): {bias:+.4f}")
+    
+    # Count how often predictions are in the right direction
+    correct_sign = np.sum(np.sign(test_preds) == np.sign(test_truth))
+    total_non_zero = np.sum(test_truth != 0)
+    if total_non_zero > 0:
+        sign_accuracy = correct_sign / len(test_preds) * 100
+        logger.info(f"Sign Accuracy (correct sentiment direction): {sign_accuracy:.2f}%")
+    
+    # Prediction range coverage
+    pred_range = np.max(test_preds) - np.min(test_preds)
+    truth_range = np.max(test_truth) - np.min(test_truth)
+    logger.info(f"Prediction Range: {pred_range:.4f} vs Truth Range: {truth_range:.4f}")
+    
+    # Worst predictions (highest errors)
+    logger.info("-" * 50)
+    logger.info("WORST PREDICTIONS (Top 10 errors):")
+    abs_errors = np.abs(test_preds - test_truth)
+    worst_indices = np.argsort(abs_errors)[-10:][::-1]  # Top 10 worst
+    logger.info("Pred\t| Truth\t| Error\t| Index")
+    logger.info("-" * 35)
+    for idx in worst_indices:
+        error = test_preds[idx] - test_truth[idx]
+        logger.info(f"{test_preds[idx]:.3f}\t| {test_truth[idx]:.3f}\t| {error:+.3f}\t| {idx}")
+
     logger.info("=" * 50)
     
     return mae, corr, mult_a7, mult_a5, f_score, binary_acc
@@ -128,10 +202,12 @@ def main():
     Video_ar_lstm = nn.LSTM(video_dim, text_lstm_dim, num_layers=2, batch_first=True, bidirectional=True)
     Audio_ar_lstm = nn.LSTM(audio_dim, text_lstm_dim, num_layers=2, batch_first=True, bidirectional=True)
     Encoder = AVT_VQVAE_Encoder(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2, n_embeddings, embedding_dim)
-    if args.test_mode == 'MSR':
-        Decoder = AVT_VQVAE_Decoder_combined(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2)
-    else:
-        Decoder = AVT_VQVAE_Decoder_modal(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2)
+    # if args.test_mode == 'MSR':
+    #     Decoder = AVT_VQVAE_Decoder_combined(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2)
+    # else:
+    #     Decoder = AVT_VQVAE_Decoder_modal(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2)
+
+    Decoder = AVT_VQVAE_Decoder(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2)
     # Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_dim, n_embeddings, embedding_dim)
     # Decoder = AVT_VQVAE_Decoder(audio_dim, video_dim, text_dim)
 
@@ -150,9 +226,9 @@ def main():
 
     # Load supervised pretrained model
     if args.test_mode == 'MSR':
-        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models2/NoLSTM_seq50_100_supervised_reg_TAV/checkpoint/MOSEI-model-5.pt"
+        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models2/2_LSTM_seq50_50_supervised_reg_TAV_L1/checkpoint_1/MOSEI-model-supervised-unimodal-27.pt"
     else:
-        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models2/NoLSTM_seq50_100_supervised_reg_TAV/checkpoint/MOSEI-model-5.pt"
+        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models2/2_LSTM_seq50_50_supervised_reg_TAV_L1/checkpoint_1/MOSEI-model-supervised-unimodal-27.pt"
 
     logger.info(f"Loading supervised model from: {path_checkpoints}")
     checkpoints = torch.load(path_checkpoints)

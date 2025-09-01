@@ -209,6 +209,20 @@ class Sentiment_Decoder(nn.Module):
         input_feat, _ = input_feat.max(1)  # Temporal pooling for sequence
         sentiment_score = self.sentiment_regressor(input_feat)  # Continuous sentiment
         return sentiment_score
+    
+
+""" Sentiment Downstream Decoder for Sentiment Label regression """
+class Sentiment_Decoder_class(nn.Module):
+    def __init__(self, input_dim, num_classes= 7):
+        super(Sentiment_Decoder_class, self).__init__()
+        self.linear = nn.Linear(input_dim, input_dim)
+        self.sentiment_regressor = nn.Linear(input_dim, num_classes)  # Single continuous output
+        
+    def forward(self, input_vq):
+        input_feat = self.linear(input_vq)
+        input_feat, _ = input_feat.max(1)  # Temporal pooling for sequence
+        sentiment_score = self.sentiment_regressor(input_feat)  # Continuous sentiment
+        return sentiment_score
 
 """ New Sentiment Downstream Decoder for Sentiment Label regression """
 # class Sentiment_Decoder(nn.Module):
@@ -229,6 +243,52 @@ class Sentiment_Decoder(nn.Module):
 #         input_feat_3, _ = input_feat_3.max(1)  # Temporal pooling for sequence
 #         sentiment_score = self.sentiment_regressor(input_feat_3)  # Continuous sentiment
 #         return sentiment_score
+    
+""" Scaled Sentiment Downstream Decoder for Sentiment Label regression """
+class ScaledSentimentDecoder(nn.Module):
+    def __init__(self, input_dim):
+        super(ScaledSentimentDecoder, self).__init__()
+        # Deeper network with gradual dimension reduction
+        self.fc1 = nn.Linear(input_dim * 3, 512)
+        self.fc2 = nn.Linear(512, 384)
+        self.fc3 = nn.Linear(384, 256)
+        self.fc4 = nn.Linear(256, 128)
+        self.fc5 = nn.Linear(128, 64)
+        self.fc6 = nn.Linear(64, 1)
+        
+        # Learnable scaling parameters
+        self.output_scale = nn.Parameter(torch.tensor(3.0))
+        self.output_bias = nn.Parameter(torch.tensor(0.0))
+        
+        self.dropout = nn.Dropout(0.2)
+        self.relu = nn.ReLU()
+        
+    def forward(self, input_vq):
+        # Temporal aggregation: use multiple statistics
+        max_pool, _ = input_vq.max(1)
+        mean_pool = input_vq.mean(1)
+        std_pool = input_vq.std(1)
+        
+        # Concatenate different pooling strategies
+        x = torch.cat([max_pool, mean_pool, std_pool], dim=-1)  # 3*768 = 2304 dims
+        
+        # Need to adjust first layer
+        # self.fc1 = nn.Linear(x.shape[-1], 512).to(x.device)
+        
+        # Deep projection with dropout
+        x = self.dropout(self.relu(self.fc1(x)))
+        x = self.dropout(self.relu(self.fc2(x)))
+        x = self.dropout(self.relu(self.fc3(x)))
+        x = self.dropout(self.relu(self.fc4(x)))
+        x = self.relu(self.fc5(x))
+        
+        # Raw prediction
+        raw_sentiment = self.fc6(x)
+        
+        # Scale to proper range [-3, 3]
+        scaled_sentiment = torch.tanh(raw_sentiment) * self.output_scale + self.output_bias
+        
+        return scaled_sentiment
 
 
 """ Sentiment Downstream Decoder for Sentiment Label regression combined """
@@ -237,6 +297,21 @@ class Sentiment_Decoder_Combined(nn.Module):
         super(Sentiment_Decoder_Combined, self).__init__()
         self.linear = nn.Linear(input_dim, input_dim)
         self.sentiment_regressor = nn.Linear(input_dim, 1)  # Single continuous output
+        
+    def forward(self, video_vq, audio_vq, text_vq):
+        # input_vq =  video_vq + audio_vq + text_vq
+        input_vq =  (video_vq + audio_vq + text_vq)/3
+        input_feat = self.linear(input_vq)
+        input_feat, _ = input_feat.max(1)  # Temporal pooling for sequence
+        sentiment_score = self.sentiment_regressor(input_feat)  # Continuous sentiment
+        return sentiment_score
+    
+""" Sentiment Downstream Decoder for Sentiment Label regression combined """
+class Sentiment_Decoder_Combined_class(nn.Module):
+    def __init__(self, input_dim, num_classes=7):
+        super(Sentiment_Decoder_Combined_class, self).__init__()
+        self.linear = nn.Linear(input_dim, input_dim)
+        self.sentiment_regressor = nn.Linear(input_dim, num_classes)  # Single continuous output
         
     def forward(self, video_vq, audio_vq, text_vq):
         # input_vq =  video_vq + audio_vq + text_vq
@@ -268,6 +343,52 @@ class Sentiment_Decoder_Combined(nn.Module):
 #         sentiment_score = self.sentiment_regressor(input_feat_3)  # Continuous sentiment
 #         return sentiment_score
 
+
+""" Scaled Combined Sentiment Downstream Decoder for Sentiment Label regression """
+class ScaledSentimentDecoder_Combined(nn.Module):
+    def __init__(self, input_dim):
+        super(ScaledSentimentDecoder_Combined, self).__init__()
+        # Deeper network with gradual dimension reduction
+        self.fc1 = nn.Linear(input_dim * 3, 512)
+        self.fc2 = nn.Linear(512, 384)
+        self.fc3 = nn.Linear(384, 256)
+        self.fc4 = nn.Linear(256, 128)
+        self.fc5 = nn.Linear(128, 64)
+        self.fc6 = nn.Linear(64, 1)
+        
+        # Learnable scaling parameters
+        self.output_scale = nn.Parameter(torch.tensor(3.0))
+        self.output_bias = nn.Parameter(torch.tensor(0.0))
+        
+        self.dropout = nn.Dropout(0.2)
+        self.relu = nn.ReLU()
+        
+    def forward(self, video_vq, audio_vq, text_vq):
+        input_vq =  (video_vq + audio_vq + text_vq)/3
+        max_pool, _ = input_vq.max(1)
+        mean_pool = input_vq.mean(1)
+        std_pool = input_vq.std(1)
+        
+        # Concatenate different pooling strategies
+        x = torch.cat([max_pool, mean_pool, std_pool], dim=-1)  # 3*768 = 2304 dims
+        
+        # Need to adjust first layer
+        # self.fc1 = nn.Linear(x.shape[-1], 512).to(x.device)
+        
+        # Deep projection with dropout
+        x = self.dropout(self.relu(self.fc1(x)))
+        x = self.dropout(self.relu(self.fc2(x)))
+        x = self.dropout(self.relu(self.fc3(x)))
+        x = self.dropout(self.relu(self.fc4(x)))
+        x = self.relu(self.fc5(x))
+        
+        # Raw prediction
+        raw_sentiment = self.fc6(x)
+        
+        # Scale to proper range [-3, 3]
+        scaled_sentiment = torch.tanh(raw_sentiment) * self.output_scale + self.output_bias
+        
+        return scaled_sentiment
 
 
 class Audio_Decoder(nn.Module):
@@ -335,10 +456,10 @@ class AVT_VQVAE_Decoder(nn.Module):
         self.Audio_decoder = Audio_Decoder(audio_dim, self.hidden_dim)
         self.Text_decoder = Text_Decoder(text_dim, self.hidden_dim)
 
-        # self.video_sentiment_decoder = Sentiment_Decoder(self.hidden_dim * 3)
-        # self.audio_sentiment_decoder = Sentiment_Decoder(self.hidden_dim * 3)
-        # self.text_sentiment_decoder = Sentiment_Decoder(self.hidden_dim * 3)
-        # self.combined_sentiment_decoder = Sentiment_Decoder_Combined(self.hidden_dim * 3)
+        self.video_sentiment_decoder = Sentiment_Decoder(self.hidden_dim * 3)
+        self.audio_sentiment_decoder = Sentiment_Decoder(self.hidden_dim * 3)
+        self.text_sentiment_decoder = Sentiment_Decoder(self.hidden_dim * 3)
+        self.combined_sentiment_decoder = Sentiment_Decoder_Combined(self.hidden_dim * 3)
 
 
     def forward(self, audio_feat, video_feat, text_feat, audio_encoder_result, video_encoder_result, text_encoder_result, out_vq_audio, audio_vq, out_vq_video, video_vq, out_vq_text, text_vq):
@@ -352,14 +473,14 @@ class AVT_VQVAE_Decoder(nn.Module):
         audio_recon_loss = F.mse_loss(audio_recon_result, audio_feat)
         text_recon_loss = F.mse_loss(text_recon_result, text_feat)
 
-        # video_score = self.video_sentiment_decoder(out_vq_video)
-        # audio_score = self.audio_sentiment_decoder(out_vq_audio)
-        # text_score = self.text_sentiment_decoder(out_vq_text)
-        # combined_score = self.combined_sentiment_decoder(out_vq_video, out_vq_audio, out_vq_text)
+        video_score = self.video_sentiment_decoder(out_vq_video)
+        audio_score = self.audio_sentiment_decoder(out_vq_audio)
+        text_score = self.text_sentiment_decoder(out_vq_text)
+        combined_score = self.combined_sentiment_decoder(out_vq_video, out_vq_audio, out_vq_text)
 
 
-        # return audio_recon_loss, video_recon_loss, text_recon_loss, audio_score, video_score, text_score, combined_score
-        return audio_recon_loss, video_recon_loss, text_recon_loss
+        return audio_recon_loss, video_recon_loss, text_recon_loss, audio_score, video_score, text_score, combined_score
+        # return audio_recon_loss, video_recon_loss, text_recon_loss
 
 
 '''Decoder for uni-modal sentiment regression and reconstruction. To be used for supervised training for uni-modal use case'''

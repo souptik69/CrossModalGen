@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import StepLR, MultiStepLR
 import numpy as np
 from configs.opts import parser
-from model.main_model_mosei import AVT_VQVAE_Encoder, AVT_VQVAE_Decoder
+from model.main_model_mosei import AVT_VQVAE_Encoder, Sentiment_Decoder_Combined_class, Sentiment_Decoder_class
 from utils import AverageMeter, Prepare_logger, get_and_save_args
 from utils.container import metricsContainer
 import torch.nn.functional as F
@@ -132,6 +132,80 @@ def eval_sentiment_hybrid(logits, continuous_labels, discrete_labels=None, exclu
     
     # 3. Compute your existing regression metrics
     regression_metrics = eval_mosi_senti_return(continuous_preds, continuous_labels, exclude_zero)
+    test_preds = continuous_preds.view(-1).cpu().detach().numpy()
+    test_truth = continuous_labels.view(-1).cpu().detach().numpy()
+    # === DETAILED PREDICTION vs GROUND TRUTH ANALYSIS ===
+    logger.info("=" * 50)
+    logger.info("PREDICTION vs GROUND TRUTH ANALYSIS:")
+    
+    # Sample of predictions vs ground truth
+    logger.info("Sample Predictions vs Ground Truth (first 20):")
+    logger.info("Pred\t| Truth\t| Diff\t| AbsDiff")
+    logger.info("-" * 40)
+    for i in range(min(30, len(test_preds))):
+        diff = test_preds[i] - test_truth[i]
+        logger.info(f"{test_preds[i]:.3f}\t| {test_truth[i]:.3f}\t| {diff:+.3f}\t| {abs(diff):.3f}")
+    
+    # Distribution statistics
+    logger.info("-" * 50)
+    logger.info("DISTRIBUTION STATISTICS:")
+    logger.info(f"Predictions  - Mean: {np.mean(test_preds):.4f}, Std: {np.std(test_preds):.4f}")
+    logger.info(f"Ground Truth - Mean: {np.mean(test_truth):.4f}, Std: {np.std(test_truth):.4f}")
+    logger.info(f"Predictions  - Min: {np.min(test_preds):.4f}, Max: {np.max(test_preds):.4f}")
+    logger.info(f"Ground Truth - Min: {np.min(test_truth):.4f}, Max: {np.max(test_truth):.4f}")
+    
+    # Error analysis by sentiment ranges
+    logger.info("-" * 50)
+    logger.info("ERROR ANALYSIS BY SENTIMENT RANGES:")
+    
+    # Negative sentiment (-3 to -1)
+    neg_mask = test_truth < -1
+    if np.sum(neg_mask) > 0:
+        neg_mae = np.mean(np.abs(test_preds[neg_mask] - test_truth[neg_mask]))
+        logger.info(f"Negative sentiment (< -1): {np.sum(neg_mask)} samples, MAE: {neg_mae:.4f}")
+    
+    # Neutral sentiment (-1 to 1)
+    neu_mask = (test_truth >= -1) & (test_truth <= 1)
+    if np.sum(neu_mask) > 0:
+        neu_mae = np.mean(np.abs(test_preds[neu_mask] - test_truth[neu_mask]))
+        logger.info(f"Neutral sentiment (-1 to 1): {np.sum(neu_mask)} samples, MAE: {neu_mae:.4f}")
+    
+    # Positive sentiment (> 1)
+    pos_mask = test_truth > 1
+    if np.sum(pos_mask) > 0:
+        pos_mae = np.mean(np.abs(test_preds[pos_mask] - test_truth[pos_mask]))
+        logger.info(f"Positive sentiment (> 1): {np.sum(pos_mask)} samples, MAE: {pos_mae:.4f}")
+    
+    # Prediction bias analysis
+    logger.info("-" * 50)
+    logger.info("PREDICTION BIAS ANALYSIS:")
+    bias = np.mean(test_preds) - np.mean(test_truth)
+    logger.info(f"Overall Bias (pred_mean - truth_mean): {bias:+.4f}")
+    
+    # Count how often predictions are in the right direction
+    correct_sign = np.sum(np.sign(test_preds) == np.sign(test_truth))
+    total_non_zero = np.sum(test_truth != 0)
+    if total_non_zero > 0:
+        sign_accuracy = correct_sign / len(test_preds) * 100
+        logger.info(f"Sign Accuracy (correct sentiment direction): {sign_accuracy:.2f}%")
+    
+    # Prediction range coverage
+    pred_range = np.max(test_preds) - np.min(test_preds)
+    truth_range = np.max(test_truth) - np.min(test_truth)
+    logger.info(f"Prediction Range: {pred_range:.4f} vs Truth Range: {truth_range:.4f}")
+    
+    # Worst predictions (highest errors)
+    logger.info("-" * 50)
+    logger.info("WORST PREDICTIONS (Top 10 errors):")
+    abs_errors = np.abs(test_preds - test_truth)
+    worst_indices = np.argsort(abs_errors)[-10:][::-1]  # Top 10 worst
+    logger.info("Pred\t| Truth\t| Error\t| Index")
+    logger.info("-" * 35)
+    for idx in worst_indices:
+        error = test_preds[idx] - test_truth[idx]
+        logger.info(f"{test_preds[idx]:.3f}\t| {test_truth[idx]:.3f}\t| {error:+.3f}\t| {idx}")
+
+    logger.info("=" * 50)
     mae, corr, mult_a7, mult_a5, f_score, binary_acc = regression_metrics
     
     # 4. Additional analysis: per-class accuracy
@@ -211,7 +285,9 @@ def print_comprehensive_results(all_metrics, modality_name=""):
 def eval_mosi_senti_print(results, truths, exclude_zero=False):
     """Print out MOSI metrics given results and ground truth."""
     mae, corr, mult_a7, mult_a5, f_score, binary_acc = eval_mosi_senti_return(results, truths, exclude_zero)
-    
+    test_preds = results.view(-1).cpu().detach().numpy()
+    test_truth = truths.view(-1).cpu().detach().numpy()
+
     logger.info("=" * 50)
     logger.info("MOSI Sentiment Evaluation Results:")
     logger.info(f"MAE: {mae:.4f}")
@@ -220,6 +296,77 @@ def eval_mosi_senti_print(results, truths, exclude_zero=False):
     logger.info(f"mult_acc_5: {mult_a5:.4f}")
     logger.info(f"F1 score: {f_score:.4f}")
     logger.info(f"Binary Accuracy: {binary_acc:.4f}")
+      # === DETAILED PREDICTION vs GROUND TRUTH ANALYSIS ===
+    logger.info("=" * 50)
+    logger.info("PREDICTION vs GROUND TRUTH ANALYSIS:")
+    
+    # Sample of predictions vs ground truth
+    logger.info("Sample Predictions vs Ground Truth (first 20):")
+    logger.info("Pred\t| Truth\t| Diff\t| AbsDiff")
+    logger.info("-" * 40)
+    for i in range(min(30, len(test_preds))):
+        diff = test_preds[i] - test_truth[i]
+        logger.info(f"{test_preds[i]:.3f}\t| {test_truth[i]:.3f}\t| {diff:+.3f}\t| {abs(diff):.3f}")
+    
+    # Distribution statistics
+    logger.info("-" * 50)
+    logger.info("DISTRIBUTION STATISTICS:")
+    logger.info(f"Predictions  - Mean: {np.mean(test_preds):.4f}, Std: {np.std(test_preds):.4f}")
+    logger.info(f"Ground Truth - Mean: {np.mean(test_truth):.4f}, Std: {np.std(test_truth):.4f}")
+    logger.info(f"Predictions  - Min: {np.min(test_preds):.4f}, Max: {np.max(test_preds):.4f}")
+    logger.info(f"Ground Truth - Min: {np.min(test_truth):.4f}, Max: {np.max(test_truth):.4f}")
+    
+    # Error analysis by sentiment ranges
+    logger.info("-" * 50)
+    logger.info("ERROR ANALYSIS BY SENTIMENT RANGES:")
+    
+    # Negative sentiment (-3 to -1)
+    neg_mask = test_truth < -1
+    if np.sum(neg_mask) > 0:
+        neg_mae = np.mean(np.abs(test_preds[neg_mask] - test_truth[neg_mask]))
+        logger.info(f"Negative sentiment (< -1): {np.sum(neg_mask)} samples, MAE: {neg_mae:.4f}")
+    
+    # Neutral sentiment (-1 to 1)
+    neu_mask = (test_truth >= -1) & (test_truth <= 1)
+    if np.sum(neu_mask) > 0:
+        neu_mae = np.mean(np.abs(test_preds[neu_mask] - test_truth[neu_mask]))
+        logger.info(f"Neutral sentiment (-1 to 1): {np.sum(neu_mask)} samples, MAE: {neu_mae:.4f}")
+    
+    # Positive sentiment (> 1)
+    pos_mask = test_truth > 1
+    if np.sum(pos_mask) > 0:
+        pos_mae = np.mean(np.abs(test_preds[pos_mask] - test_truth[pos_mask]))
+        logger.info(f"Positive sentiment (> 1): {np.sum(pos_mask)} samples, MAE: {pos_mae:.4f}")
+    
+    # Prediction bias analysis
+    logger.info("-" * 50)
+    logger.info("PREDICTION BIAS ANALYSIS:")
+    bias = np.mean(test_preds) - np.mean(test_truth)
+    logger.info(f"Overall Bias (pred_mean - truth_mean): {bias:+.4f}")
+    
+    # Count how often predictions are in the right direction
+    correct_sign = np.sum(np.sign(test_preds) == np.sign(test_truth))
+    total_non_zero = np.sum(test_truth != 0)
+    if total_non_zero > 0:
+        sign_accuracy = correct_sign / len(test_preds) * 100
+        logger.info(f"Sign Accuracy (correct sentiment direction): {sign_accuracy:.2f}%")
+    
+    # Prediction range coverage
+    pred_range = np.max(test_preds) - np.min(test_preds)
+    truth_range = np.max(test_truth) - np.min(test_truth)
+    logger.info(f"Prediction Range: {pred_range:.4f} vs Truth Range: {truth_range:.4f}")
+    
+    # Worst predictions (highest errors)
+    logger.info("-" * 50)
+    logger.info("WORST PREDICTIONS (Top 10 errors):")
+    abs_errors = np.abs(test_preds - test_truth)
+    worst_indices = np.argsort(abs_errors)[-10:][::-1]  # Top 10 worst
+    logger.info("Pred\t| Truth\t| Error\t| Index")
+    logger.info("-" * 35)
+    for idx in worst_indices:
+        error = test_preds[idx] - test_truth[idx]
+        logger.info(f"{test_preds[idx]:.3f}\t| {test_truth[idx]:.3f}\t| {error:+.3f}\t| {idx}")
+
     logger.info("=" * 50)
     
     return mae, corr, mult_a7, mult_a5, f_score, binary_acc
@@ -246,12 +393,23 @@ def main():
     logger.info('\nRuntime args\n\n{}\n'.format(json.dumps(vars(args), indent=4)))
 
     '''dataset selection'''
+    # if args.dataset_name == 'mosi':
+    #     from dataset.MOSEI_MOSI import get_mosi_dataloaders
+    # else:
+    #     raise NotImplementedError
+
     if args.dataset_name == 'mosi':
         from dataset.MOSEI_MOSI import get_mosi_dataloaders
+    elif args.dataset_name == 'mosei':
+        from dataset.MOSEI_MOSI import get_mosei_unsupervised_split_dataloaders
     else:
         raise NotImplementedError
 
-    train_dataloader, val_loader, test_dataloader = get_mosi_dataloaders(batch_size=args.batch_size, max_seq_len=10, num_workers=8)
+    # train_dataloader, val_loader, test_dataloader = get_mosi_dataloaders(batch_size=args.batch_size, max_seq_len=10, num_workers=8)
+    if args.dataset_name == 'mosi':
+        train_dataloader, val_loader, test_dataloader = get_mosi_dataloaders(batch_size=args.batch_size, max_seq_len=50, num_workers=8)
+    elif args.dataset_name == 'mosei':
+        unsupervised_dataloader, train_dataloader, test_dataloader = get_mosei_unsupervised_split_dataloaders(batch_size=args.batch_size, max_seq_len=50, num_workers=8)
 
     '''model setting'''
     video_dim = 35
@@ -265,59 +423,54 @@ def main():
     total_step = 0
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    Text_ar_lstm = nn.LSTM(text_dim, text_lstm_dim, num_layers=2, batch_first=True, bidirectional=True)
-    Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, n_embeddings, embedding_dim)
+    # Text_ar_lstm = nn.LSTM(text_dim, text_lstm_dim, num_layers=2, batch_first=True, bidirectional=True)
+    # Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, n_embeddings, embedding_dim)
+    Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_dim, n_embeddings, embedding_dim)
     # CHANGE 3: Add num_classes=7 parameter to Decoder for classification heads
-    Decoder = AVT_VQVAE_Decoder(audio_dim, video_dim, text_lstm_dim*2, num_classes=7)
+    if args.test_mode == 'MSR':
+        Decoder = Sentiment_Decoder_Combined_class(input_dim=embedding_dim * 3, num_classes=7)
+    else:
+        Decoder = Sentiment_Decoder_class(input_dim=embedding_dim * 3, num_classes=7)
 
-    Text_ar_lstm.double()
+    # Decoder = AVT_VQVAE_Decoder(audio_dim, video_dim, text_lstm_dim*2, num_classes=7)
+
+    # Text_ar_lstm.double()
     Encoder.double()
     Decoder.double()
 
     '''optimizer setting'''
-    Text_ar_lstm.to(device)
+    # Text_ar_lstm.to(device)
     Encoder.to(device)
     Decoder.to(device)
     
-    if args.test_mode == 'MSR':
-        # For MSR mode, train the combined sentiment decoder
-        optimizer = torch.optim.Adam(Decoder.combined_sentiment_decoder.parameters(), lr=args.lr)
-    else:  # CMG mode
-        # For CMG mode, train individual sentiment decoder based on modality
-        if args.modality == 'audio':
-            optimizer = torch.optim.Adam(Decoder.audio_sentiment_decoder.parameters(), lr=args.lr)
-        elif args.modality == 'video':
-            optimizer = torch.optim.Adam(Decoder.video_sentiment_decoder.parameters(), lr=args.lr)
-        else:  # text
-            optimizer = torch.optim.Adam(Decoder.text_sentiment_decoder.parameters(), lr=args.lr)
-    
-    scheduler = MultiStepLR(optimizer, milestones=[10, 20, 30], gamma=0.5)
+   
+    optimizer = torch.optim.Adam(Decoder.parameters(), lr=args.lr)
+    scheduler = MultiStepLR(optimizer, milestones=[20, 40, 60], gamma=0.5)
 
     # CHANGE 4: Use CrossEntropyLoss instead of MSELoss
     criterion_sentiment = nn.CrossEntropyLoss().cuda()
 
     if model_resume:
         # Load unsupervised pretrained model
-        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models/unsupervised_class_AV/checkpoint/MOSEI-model-9.pt"
+        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models2/1_NoLSTM_seq50_50_unsupervised_reg_TAV/checkpoint/MOSEI-model-unsupervised-46.pt"
         logger.info(f"Loading unsupervised model from: {path_checkpoints}")
         checkpoints = torch.load(path_checkpoints)
         Encoder.load_state_dict(checkpoints['Encoder_parameters'])
-        Decoder.load_state_dict(checkpoints['Decoder_parameters'])
-        Text_ar_lstm.load_state_dict(checkpoints['Text_ar_lstm_parameters'])
+        # Text_ar_lstm.load_state_dict(checkpoints['Text_ar_lstm_parameters'])
         start_epoch = checkpoints['epoch']
         logger.info("Resume from number {}-th model.".format(start_epoch))
 
     '''Training and Evaluation'''
     for epoch in range(start_epoch+1, args.n_epoch):
-        loss, total_step = train_epoch(Encoder, Text_ar_lstm, Decoder, train_dataloader, criterion_sentiment,
+        loss, total_step = train_epoch(Encoder, Decoder, train_dataloader, criterion_sentiment,
                                        optimizer, epoch, total_step, args)
         
         # Validation
         if ((epoch + 1) % args.eval_freq == 0) or (epoch == args.n_epoch - 1):
             if args.test_mode == 'MSR':
-                val_mae = validate_epoch(Encoder, Text_ar_lstm, Decoder, test_dataloader, criterion_sentiment, epoch, args)
+                val_mae = validate_epoch(Encoder, Decoder, test_dataloader, criterion_sentiment, epoch, args)
             else:
-                val_mae = validate_epoch(Encoder, Text_ar_lstm, Decoder, train_dataloader, criterion_sentiment, epoch, args)
+                val_mae = validate_epoch(Encoder, Decoder, train_dataloader, criterion_sentiment, epoch, args)
             logger.info("-----------------------------")
             logger.info(f"Epoch {epoch} - Training Loss: {loss:.4f}, Validation MAE: {val_mae:.4f}")
             logger.info("-----------------------------")
@@ -326,7 +479,7 @@ def main():
             if val_mae < best_mae:
                 best_mae = val_mae
                 best_mae_epoch = epoch
-                save_best_model(Encoder, Text_ar_lstm, Decoder, optimizer, epoch, total_step, args)
+                save_best_model(Encoder, Decoder, optimizer, epoch, total_step, args)
                 
         scheduler.step()
 
@@ -348,10 +501,10 @@ def to_train(all_models):
     for m in all_models:
         m.train()
 
-def save_best_model(Encoder, Text_ar_lstm, Decoder, optimizer, epoch_num, total_step, args):
+def save_best_model(Encoder, Decoder, optimizer, epoch_num, total_step, args):
     state_dict = {
         'Encoder_parameters': Encoder.state_dict(),
-        'Text_ar_lstm_parameters': Text_ar_lstm.state_dict(),
+        # 'Text_ar_lstm_parameters': Text_ar_lstm.state_dict(),
         'Decoder_parameters': Decoder.state_dict(),
         'optimizer': optimizer.state_dict(),
         'epoch': epoch_num,
@@ -364,19 +517,17 @@ def save_best_model(Encoder, Text_ar_lstm, Decoder, optimizer, epoch_num, total_
     torch.save(state_dict, model_path)
     logger.info(f'Saved best model to {model_path}')
 
-def train_epoch(Encoder, Text_ar_lstm, Decoder, train_dataloader, criterion_sentiment, optimizer, epoch, total_step, args):
+def train_epoch(Encoder, Decoder, train_dataloader, criterion_sentiment, optimizer, epoch, total_step, args):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
     end_time = time.time()
     
-    models = [Decoder]  # Only train decoder, freeze encoder
+    models = [Encoder, Decoder] 
     to_train(models)
-    Encoder.eval()  # Freeze encoder
-    Text_ar_lstm.eval()  # Freeze text LSTM
     
     Encoder.cuda()
-    Text_ar_lstm.cuda()
+    # Text_ar_lstm.cuda()
     Decoder.cuda()
     optimizer.zero_grad()
 
@@ -384,69 +535,81 @@ def train_epoch(Encoder, Text_ar_lstm, Decoder, train_dataloader, criterion_sent
         data_time.update(time.time() - end_time)
         
         # Feed input to model
-        text_feature_raw, audio_feature, video_feature, labels = batch_data['text_fea'], batch_data['audio_fea'], batch_data['video_fea'], batch_data['labels']
-        text_feature_raw = text_feature_raw.double().cuda()
+        text_feature, audio_feature, video_feature, labels = batch_data['text_fea'], batch_data['audio_fea'], batch_data['video_fea'], batch_data['labels']
+        # text_feature_raw = text_feature_raw.double().cuda()
         labels = labels.double().cuda()
 
         # CHANGE 5: Convert continuous labels to discrete class indices for classification loss
         discrete_labels = continuous_to_discrete_sentiment(labels)
 
-        batch_dim = text_feature_raw.size()[0]
-        hidden_dim = 128
-        num_layers = 2
-        text_hidden = (torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda(),
-                      torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda())
+        batch_dim = text_feature.size()[0]
+        # hidden_dim = 128
+        # num_layers = 2
+        # text_hidden = (torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda(),
+        #               torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda())
         
-        with torch.no_grad():
-            text_feature, text_hidden = Text_ar_lstm(text_feature_raw, text_hidden)
+        # with torch.no_grad():
+        #     text_feature, text_hidden = Text_ar_lstm(text_feature_raw, text_hidden)
 
         text_feature = text_feature.cuda().to(torch.float64)
         audio_feature = audio_feature.cuda().to(torch.float64)
         video_feature = video_feature.cuda().to(torch.float64)
 
-        with torch.no_grad():
-            # Get VQ representations
-            out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(audio_feature)
-            out_vq_video, video_vq = Encoder.Video_VQ_Encoder(video_feature)
-            out_vq_text, text_vq = Encoder.Text_VQ_Encoder(text_feature)
+        # with torch.no_grad():
+        #     # Get VQ representations
+        #     out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(audio_feature)
+        #     out_vq_video, video_vq = Encoder.Video_VQ_Encoder(video_feature)
+        #     out_vq_text, text_vq = Encoder.Text_VQ_Encoder(text_feature)
 
         if args.test_mode == 'MSR':
-            # CHANGE 6: Get logits instead of continuous scores for Multimodal Sentiment Classification
-            combined_logits = Decoder.combined_sentiment_decoder(out_vq_video, out_vq_audio, out_vq_text)
-            # CHANGE 7: Use discrete labels with CrossEntropyLoss
-            sentiment_loss = criterion_sentiment(combined_logits, discrete_labels.long().cuda())
+            with torch.no_grad():
+                out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(audio_feature)
+                out_vq_video, video_vq = Encoder.Video_VQ_Encoder(video_feature)
+                out_vq_text, text_vq = Encoder.Text_VQ_Encoder(text_feature)
+
+            combined_logits = Decoder(out_vq_video, out_vq_audio, out_vq_text)
+            combined_sentiment_loss = criterion_sentiment(combined_logits, discrete_labels.long().cuda())
             
             loss_items = {
-                "combined_sentiment_loss": sentiment_loss.item(),
+                "combined_sentiment_loss": combined_sentiment_loss.item(),
             }
-            loss = sentiment_loss
+            metricsContainer.update("loss", loss_items)
+            loss = combined_sentiment_loss
             
         else:  # CMG mode
-            # CHANGE 8: Get logits for Cross-Modal Generalization - train on one modality
             if args.modality == 'audio':
-                audio_logits = Decoder.audio_sentiment_decoder(out_vq_audio)
-                # CHANGE 9: Use discrete labels with CrossEntropyLoss
-                sentiment_loss = criterion_sentiment(audio_logits, discrete_labels.long().cuda())
+                with torch.no_grad():
+                    out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(audio_feature)
+                audio_logits = Decoder(out_vq_audio)
+                audio_sentiment_loss = criterion_sentiment(audio_logits, discrete_labels.long().cuda())
                 loss_items = {
-                    "audio_sentiment_loss": sentiment_loss.item(),
+                    "audio_sentiment_loss": audio_sentiment_loss.item(),
                 }
+                metricsContainer.update("loss", loss_items)
+                loss = audio_sentiment_loss
             elif args.modality == 'video':
-                video_logits = Decoder.video_sentiment_decoder(out_vq_video)
+                with torch.no_grad():
+                    out_vq_video, video_vq = Encoder.Video_VQ_Encoder(video_feature)
+                video_logits = Decoder(out_vq_video)
                 # CHANGE 10: Use discrete labels with CrossEntropyLoss
-                sentiment_loss = criterion_sentiment(video_logits, discrete_labels.long().cuda())
+                video_sentiment_loss = criterion_sentiment(video_logits, discrete_labels.long().cuda())
                 loss_items = {
-                    "video_sentiment_loss": sentiment_loss.item(),
+                    "video_sentiment_loss": video_sentiment_loss.item(),
                 }
+                metricsContainer.update("loss", loss_items)
+                loss = video_sentiment_loss
             else:  # text
-                text_logits = Decoder.text_sentiment_decoder(out_vq_text)
+                with torch.no_grad():
+                    out_vq_text, text_vq = Encoder.Text_VQ_Encoder(text_feature)
+                text_logits = Decoder(out_vq_text)
                 # CHANGE 11: Use discrete labels with CrossEntropyLoss
-                sentiment_loss = criterion_sentiment(text_logits, discrete_labels.long().cuda())
+                text_sentiment_loss = criterion_sentiment(text_logits, discrete_labels.long().cuda())
                 loss_items = {
-                    "text_sentiment_loss": sentiment_loss.item(),
+                    "text_sentiment_loss": text_sentiment_loss.item(),
                 }
-            loss = sentiment_loss
+                metricsContainer.update("loss", loss_items)
+                loss = text_sentiment_loss
 
-        metricsContainer.update("loss", loss_items)
 
         if n_iter % 20 == 0:
             _export_log(epoch=epoch, total_step=total_step+n_iter, batch_idx=n_iter, lr=optimizer.state_dict()['param_groups'][0]['lr'], loss_meter=metricsContainer.calculate_average("loss"))
@@ -469,7 +632,7 @@ def train_epoch(Encoder, Text_ar_lstm, Decoder, train_dataloader, criterion_sent
     return losses.avg, n_iter + total_step
 
 @torch.no_grad()
-def validate_epoch(Encoder, Text_ar_lstm, Decoder, test_dataloader, criterion_sentiment, epoch, args):
+def validate_epoch(Encoder, Decoder, test_dataloader, criterion_sentiment, epoch, args):
     """
     CHANGE 12: Updated validation function that handles classification training and comprehensive evaluation.
     """
@@ -479,10 +642,10 @@ def validate_epoch(Encoder, Text_ar_lstm, Decoder, test_dataloader, criterion_se
     end_time = time.time()
 
     Encoder.eval()
-    Text_ar_lstm.eval()
+    # Text_ar_lstm.eval()
     Decoder.eval()
     Encoder.cuda()
-    Text_ar_lstm.cuda()
+    # Text_ar_lstm.cuda()
     Decoder.cuda()
 
     # CHANGE 13: Updated collections for classification evaluation
@@ -499,19 +662,18 @@ def validate_epoch(Encoder, Text_ar_lstm, Decoder, test_dataloader, criterion_se
         data_time.update(time.time() - end_time)
 
         # Feed input to model
-        text_feature_raw, audio_feature, video_feature, labels = batch_data['text_fea'], batch_data['audio_fea'], batch_data['video_fea'], batch_data['labels']
-        text_feature_raw = text_feature_raw.double().cuda()
+        text_feature, audio_feature, video_feature, labels = batch_data['text_fea'], batch_data['audio_fea'], batch_data['video_fea'], batch_data['labels']
         labels = labels.double().cuda()
 
         # CHANGE 14: Convert to discrete for loss computation
         discrete_labels = continuous_to_discrete_sentiment(labels)
 
-        batch_dim = text_feature_raw.size()[0]
-        hidden_dim = 128
-        num_layers = 2
-        text_hidden = (torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda(),
-                      torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda())
-        text_feature, text_hidden = Text_ar_lstm(text_feature_raw, text_hidden)
+        batch_dim = text_feature.size()[0]
+        # hidden_dim = 128
+        # num_layers = 2
+        # text_hidden = (torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda(),
+        #               torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda())
+        # text_feature, text_hidden = Text_ar_lstm(text_feature_raw, text_hidden)
 
         text_feature = text_feature.cuda().to(torch.float64)
         audio_feature = audio_feature.cuda().to(torch.float64)
@@ -524,7 +686,7 @@ def validate_epoch(Encoder, Text_ar_lstm, Decoder, test_dataloader, criterion_se
 
         if args.test_mode == 'MSR':
             # CHANGE 15: Get logits for multimodal classification
-            combined_logits = Decoder.combined_sentiment_decoder(out_vq_video, out_vq_audio, out_vq_text)
+            combined_logits = Decoder(out_vq_video, out_vq_audio, out_vq_text)
             loss = criterion_sentiment(combined_logits, discrete_labels.long().cuda())
             all_logits.append(combined_logits)
             
@@ -532,9 +694,9 @@ def validate_epoch(Encoder, Text_ar_lstm, Decoder, test_dataloader, criterion_se
             # CHANGE 16: Get logits for trained modality and cross-modal generalization
             if args.modality == 'audio':
                 # Trained on audio, test on video and text
-                audio_logits = Decoder.audio_sentiment_decoder(out_vq_audio)
-                video_logits = Decoder.video_sentiment_decoder(out_vq_video)
-                text_logits = Decoder.text_sentiment_decoder(out_vq_text)
+                audio_logits = Decoder(out_vq_audio)
+                video_logits = Decoder(out_vq_video)
+                text_logits = Decoder(out_vq_text)
                 
                 loss = criterion_sentiment(audio_logits, discrete_labels.long().cuda())
                 all_logits.append(audio_logits)
@@ -543,9 +705,9 @@ def validate_epoch(Encoder, Text_ar_lstm, Decoder, test_dataloader, criterion_se
                 
             elif args.modality == 'video':
                 # Trained on video, test on audio and text
-                video_logits = Decoder.video_sentiment_decoder(out_vq_video)
-                audio_logits = Decoder.audio_sentiment_decoder(out_vq_audio)
-                text_logits = Decoder.text_sentiment_decoder(out_vq_text)
+                video_logits = Decoder(out_vq_video)
+                audio_logits = Decoder(out_vq_audio)
+                text_logits = Decoder(out_vq_text)
                 
                 loss = criterion_sentiment(video_logits, discrete_labels.long().cuda())
                 all_logits.append(video_logits)
@@ -554,9 +716,9 @@ def validate_epoch(Encoder, Text_ar_lstm, Decoder, test_dataloader, criterion_se
                 
             else:  # text
                 # Trained on text, test on audio and video
-                text_logits = Decoder.text_sentiment_decoder(out_vq_text)
-                audio_logits = Decoder.audio_sentiment_decoder(out_vq_audio)
-                video_logits = Decoder.video_sentiment_decoder(out_vq_video)
+                text_logits = Decoder(out_vq_text)
+                audio_logits = Decoder(out_vq_audio)
+                video_logits = Decoder(out_vq_video)
                 
                 loss = criterion_sentiment(text_logits, discrete_labels.long().cuda())
                 all_logits.append(text_logits)
@@ -567,7 +729,7 @@ def validate_epoch(Encoder, Text_ar_lstm, Decoder, test_dataloader, criterion_se
         all_continuous_labels.append(labels)
         all_discrete_labels.append(discrete_labels)
         
-        losses.update(loss.item(), batch_dim)
+        losses.update(loss.item(), batch_dim*50)
         batch_time.update(time.time() - end_time)
         end_time = time.time()
 
