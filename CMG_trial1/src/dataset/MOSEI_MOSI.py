@@ -44,7 +44,8 @@ class MOSEIDatasetUnsupervised(Dataset):
                 max_pad=True, 
                 data_type='mosei', 
                 max_seq_len=max_seq_len,
-                batch_size=batch_size
+                batch_size=batch_size,
+                z_norm=True
             )
             
             # Combine all data for unsupervised pretraining
@@ -127,7 +128,8 @@ class MOSEIDatasetUnsupervisedSplit(Dataset):
                 max_pad=True, 
                 data_type='mosei', 
                 max_seq_len=max_seq_len,
-                batch_size=batch_size
+                batch_size=batch_size,
+                z_norm=True
             )
             
             self.combined_data = []
@@ -243,7 +245,8 @@ class MOSEIDatasetSupervised(Dataset):
                 max_pad=True, 
                 data_type='mosei', 
                 max_seq_len=max_seq_len,
-                batch_size=batch_size
+                batch_size=batch_size,
+                z_norm=True
             )
             
             # Determine which splits to use based on the requested split
@@ -333,7 +336,8 @@ class MOSIDataset(Dataset):
                 max_pad=True, 
                 data_type='mosi', 
                 max_seq_len=max_seq_len,
-                batch_size=batch_size
+                batch_size=batch_size,
+                z_norm=True
             )
             
             if split == 'train':
@@ -566,6 +570,53 @@ def get_mosi_dataloaders(batch_size=64, max_seq_len=50, num_workers=8):
 # TEST FUNCTIONS
 # ===============================================================================
 
+
+def print_feature_diagnostics(features, feature_name, sample_idx=0):
+    """
+    Print comprehensive diagnostics for a feature tensor/array
+    """
+    if isinstance(features, torch.Tensor):
+        features_np = features.numpy()
+    else:
+        features_np = features
+    
+    print_progress(f"\n--- {feature_name.upper()} FEATURE DIAGNOSTICS ---")
+    print_progress(f"Shape: {features_np.shape}")
+    print_progress(f"Data type: {features_np.dtype}")
+    print_progress(f"Min value: {np.min(features_np):.6f}")
+    print_progress(f"Max value: {np.max(features_np):.6f}")
+    print_progress(f"Mean: {np.mean(features_np):.6f}")
+    print_progress(f"Std: {np.std(features_np):.6f}")
+    
+    # Check for NaN or Inf values
+    nan_count = np.sum(np.isnan(features_np))
+    inf_count = np.sum(np.isinf(features_np))
+    print_progress(f"NaN values: {nan_count}")
+    print_progress(f"Inf values: {inf_count}")
+    
+    # Show sample values from different time steps
+    if len(features_np.shape) >= 2:
+        seq_len = features_np.shape[0]
+        feature_dim = features_np.shape[1]
+        print_progress(f"Sequence length: {seq_len}, Feature dimension: {feature_dim}")
+        
+        # Show first few values from first timestep
+        print_progress(f"First timestep values (first 10): {features_np[0, :10]}")
+        
+        # Show middle timestep if available
+        if seq_len > 1:
+            mid_idx = seq_len // 2
+            print_progress(f"Middle timestep values (first 10): {features_np[mid_idx, :10]}")
+            
+        # Show last timestep if different from first
+        if seq_len > 2:
+            print_progress(f"Last timestep values (first 10): {features_np[-1, :10]}")
+    else:
+        print_progress(f"Feature values: {features_np}")
+    
+    print_progress(f"--- END {feature_name.upper()} DIAGNOSTICS ---\n")
+
+
 def test_collate_pattern():
     """
     Test that our collate function follows the exact VGGSound pattern.
@@ -576,9 +627,9 @@ def test_collate_pattern():
     # Create mock samples that mimic what our datasets return
     mock_samples = []
     for i in range(2):  # Create 2 fake samples
-        audio_feat = np.random.randn(10, 74).astype(np.float32)  # [seq_len, 74]
-        video_feat = np.random.randn(10, 35).astype(np.float32)  # [seq_len, 35]
-        text_feat = np.random.randn(10, 300).astype(np.float32)  # [seq_len, 300]
+        audio_feat = np.random.randn(50, 74).astype(np.float32)  # [seq_len, 74]
+        video_feat = np.random.randn(50, 35).astype(np.float32)  # [seq_len, 35]
+        text_feat = np.random.randn(50, 300).astype(np.float32)  # [seq_len, 300]
         labels = np.array([0.5]).astype(np.float32)              # [1]
         video_id = f"test_sample_{i}"
         
@@ -611,7 +662,7 @@ def test_all_dataloaders():
     
     print_progress("\n=== Testing Unsupervised MOSEI Dataset ===")
     try:
-        unsupervised_loader = get_mosei_unsupervised_dataloader(batch_size=32, max_seq_len=10)
+        unsupervised_loader = get_mosei_unsupervised_dataloader(batch_size=32, max_seq_len=50)
         for i, batch_data in enumerate(unsupervised_loader):
             audio_feature = batch_data['audio_fea']
             video_feature = batch_data['video_fea'] 
@@ -622,6 +673,14 @@ def test_all_dataloaders():
             print_progress(f"  Video shape: {video_feature.shape}, dtype: {video_feature.dtype}")
             print_progress(f"  Text shape: {text_feature.shape}, dtype: {text_feature.dtype}")
             print_progress(f"  Labels available: {'labels' in batch_data}")
+            labels = batch_data['labels']
+            
+            print_progress(f"\nUnsupervised Batch {i} Analysis:")
+            print_feature_diagnostics(audio_feature[0], f"Batch_{i}_Audio_Sample_0")
+            print_feature_diagnostics(video_feature[0], f"Batch_{i}_Video_Sample_0")
+            print_feature_diagnostics(text_feature[0], f"Batch_{i}_Text_Sample_0")
+            print_progress(f"Sample labels: {labels[:3].numpy().flatten()}")  # Show first 3 labels
+            
             
             if i == 0:  # Only check first batch
                 break
@@ -631,7 +690,7 @@ def test_all_dataloaders():
 
     print_progress("\n=== Testing MOSEI Unsupervised Split Dataset ===")
     try:
-        train_loader, test_train_loader, test_val_loader = get_mosei_unsupervised_split_dataloaders(batch_size=32, max_seq_len=10)
+        train_loader, test_train_loader, test_val_loader = get_mosei_unsupervised_split_dataloaders(batch_size=32, max_seq_len=50)
         
         # Test train split (train+val combined)
         for i, batch_data in enumerate(train_loader):
@@ -644,6 +703,13 @@ def test_all_dataloaders():
             print_progress(f"  Video shape: {video_feature.shape}, dtype: {video_feature.dtype}")
             print_progress(f"  Text shape: {text_feature.shape}, dtype: {text_feature.dtype}")
             print_progress(f"  Labels available: {'labels' in batch_data}")
+            labels = batch_data['labels']
+            
+            print_progress(f"\nUnsupervised split Train Batch {i} Analysis:")
+            print_feature_diagnostics(audio_feature[0], f"Batch_{i}_Audio_Sample_0")
+            print_feature_diagnostics(video_feature[0], f"Batch_{i}_Video_Sample_0")
+            print_feature_diagnostics(text_feature[0], f"Batch_{i}_Text_Sample_0")
+            print_progress(f"Sample labels: {labels[:3].numpy().flatten()}")  # Show first 3 labels
             
             if i == 0:  # Only check first batch
                 break
@@ -658,6 +724,13 @@ def test_all_dataloaders():
             print_progress(f"  Audio shape: {audio_feature.shape}, dtype: {audio_feature.dtype}")
             print_progress(f"  Video shape: {video_feature.shape}, dtype: {video_feature.dtype}")
             print_progress(f"  Text shape: {text_feature.shape}, dtype: {text_feature.dtype}")
+            labels = batch_data['labels']
+            
+            print_progress(f"\nUnsupervised Split Test-Train Batch {i} Analysis:")
+            print_feature_diagnostics(audio_feature[0], f"Batch_{i}_Audio_Sample_0")
+            print_feature_diagnostics(video_feature[0], f"Batch_{i}_Video_Sample_0")
+            print_feature_diagnostics(text_feature[0], f"Batch_{i}_Text_Sample_0")
+            print_progress(f"Sample labels: {labels[:3].numpy().flatten()}")  # Show first 3 labels
             
             if i == 0:  # Only check first batch
                 break
@@ -672,6 +745,13 @@ def test_all_dataloaders():
             print_progress(f"  Audio shape: {audio_feature.shape}, dtype: {audio_feature.dtype}")
             print_progress(f"  Video shape: {video_feature.shape}, dtype: {video_feature.dtype}")
             print_progress(f"  Text shape: {text_feature.shape}, dtype: {text_feature.dtype}")
+            labels = batch_data['labels']
+            
+            print_progress(f"\nUnsupervised Split Test_Val Batch {i} Analysis:")
+            print_feature_diagnostics(audio_feature[0], f"Batch_{i}_Audio_Sample_0")
+            print_feature_diagnostics(video_feature[0], f"Batch_{i}_Video_Sample_0")
+            print_feature_diagnostics(text_feature[0], f"Batch_{i}_Text_Sample_0")
+            print_progress(f"Sample labels: {labels[:3].numpy().flatten()}")  # Show first 3 labels
             
             if i == 0:  # Only check first batch
                 break
@@ -695,7 +775,7 @@ def test_all_dataloaders():
     
     print_progress("\n=== Testing Supervised MOSEI Dataset ===")
     try:
-        train_loader, val_loader, test_loader = get_mosei_supervised_dataloaders(batch_size=64, max_seq_len=10)
+        train_loader, val_loader, test_loader = get_mosei_supervised_dataloaders(batch_size=64, max_seq_len=50)
         
         for i, batch_data in enumerate(train_loader):
             audio_feature = batch_data['audio_fea']
@@ -708,6 +788,13 @@ def test_all_dataloaders():
             print_progress(f"  Video shape: {video_feature.shape}, dtype: {video_feature.dtype}")
             print_progress(f"  Text shape: {text_feature.shape}, dtype: {text_feature.dtype}")
             print_progress(f"  Labels shape: {labels.shape}, dtype: {labels.dtype}")
+
+            print_progress(f"\nSupervised Train Batch {i} Analysis:")
+            print_feature_diagnostics(audio_feature[0], f"Supervised_Batch_{i}_Audio_Sample_0")
+            print_progress(f"Batch size: {audio_feature.shape[0]}")
+            print_progress(f"Labels range in batch: [{labels.min().item():.3f}, {labels.max().item():.3f}]")
+            print_progress(f"Sample labels: {labels[:5].numpy().flatten()}")  # Show first 5 labels
+            
             
             if i == 0:  # Only check first batch
                 break
@@ -717,7 +804,7 @@ def test_all_dataloaders():
     
     print_progress("\n=== Testing MOSI Dataset ===")
     try:
-        mosi_train, mosi_val, mosi_test = get_mosi_dataloaders(batch_size=32, max_seq_len=10)
+        mosi_train, mosi_val, mosi_test = get_mosi_dataloaders(batch_size=32, max_seq_len=50)
         
         for i, batch_data in enumerate(mosi_test):
             audio_feature = batch_data['audio_fea']

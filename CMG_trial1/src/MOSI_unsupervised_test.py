@@ -200,7 +200,7 @@ def main():
     video_dim = 35
     text_dim = 300
     audio_dim = 74
-    text_lstm_dim = 128
+    # text_lstm_dim = 128
     n_embeddings = 400
     embedding_dim = 256
     start_epoch = -1
@@ -214,7 +214,7 @@ def main():
 
     Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_dim, n_embeddings, embedding_dim)
     # Encoder = AVT_VQVAE_Encoder(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2, n_embeddings, embedding_dim)
-    # Decoder = AVT_VQVAE_Decoder(audio_dim, video_dim, text_lstm_dim*2)
+
     if args.test_mode == 'MSR':
         Decoder = Sentiment_Decoder_Combined(input_dim=embedding_dim * 3)
     else:
@@ -237,8 +237,8 @@ def main():
     scheduler = MultiStepLR(optimizer, milestones=[20, 40, 60], gamma=0.5)
 
     '''loss'''
-    criterion_sentiment = nn.MSELoss().cuda()
-    # criterion_sentiment = nn.L1Loss().cuda()
+    # criterion_sentiment = nn.MSELoss().cuda()
+    criterion_sentiment = nn.L1Loss().cuda()
 
     if model_resume is True:
         # Load unsupervised pretrained model
@@ -438,7 +438,7 @@ def train_epoch(Encoder, Decoder, train_dataloader, criterion_sentiment, optimiz
         optimizer.step()
         optimizer.zero_grad()
 
-        losses.update(loss.item(), audio_feature.size(0) * 50)
+        losses.update(loss.item(), audio_feature.size(0) * audio_feature.size(1))
         batch_time.update(time.time() - end_time)
         end_time = time.time()
 
@@ -451,13 +451,6 @@ def validate_epoch(Encoder, Decoder, test_dataloader, criterion_sentiment, epoch
     data_time = AverageMeter()
     losses = AverageMeter()
     end_time = time.time()
-
-    # mae_meter = AverageMeter()
-    # corr_meter = AverageMeter()
-    # mult_a7_meter = AverageMeter()
-    # mult_a5_meter = AverageMeter()
-    # f_score_meter = AverageMeter()
-    # binary_acc_meter = AverageMeter()
 
     Encoder.eval()
     # Text_ar_lstm.eval()
@@ -590,71 +583,6 @@ def validate_epoch(Encoder, Decoder, test_dataloader, criterion_sentiment, epoch
 
     return mae
 
-    # for i in range(len(all_preds)):
-    #     batch_preds = all_preds[i]
-    #     logger.info(f"Batch {i} - Pred mean: {batch_preds.mean().item():.4f}, std: {batch_preds.std().item():.4f}")
-    #     logger.info(f"Batch {i} - Pred min: {batch_preds.min().item():.4f}, max: {batch_preds.max().item():.4f}")
-
-
-    #  # Check for NaN/inf
-    # if torch.isnan(batch_preds).any() or torch.isinf(batch_preds).any():
-    #     logger.info(f"WARNING: NaN or Inf detected in batch {i} predictions!")
-
-
-    # for i in range(len(all_labels)):
-    #     batch_labels = all_labels[i]
-    #     logger.info(f"Batch {i} - Label mean: {batch_labels.mean().item():.4f}, std: {batch_labels.std().item():.4f}")
-        
-   
-
-    # for i in range(len(all_preds)):
-    #     batch_preds = all_preds[i]  
-    #     batch_labels = all_labels[i]  
-        
-    #     mae, corr, mult_a7, mult_a5, f_score, binary_acc = eval_mosi_senti_return(batch_preds, batch_labels)
-        
-    #     current_batch_size = batch_preds.size(0)
-    #     mae_meter.update(mae, current_batch_size * 50)
-    #     corr_meter.update(corr, current_batch_size * 50)
-    #     mult_a7_meter.update(mult_a7, current_batch_size * 50)
-    #     mult_a5_meter.update(mult_a5, current_batch_size * 50)
-    #     f_score_meter.update(f_score, current_batch_size * 50)
-    #     binary_acc_meter.update(binary_acc, current_batch_size * 50)
-
-    # logger.info(f'**************************************************************************\t')
-    
-    # if args.test_mode == 'MSR':
-    #     logger.info(f"MSR Mode - Multimodal Results (Averaged):")
-    # else:
-    #     logger.info(f"CMG Mode - Trained on {args.modality} (Averaged):")
-        
-    # logger.info("=" * 50)
-    # logger.info("Averaged MOSI Sentiment Evaluation Results:")
-    # logger.info(f"MAE: {mae_meter.avg:.4f}")
-    # logger.info(f"Correlation Coefficient: {corr_meter.avg:.4f}")
-    # logger.info(f"mult_acc_7: {mult_a7_meter.avg:.4f}")
-    # logger.info(f"mult_acc_5: {mult_a5_meter.avg:.4f}")
-    # logger.info(f"F1 score: {f_score_meter.avg:.4f}")
-    # logger.info(f"Binary Accuracy: {binary_acc_meter.avg:.4f}")
-    # logger.info("=" * 50)
-    
-    # # Handle cross-modal evaluation for CMG mode
-    # if args.test_mode == 'CMG':
-    #     # Similar averaging for cross-modal results
-    #     all_preds_cross1 = torch.cat(all_preds_cross1, dim=0)
-    #     all_preds_cross2 = torch.cat(all_preds_cross2, dim=0)
-    #     all_labels_full = torch.cat(all_labels, dim=0)
-        
-    #     modalities = ['audio', 'video', 'text']
-    #     other_modalities = [m for m in modalities if m != args.modality]
-        
-    #     logger.info(f"CMG Mode - Cross-modal to {other_modalities[0]} (Averaged):")
-    #     mae, corr, mult_a7, mult_a5, f_score, binary_acc = eval_mosi_senti_print(all_preds_cross1, all_labels_full)
-        
-    #     logger.info(f"CMG Mode - Cross-modal to {other_modalities[1]} (Averaged):")
-    #     eval_mosi_senti_print(all_preds_cross2, all_labels_full)
-        
-    # return mae_meter.avg
 
 if __name__ == '__main__':
     main()

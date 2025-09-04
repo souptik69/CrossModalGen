@@ -1,17 +1,17 @@
 # ======================================= Learning configs ==================================
-n_epoch: 100
+n_epoch: 50
 batch_size: 64
 test_batch_size: 64
-lr: 0.001
+lr: 0.0004
 mi_lr: 0.001
 loss_weights: 0.5
-clip_gradient: 0.8
+clip_gradient: 0.5
 start_epoch: 0
 weight_decay: 5e-4
 
   # ======================================= Print and snapshot configs ==================================
 snapshot_pref: 
-    /project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Tests_1/2_LSTM_seq50_50_supervised_reg_TAV_L1_27_test/CMG/
+    /project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models2/Norm_seq50_50_supervised_reg_VAT_L2/
 print_freq: 1
 eval_freq: 1
 

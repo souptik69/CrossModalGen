@@ -224,72 +224,6 @@ class Sentiment_Decoder_class(nn.Module):
         sentiment_score = self.sentiment_regressor(input_feat)  # Continuous sentiment
         return sentiment_score
 
-""" New Sentiment Downstream Decoder for Sentiment Label regression """
-# class Sentiment_Decoder(nn.Module):
-#     def __init__(self, input_dim):
-#         super(Sentiment_Decoder, self).__init__()
-#         self.linear_1 = nn.Linear(input_dim, input_dim)
-#         self.linear_2 = nn.Linear(input_dim, 256)
-#         self.linear_3 = nn.Linear(256,256)
-#         self.relu = nn.ReLU()
-#         self.dropout = nn.Dropout(0.1)
-#         self.sentiment_regressor = nn.Linear(256, 1)  # Single continuous output
-        
-#     def forward(self, input_vq):
-#         input_feat_1 = self.linear_1(input_vq)
-#         input_feat_2 = self.linear_2(input_feat_1)
-#         input_feat_3 = self.dropout(self.relu(self.linear_3(input_feat_2)))
-#         input_feat_3 = input_feat_3 +  input_feat_2
-#         input_feat_3, _ = input_feat_3.max(1)  # Temporal pooling for sequence
-#         sentiment_score = self.sentiment_regressor(input_feat_3)  # Continuous sentiment
-#         return sentiment_score
-    
-""" Scaled Sentiment Downstream Decoder for Sentiment Label regression """
-class ScaledSentimentDecoder(nn.Module):
-    def __init__(self, input_dim):
-        super(ScaledSentimentDecoder, self).__init__()
-        # Deeper network with gradual dimension reduction
-        self.fc1 = nn.Linear(input_dim * 3, 512)
-        self.fc2 = nn.Linear(512, 384)
-        self.fc3 = nn.Linear(384, 256)
-        self.fc4 = nn.Linear(256, 128)
-        self.fc5 = nn.Linear(128, 64)
-        self.fc6 = nn.Linear(64, 1)
-        
-        # Learnable scaling parameters
-        self.output_scale = nn.Parameter(torch.tensor(3.0))
-        self.output_bias = nn.Parameter(torch.tensor(0.0))
-        
-        self.dropout = nn.Dropout(0.2)
-        self.relu = nn.ReLU()
-        
-    def forward(self, input_vq):
-        # Temporal aggregation: use multiple statistics
-        max_pool, _ = input_vq.max(1)
-        mean_pool = input_vq.mean(1)
-        std_pool = input_vq.std(1)
-        
-        # Concatenate different pooling strategies
-        x = torch.cat([max_pool, mean_pool, std_pool], dim=-1)  # 3*768 = 2304 dims
-        
-        # Need to adjust first layer
-        # self.fc1 = nn.Linear(x.shape[-1], 512).to(x.device)
-        
-        # Deep projection with dropout
-        x = self.dropout(self.relu(self.fc1(x)))
-        x = self.dropout(self.relu(self.fc2(x)))
-        x = self.dropout(self.relu(self.fc3(x)))
-        x = self.dropout(self.relu(self.fc4(x)))
-        x = self.relu(self.fc5(x))
-        
-        # Raw prediction
-        raw_sentiment = self.fc6(x)
-        
-        # Scale to proper range [-3, 3]
-        scaled_sentiment = torch.tanh(raw_sentiment) * self.output_scale + self.output_bias
-        
-        return scaled_sentiment
-
 
 """ Sentiment Downstream Decoder for Sentiment Label regression combined """
 class Sentiment_Decoder_Combined(nn.Module):
@@ -321,74 +255,6 @@ class Sentiment_Decoder_Combined_class(nn.Module):
         sentiment_score = self.sentiment_regressor(input_feat)  # Continuous sentiment
         return sentiment_score
 
-
-""" New Sentiment Downstream Decoder for Sentiment Label regression combined """
-# class Sentiment_Decoder_Combined(nn.Module):
-#     def __init__(self, input_dim):
-#         super(Sentiment_Decoder_Combined, self).__init__()
-#         self.linear_1 = nn.Linear(input_dim, input_dim)
-#         self.linear_2 = nn.Linear(input_dim, 256)
-#         self.linear_3 = nn.Linear(256,256)
-#         self.relu = nn.ReLU()
-#         self.dropout = nn.Dropout(0.1)
-#         self.sentiment_regressor = nn.Linear(256, 1)  # Single continuous output
-        
-#     def forward(self, video_vq, audio_vq, text_vq):
-#         input_vq =  (video_vq + audio_vq + text_vq)/3
-#         input_feat_1 = self.linear_1(input_vq)
-#         input_feat_2 = self.linear_2(input_feat_1)
-#         input_feat_3 = self.dropout(self.relu(self.linear_3(input_feat_2)))
-#         input_feat_3 = input_feat_3 +  input_feat_2
-#         input_feat_3, _ = input_feat_3.max(1)  # Temporal pooling for sequence
-#         sentiment_score = self.sentiment_regressor(input_feat_3)  # Continuous sentiment
-#         return sentiment_score
-
-
-""" Scaled Combined Sentiment Downstream Decoder for Sentiment Label regression """
-class ScaledSentimentDecoder_Combined(nn.Module):
-    def __init__(self, input_dim):
-        super(ScaledSentimentDecoder_Combined, self).__init__()
-        # Deeper network with gradual dimension reduction
-        self.fc1 = nn.Linear(input_dim * 3, 512)
-        self.fc2 = nn.Linear(512, 384)
-        self.fc3 = nn.Linear(384, 256)
-        self.fc4 = nn.Linear(256, 128)
-        self.fc5 = nn.Linear(128, 64)
-        self.fc6 = nn.Linear(64, 1)
-        
-        # Learnable scaling parameters
-        self.output_scale = nn.Parameter(torch.tensor(3.0))
-        self.output_bias = nn.Parameter(torch.tensor(0.0))
-        
-        self.dropout = nn.Dropout(0.2)
-        self.relu = nn.ReLU()
-        
-    def forward(self, video_vq, audio_vq, text_vq):
-        input_vq =  (video_vq + audio_vq + text_vq)/3
-        max_pool, _ = input_vq.max(1)
-        mean_pool = input_vq.mean(1)
-        std_pool = input_vq.std(1)
-        
-        # Concatenate different pooling strategies
-        x = torch.cat([max_pool, mean_pool, std_pool], dim=-1)  # 3*768 = 2304 dims
-        
-        # Need to adjust first layer
-        # self.fc1 = nn.Linear(x.shape[-1], 512).to(x.device)
-        
-        # Deep projection with dropout
-        x = self.dropout(self.relu(self.fc1(x)))
-        x = self.dropout(self.relu(self.fc2(x)))
-        x = self.dropout(self.relu(self.fc3(x)))
-        x = self.dropout(self.relu(self.fc4(x)))
-        x = self.relu(self.fc5(x))
-        
-        # Raw prediction
-        raw_sentiment = self.fc6(x)
-        
-        # Scale to proper range [-3, 3]
-        scaled_sentiment = torch.tanh(raw_sentiment) * self.output_scale + self.output_bias
-        
-        return scaled_sentiment
 
 
 class Audio_Decoder(nn.Module):
@@ -480,7 +346,6 @@ class AVT_VQVAE_Decoder(nn.Module):
 
 
         return audio_recon_loss, video_recon_loss, text_recon_loss, audio_score, video_score, text_score, combined_score
-        # return audio_recon_loss, video_recon_loss, text_recon_loss
 
 
 '''Decoder for uni-modal sentiment regression and reconstruction. To be used for supervised training for uni-modal use case'''
@@ -831,19 +696,19 @@ class Cross_VQEmbeddingEMA_AVT_hierarchical(nn.Module):
                 new_embedding = self.embedding.clone()
 
                 '''T -> A -> V''' 
-                new_embedding[:, 2*D:] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D]) + ((1/3) * new_embedding[:, 2*D:])    #Text = (1/3)Video + (1/3)Audio + (1/3)Text
-                new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, 2*D:])  #Audio = (4/9)Video + (4/9)Audio + (1/9)Text
-                new_embedding[:, :D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])     #Video = (16/27)Video + (7/27)Audio + (4/27)Text
+                # new_embedding[:, 2*D:] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D]) + ((1/3) * new_embedding[:, 2*D:])    #Text = (1/3)Video + (1/3)Audio + (1/3)Text
+                # new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, 2*D:])  #Audio = (4/9)Video + (4/9)Audio + (1/9)Text
+                # new_embedding[:, :D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])     #Video = (16/27)Video + (7/27)Audio + (4/27)Text
 
                 '''T -> V -> A''' 
                 # new_embedding[:, 2*D:] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D]) + ((1/3) * new_embedding[:, 2*D:])    #Text = (1/3)Video + (1/3)Audio + (1/3)Text
                 # new_embedding[:, :D] =  ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])  #Audio = (4/9)Video + (4/9)Audio + (1/9)Text
                 # new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])     #Video = (16/27)Video + (7/27)Audio + (4/27)Text
 
-                # '''V -> A -> T'''
-                # new_embedding[:, :D] =  ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])
-                # new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])
-                # new_embedding[:, 2*D:] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D]) + ((1/3) * new_embedding[:, 2*D:])
+                '''V -> A -> T'''
+                new_embedding[:, :D] =  ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])
+                new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])
+                new_embedding[:, 2*D:] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D]) + ((1/3) * new_embedding[:, 2*D:])
 
                 '''A -> V -> T'''
                 # new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])
@@ -909,7 +774,7 @@ class Cross_VQEmbeddingEMA_AVT_hierarchical(nn.Module):
             activated_indices = []
             unactivated_indices = []
             for i, x in enumerate(self.unactivated_count):
-                if x > 170:  # Dead for too long
+                if x > 160:  # Dead for too long
                     unactivated_indices.append(i)
                     self.unactivated_count[i] = 0
                 elif x >= 0 and x < 100:  # Recently active

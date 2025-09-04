@@ -94,7 +94,7 @@ def main():
     video_dim = 35
     text_dim = 300
     audio_dim = 74
-    text_lstm_dim = 128
+    # text_lstm_dim = 128
     n_embeddings = 400
     embedding_dim = 256
     start_epoch = -1
@@ -103,9 +103,9 @@ def main():
     total_step = 0
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    Text_ar_lstm = nn.LSTM(text_dim, text_lstm_dim, num_layers=2, batch_first=True, bidirectional=True)
-    Video_ar_lstm = nn.LSTM(video_dim, text_lstm_dim, num_layers=2, batch_first=True, bidirectional=True)
-    Audio_ar_lstm = nn.LSTM(audio_dim, text_lstm_dim, num_layers=2, batch_first=True, bidirectional=True)
+    # Text_ar_lstm = nn.LSTM(text_dim, text_lstm_dim, num_layers=2, batch_first=True, bidirectional=True)
+    # Video_ar_lstm = nn.LSTM(video_dim, text_lstm_dim, num_layers=2, batch_first=True, bidirectional=True)
+    # Audio_ar_lstm = nn.LSTM(audio_dim, text_lstm_dim, num_layers=2, batch_first=True, bidirectional=True)
 
     Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_dim, n_embeddings, embedding_dim)
     # Encoder = AVT_VQVAE_Encoder(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2, n_embeddings, embedding_dim)
@@ -115,18 +115,18 @@ def main():
     Decoder = AVT_VQVAE_Decoder(audio_dim, video_dim, text_dim)
     # Decoder = AVT_VQVAE_Decoder(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2)
 
-    Text_ar_lstm.double()
-    Video_ar_lstm.double()
-    Audio_ar_lstm.double()
+    # Text_ar_lstm.double()
+    # Video_ar_lstm.double()
+    # Audio_ar_lstm.double()
     Encoder.double()
     CPC.double()
     Decoder.double()
 
 
     '''optimizer setting'''
-    Text_ar_lstm.to(device)
-    Video_ar_lstm.to(device)
-    Audio_ar_lstm.to(device)
+    # Text_ar_lstm.to(device)
+    # Video_ar_lstm.to(device)
+    # Audio_ar_lstm.to(device)
     Encoder.to(device)
     CPC.to(device)
     Decoder.to(device)
@@ -145,16 +145,19 @@ def main():
         CPC.load_state_dict(checkpoints['CPC_parameters'])
         Decoder.load_state_dict(checkpoints['Decoder_parameters'])
         optimizer.load_state_dict(checkpoints['optimizer'])
-        Text_ar_lstm.load_state_dict(checkpoints['Text_ar_lstm_parameters'])
-        Video_ar_lstm.load_state_dict(checkpoints['Video_ar_lstm_parameters'])
-        Audio_ar_lstm.load_state_dict(checkpoints['Audio_ar_lstm_parameters'])
+        # Text_ar_lstm.load_state_dict(checkpoints['Text_ar_lstm_parameters'])
+        # Video_ar_lstm.load_state_dict(checkpoints['Video_ar_lstm_parameters'])
+        # Audio_ar_lstm.load_state_dict(checkpoints['Audio_ar_lstm_parameters'])
         start_epoch = checkpoints['epoch']
         total_step = checkpoints['total_step']
         logger.info("Resume from number {}-th model.".format(start_epoch))
 
     '''Training and Evaluation'''
     for epoch in range(start_epoch+1, args.n_epoch):
-        loss, total_step, epoch_losses = train_epoch(CPC, Encoder, Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder, train_dataloader,
+        # loss, total_step, epoch_losses = train_epoch(CPC, Encoder, Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder, train_dataloader,
+        #                                optimizer, epoch, total_step, args)
+
+        loss, total_step, epoch_losses = train_epoch(CPC, Encoder, Decoder, train_dataloader,
                                        optimizer, epoch, total_step, args)
 
         csv_file_path = os.path.join(args.snapshot_pref, args.loss_csv_path)
@@ -164,7 +167,8 @@ def main():
         
         
         save_path = os.path.join(args.model_save_path, 'MOSEI-model-unsupervised-{}.pt'.format(epoch))
-        save_models(CPC, Encoder, Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder, optimizer, epoch, total_step, save_path)
+        # save_models(CPC, Encoder, Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder, optimizer, epoch, total_step, save_path)
+        save_models(CPC, Encoder, Decoder, optimizer, epoch, total_step, save_path)
         logger.info(f"epoch: ******************************************* {epoch}")
         logger.info(f"loss: {loss}")
         scheduler.step()
@@ -188,13 +192,13 @@ def to_train(all_models):
         m.train()
 
 
-def save_models(CPC, Encoder, Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder, optimizer, epoch_num, total_step, path):
+def save_models(CPC, Encoder, Decoder, optimizer, epoch_num, total_step, path):
     state_dict = {
         'Encoder_parameters': Encoder.state_dict(),
         'CPC_parameters': CPC.state_dict(),
-        'Text_ar_lstm_parameters': Text_ar_lstm.state_dict(),
-        'Video_ar_lstm_parameters': Video_ar_lstm.state_dict(),
-        'Audio_ar_lstm_parameters': Audio_ar_lstm.state_dict(),
+        # 'Text_ar_lstm_parameters': Text_ar_lstm.state_dict(),
+        # 'Video_ar_lstm_parameters': Video_ar_lstm.state_dict(),
+        # 'Audio_ar_lstm_parameters': Audio_ar_lstm.state_dict(),
         'Decoder_parameters': Decoder.state_dict(),
         'optimizer': optimizer.state_dict(),
         'epoch': epoch_num,
@@ -205,7 +209,7 @@ def save_models(CPC, Encoder, Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decode
 
 
 
-def train_epoch(CPC,Encoder,Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder,train_dataloader, optimizer, epoch, total_step, args):
+def train_epoch(CPC,Encoder, Decoder,train_dataloader, optimizer, epoch, total_step, args):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -227,13 +231,14 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder,
 
 
     end_time = time.time()
-    models = [CPC,Encoder,Text_ar_lstm,Video_ar_lstm, Audio_ar_lstm,Decoder]
+    # models = [CPC,Encoder,Text_ar_lstm,Video_ar_lstm, Audio_ar_lstm,Decoder]
+    models = [CPC, Encoder, Decoder]
     to_train(models)
 
     Encoder.cuda()
-    Text_ar_lstm.cuda()
-    Video_ar_lstm.cuda()
-    Audio_ar_lstm.cuda()
+    # Text_ar_lstm.cuda()
+    # Video_ar_lstm.cuda()
+    # Audio_ar_lstm.cuda()
     Decoder.cuda()
     CPC.cuda()
     optimizer.zero_grad()
@@ -255,13 +260,14 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder,
 
         data_time.update(time.time() - end_time)
         '''Feed input to model'''
-        # vggsound_AVT
-        text_feature_raw, audio_feature_raw, video_feature_raw = batch_data['text_fea'], batch_data['audio_fea'], batch_data['video_fea']
-        text_feature_raw = text_feature_raw.double().cuda()
-        video_feature_raw = video_feature_raw.double().cuda()
-        audio_feature_raw = audio_feature_raw.double().cuda()
+        # text_feature_raw, audio_feature_raw, video_feature_raw = batch_data['text_fea'], batch_data['audio_fea'], batch_data['video_fea']
+        # text_feature_raw = text_feature_raw.double().cuda()
+        # video_feature_raw = video_feature_raw.double().cuda()
+        # audio_feature_raw = audio_feature_raw.double().cuda()
 
-        batch_dim = text_feature_raw.size()[0]
+        text_feature, audio_feature, video_feature = batch_data['text_fea'], batch_data['audio_fea'], batch_data['video_fea']
+
+        batch_dim = text_feature.size()[0]
         # hidden_dim = 128
         # num_layers = 2
         # text_hidden = (torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda(),
@@ -276,9 +282,9 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder,
         #           torch.zeros(2*num_layers, batch_dim, hidden_dim).double().cuda())
         # audio_feature, audio_hidden = Audio_ar_lstm(audio_feature_raw, audio_hidden)
 
-        text_feature = text_feature_raw
-        audio_feature = audio_feature_raw
-        video_feature = video_feature_raw
+        # text_feature = text_feature_raw
+        # audio_feature = audio_feature_raw
+        # video_feature = video_feature_raw
 
         text_feature = text_feature.cuda().to(torch.float64)
         audio_feature = audio_feature.cuda().to(torch.float64)
@@ -351,7 +357,7 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder,
                 logger.info(f"Embedding stats - mean: {quantizer.embedding.mean()}, std: {quantizer.embedding.std()}, min: {quantizer.embedding.min()}, max: {quantizer.embedding.max()}")
 
         accuracy1, accuracy2, accuracy3, accuracy4, accuracy5, accuracy6, accuracy7, accuracy8, accuracy9, cpc_loss, \
-        audio_recon_loss, video_recon_loss, text_recon_loss \
+        audio_recon_loss, video_recon_loss, text_recon_loss, audio_score, video_score, text_score, combined_score \
         = mi_first_forward(CPC, audio_feature, video_feature, text_feature, Decoder,epoch,
                         audio_encoder_result, audio_semantic_result, video_encoder_result, video_semantic_result,
                         text_encoder_result, text_semantic_result,
@@ -396,15 +402,15 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder,
         
         # Update epoch loss meters
         batch_size = audio_feature.size(0)
-        epoch_total_loss.update(loss.item(), batch_size)
-        epoch_audio_recon.update(audio_recon_loss.item(), batch_size)
-        epoch_video_recon.update(video_recon_loss.item(), batch_size)
-        epoch_text_recon.update(text_recon_loss.item(), batch_size)
-        epoch_audio_embed.update(audio_embedding_loss.item(), batch_size)
-        epoch_video_embed.update(video_embedding_loss.item(), batch_size)
-        epoch_text_embed.update(text_embedding_loss.item(), batch_size)
-        epoch_cpc_loss.update(cpc_loss.item(), batch_size)
-        epoch_cmcm_loss.update(cmcm_loss.item(), batch_size)
+        epoch_total_loss.update(loss.item(), batch_size * audio_feature.size(1))
+        epoch_audio_recon.update(audio_recon_loss.item(), batch_size * audio_feature.size(1))
+        epoch_video_recon.update(video_recon_loss.item(), batch_size * audio_feature.size(1))
+        epoch_text_recon.update(text_recon_loss.item(), batch_size * audio_feature.size(1))
+        epoch_audio_embed.update(audio_embedding_loss.item(), batch_size * audio_feature.size(1))
+        epoch_video_embed.update(video_embedding_loss.item(), batch_size * audio_feature.size(1))
+        epoch_text_embed.update(text_embedding_loss.item(), batch_size * audio_feature.size(1))
+        epoch_cpc_loss.update(cpc_loss.item(), batch_size * audio_feature.size(1))
+        epoch_cmcm_loss.update(cmcm_loss.item(), batch_size * audio_feature.size(1))
        
         loss.backward()
 
@@ -417,7 +423,7 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Video_ar_lstm, Audio_ar_lstm, Decoder,
         optimizer.step()
         optimizer.zero_grad()
 
-        losses.update(loss.item(), audio_feature.size(0) * 10)
+        losses.update(loss.item(), audio_feature.size(0) * audio_feature.size(1))
         batch_time.update(time.time() - end_time)
         end_time = time.time()
 
@@ -444,14 +450,14 @@ def mi_first_forward(CPC, audio_feature, video_feature, text_feature, Decoder,ep
     cpc_loss = CPC(audio_semantic_result, video_semantic_result, text_semantic_result)
 
 
-    audio_recon_loss, video_recon_loss, text_recon_loss \
+    audio_recon_loss, video_recon_loss, text_recon_loss, audio_score, video_score, text_score, combined_score \
         = Decoder(audio_feature, video_feature, text_feature, audio_encoder_result, video_encoder_result, text_encoder_result, out_vq_audio, audio_vq, out_vq_video, video_vq, out_vq_text, text_vq)
     
 
 
     
     return accuracy1, accuracy2, accuracy3, accuracy4, accuracy5, accuracy6, accuracy7, accuracy8, accuracy9, cpc_loss,\
-           audio_recon_loss, video_recon_loss, text_recon_loss
+           audio_recon_loss, video_recon_loss, text_recon_loss, audio_score, video_score, text_score, combined_score
 
 
 if __name__ == '__main__':
