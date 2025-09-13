@@ -124,7 +124,7 @@ class AVT_VQVAE_Encoder(nn.Module):
         self.video_dim = video_dim
         self.audio_dim = audio_dim
         self.text_dim = text_dim
-        self.hidden_dim = 256
+        self.hidden_dim = embedding_dim
         self.Cross_quantizer = Cross_VQEmbeddingEMA_AVT_hierarchical(n_embeddings, self.hidden_dim)
         self.Video_encoder = Video_Encoder(video_dim, self.hidden_dim)
         self.Audio_encoder = Audio_Encoder(audio_dim, self.hidden_dim)
@@ -312,9 +312,9 @@ class Video_Decoder(nn.Module):
 
 '''Decoder for both uni-modal feature reconstruction. To be used for unsupervised pre-training'''
 class AVT_VQVAE_Decoder(nn.Module):
-    def __init__(self, audio_dim, video_dim, text_dim):
+    def __init__(self, audio_dim, video_dim, text_dim, embedding_dim):
         super(AVT_VQVAE_Decoder, self).__init__()
-        self.hidden_dim = 256 #embedding_dim
+        self.hidden_dim = embedding_dim #embedding_dim
         self.video_dim = video_dim
         self.audio_dim = audio_dim
         self.text_dim = text_dim
@@ -350,9 +350,9 @@ class AVT_VQVAE_Decoder(nn.Module):
 
 '''Decoder for uni-modal sentiment regression and reconstruction. To be used for supervised training for uni-modal use case'''
 class AVT_VQVAE_Decoder_modal(nn.Module):
-    def __init__(self, audio_dim, video_dim, text_dim):
+    def __init__(self, audio_dim, video_dim, text_dim, embedding_dim):
         super(AVT_VQVAE_Decoder_modal, self).__init__()
-        self.hidden_dim = 256 #embedding_dim
+        self.hidden_dim = embedding_dim #embedding_dim
         self.video_dim = video_dim
         self.audio_dim = audio_dim
         self.text_dim = text_dim
@@ -385,9 +385,9 @@ class AVT_VQVAE_Decoder_modal(nn.Module):
 
 '''Decoder for combined sentiment regression and reconstruction. To be used for supervised training for combined/multi-modal use case'''
 class AVT_VQVAE_Decoder_combined(nn.Module):
-    def __init__(self, audio_dim, video_dim, text_dim):
+    def __init__(self, audio_dim, video_dim, text_dim, embedding_dim):
         super(AVT_VQVAE_Decoder_combined, self).__init__()
-        self.hidden_dim = 256 #embedding_dim
+        self.hidden_dim = embedding_dim #embedding_dim
         self.video_dim = video_dim
         self.audio_dim = audio_dim
         self.text_dim = text_dim
@@ -696,9 +696,9 @@ class Cross_VQEmbeddingEMA_AVT_hierarchical(nn.Module):
                 new_embedding = self.embedding.clone()
 
                 '''T -> A -> V''' 
-                # new_embedding[:, 2*D:] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D]) + ((1/3) * new_embedding[:, 2*D:])    #Text = (1/3)Video + (1/3)Audio + (1/3)Text
-                # new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, 2*D:])  #Audio = (4/9)Video + (4/9)Audio + (1/9)Text
-                # new_embedding[:, :D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])     #Video = (16/27)Video + (7/27)Audio + (4/27)Text
+                new_embedding[:, 2*D:] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D]) + ((1/3) * new_embedding[:, 2*D:])    #Text = (1/3)Video + (1/3)Audio + (1/3)Text
+                new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, 2*D:])  #Audio = (4/9)Video + (4/9)Audio + (1/9)Text
+                new_embedding[:, :D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])     #Video = (16/27)Video + (7/27)Audio + (4/27)Text
 
                 '''T -> V -> A''' 
                 # new_embedding[:, 2*D:] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D]) + ((1/3) * new_embedding[:, 2*D:])    #Text = (1/3)Video + (1/3)Audio + (1/3)Text
@@ -706,9 +706,9 @@ class Cross_VQEmbeddingEMA_AVT_hierarchical(nn.Module):
                 # new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])     #Video = (16/27)Video + (7/27)Audio + (4/27)Text
 
                 '''V -> A -> T'''
-                new_embedding[:, :D] =  ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])
-                new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])
-                new_embedding[:, 2*D:] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D]) + ((1/3) * new_embedding[:, 2*D:])
+                # new_embedding[:, :D] =  ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])
+                # new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])
+                # new_embedding[:, 2*D:] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D]) + ((1/3) * new_embedding[:, 2*D:])
 
                 '''A -> V -> T'''
                 # new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])
@@ -774,7 +774,7 @@ class Cross_VQEmbeddingEMA_AVT_hierarchical(nn.Module):
             activated_indices = []
             unactivated_indices = []
             for i, x in enumerate(self.unactivated_count):
-                if x > 160:  # Dead for too long
+                if x > 300:  # Dead for too long
                     unactivated_indices.append(i)
                     self.unactivated_count[i] = 0
                 elif x >= 0 and x < 100:  # Recently active

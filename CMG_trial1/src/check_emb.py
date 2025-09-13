@@ -24,7 +24,7 @@ def visualize_codebook_embeddings(checkpoint_path, output_dir, top_k=25):
     text_dim = 300
     audio_dim = 74
     text_lstm_dim = 128
-    n_embeddings = 400
+    n_embeddings = 256
     embedding_dim = 256
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -32,8 +32,8 @@ def visualize_codebook_embeddings(checkpoint_path, output_dir, top_k=25):
     
     # Initialize and load model
     print("Loading model...")
-    # Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, n_embeddings, embedding_dim)
-    Encoder = AVT_VQVAE_Encoder(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2, n_embeddings, embedding_dim)
+    Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_dim, n_embeddings, embedding_dim)
+    # Encoder = AVT_VQVAE_Encoder(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2, n_embeddings, embedding_dim)
     Encoder.double()
     Encoder.to(device)
     
@@ -280,7 +280,7 @@ def visualize_codebook_embeddings(checkpoint_path, output_dir, top_k=25):
 def main():
     parser = argparse.ArgumentParser(description='Visualize VQ-VAE codebook embeddings')
     parser.add_argument('--checkpoint', type=str, 
-                       default="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models/supervised_class/checkpoint/MOSEI-model-9.pt",
+                       default="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models2/256codebook_Norm_seq50_50_unsupervised_reg_TAV_L2_test/checkpoint_1/MOSEI-model-unsupervised-10.pt",
                        help='Path to model checkpoint')
     parser.add_argument('--output_dir', type=str, 
                        default="/project/ag-jafra/Souptik/CMG_New/Experiments/Misc/visualizations",

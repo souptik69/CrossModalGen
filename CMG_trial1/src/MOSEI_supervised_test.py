@@ -187,14 +187,14 @@ def main():
     else:
         raise NotImplementedError
 
-    train_dataloader, val_loader, test_dataloader = get_mosei_supervised_dataloaders(batch_size=args.batch_size, max_seq_len=50, num_workers=8)
+    train_dataloader, val_loader, test_dataloader = get_mosei_supervised_dataloaders(batch_size=args.batch_size, max_seq_len=20, num_workers=8)
 
     '''model setting'''
     video_dim = 35
     text_dim = 300
     audio_dim = 74
     # text_lstm_dim = 128
-    n_embeddings = 400
+    n_embeddings = 256
     embedding_dim = 256
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -209,7 +209,7 @@ def main():
 
     # Decoder = AVT_VQVAE_Decoder(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2)
     Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_dim, n_embeddings, embedding_dim)
-    Decoder = AVT_VQVAE_Decoder(audio_dim, video_dim, text_dim)
+    Decoder = AVT_VQVAE_Decoder(audio_dim, video_dim, text_dim, embedding_dim)
 
     # Text_ar_lstm.double()
     # Video_ar_lstm.double()
@@ -225,7 +225,7 @@ def main():
     Decoder.to(device)
 
     # Load supervised pretrained model
-    path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models2/2_LSTM_seq50_50_supervised_reg_TAV_L1/checkpoint_1/MOSEI-model-supervised-unimodal-27.pt"
+    path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models2/256codebook_Norm_seq50_20_supervised_reg_TAV_L2_test/checkpoint_1/MOSEI-model-supervised-unimodal-combined-13.pt"
     logger.info(f"Loading supervised model from: {path_checkpoints}")
     checkpoints = torch.load(path_checkpoints)
     Encoder.load_state_dict(checkpoints['Encoder_parameters'])

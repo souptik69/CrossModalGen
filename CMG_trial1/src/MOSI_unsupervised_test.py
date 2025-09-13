@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import StepLR, MultiStepLR
 import numpy as np
 from configs.opts import parser
-from model.main_model_mosei import AVT_VQVAE_Encoder, Sentiment_Decoder_Combined, Sentiment_Decoder, ScaledSentimentDecoder_Combined, ScaledSentimentDecoder
+from model.main_model_mosei import AVT_VQVAE_Encoder, Sentiment_Decoder_Combined, Sentiment_Decoder
 from utils import AverageMeter, Prepare_logger, get_and_save_args
 from utils.container import metricsContainer
 import torch.nn.functional as F
@@ -193,15 +193,15 @@ def main():
         raise NotImplementedError
     
     if args.dataset_name == 'mosi':
-        train_dataloader, val_loader, test_dataloader = get_mosi_dataloaders(batch_size=args.batch_size, max_seq_len=50, num_workers=8)
+        train_dataloader, val_loader, test_dataloader = get_mosi_dataloaders(batch_size=args.batch_size, max_seq_len=20, num_workers=8)
     elif args.dataset_name == 'mosei':
-        unsupervised_dataloader, train_dataloader, test_dataloader = get_mosei_unsupervised_split_dataloaders(batch_size=args.batch_size, max_seq_len=50, num_workers=8)
+        unsupervised_dataloader, train_dataloader, test_dataloader = get_mosei_unsupervised_split_dataloaders(batch_size=args.batch_size, max_seq_len=20, num_workers=8)
     '''model setting'''
     video_dim = 35
     text_dim = 300
     audio_dim = 74
     # text_lstm_dim = 128
-    n_embeddings = 400
+    n_embeddings = 256
     embedding_dim = 256
     start_epoch = -1
     model_resume = True
@@ -237,12 +237,12 @@ def main():
     scheduler = MultiStepLR(optimizer, milestones=[20, 40, 60], gamma=0.5)
 
     '''loss'''
-    # criterion_sentiment = nn.MSELoss().cuda()
-    criterion_sentiment = nn.L1Loss().cuda()
+    criterion_sentiment = nn.MSELoss().cuda()
+    # criterion_sentiment = nn.L1Loss().cuda()
 
     if model_resume is True:
         # Load unsupervised pretrained model
-        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models2/1_NoLSTM_seq50_50_unsupervised_reg_TAV/checkpoint/MOSEI-model-unsupervised-11.pt"
+        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models2/256codebook_Norm_seq50_20_unsupervised_reg_TAV_L2_test/checkpoint_1/MOSEI-model-unsupervised-10.pt"
         logger.info(f"Loading unsupervised model from: {path_checkpoints}")
         checkpoints = torch.load(path_checkpoints)
         Encoder.load_state_dict(checkpoints['Encoder_parameters'])

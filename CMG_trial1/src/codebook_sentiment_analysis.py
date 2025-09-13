@@ -1,0 +1,1200 @@
+import torch
+import torch.nn as nn
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from collections import defaultdict, Counter
+import os
+import sys
+from datetime import datetime
+import pandas as pd
+
+# Add your project paths
+sys.path.append("/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/src/dataset")
+sys.path.append("/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/src")
+
+from dataset.MOSEI_MOSI import get_mosei_supervised_dataloaders, get_mosi_dataloaders
+from model.main_model_mosei import AVT_VQVAE_Encoder
+
+def print_analysis_progress(message):
+    """Helper function for logging analysis progress"""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[{timestamp}] {message}")
+
+def discretize_sentiment_labels(labels, num_bins=7):
+    """
+    Discretize continuous sentiment labels into bins for sampling.
+    
+    Args:
+        labels: Tensor of continuous sentiment labels
+        num_bins: Number of discrete bins to create
+    
+    Returns:
+        discrete_labels: Discretized labels
+        bin_edges: The edges used for binning
+        label_mapping: Mapping from discrete labels to sentiment ranges
+    """
+    # Convert to numpy if tensor
+    if isinstance(labels, torch.Tensor):
+        labels_np = labels.numpy()
+    else:
+        labels_np = labels
+    
+    # Create bins from min to max label values
+    min_label = np.min(labels_np)
+    max_label = np.max(labels_np)
+    bin_edges = np.linspace(min_label, max_label, num_bins + 1)
+    
+    # Discretize labels
+    discrete_labels = np.digitize(labels_np, bin_edges[1:-1])  # Exclude the last edge for digitize
+    
+    # Create label mapping for interpretation
+    label_mapping = {}
+    for i in range(num_bins):
+        label_mapping[i] = f"[{bin_edges[i]:.2f}, {bin_edges[i+1]:.2f})"
+    
+    return discrete_labels, bin_edges, label_mapping
+
+def sample_by_sentiment_labels(dataloader, dataset_name, samples_per_label=2, num_bins=7):
+    """
+    Sample data points from different sentiment label bins.
+    
+    Args:
+        dataloader: PyTorch DataLoader
+        dataset_name: Name of the dataset (for identification)
+        samples_per_label: Number of samples to collect per sentiment bin
+        num_bins: Number of sentiment bins to create
+    
+    Returns:
+        sampled_data: Dictionary containing sampled data organized by sentiment bins
+    """
+    print_analysis_progress(f"Sampling data from {dataset_name} dataset...")
+    
+    # First pass: collect all labels to determine bins
+    all_labels = []
+    all_samples = []
+    
+    for batch_idx, batch_data in enumerate(dataloader):
+        audio_feature = batch_data['audio_fea']
+        video_feature = batch_data['video_fea'] 
+        text_feature = batch_data['text_fea']
+        labels = batch_data['labels']
+        video_ids = batch_data['video_ids']
+        
+        batch_size = audio_feature.shape[0]
+        for i in range(batch_size):
+            sample = {
+                'audio': audio_feature[i].numpy(),
+                'video': video_feature[i].numpy(), 
+                'text': text_feature[i].numpy(),
+                'label': labels[i].numpy(),
+                'video_id': video_ids[i],
+                'global_idx': len(all_samples)  # Unique global index
+            }
+            all_samples.append(sample)
+            all_labels.append(labels[i].item())
+    
+    print_analysis_progress(f"Collected {len(all_samples)} total samples from {dataset_name}")
+    
+    # Discretize labels
+    all_labels = np.array(all_labels)
+    discrete_labels, bin_edges, label_mapping = discretize_sentiment_labels(all_labels, num_bins)
+    
+    print_analysis_progress(f"Created {num_bins} sentiment bins:")
+    for bin_id, range_str in label_mapping.items():
+        count = np.sum(discrete_labels == bin_id)
+        print_analysis_progress(f"  Bin {bin_id}: {range_str} - {count} samples")
+    
+    # Sample from each bin
+    sampled_data = {
+        'samples': {},
+        'bin_info': {
+            'bin_edges': bin_edges,
+            'label_mapping': label_mapping,
+            'dataset_name': dataset_name
+        }
+    }
+    
+    for bin_id in range(num_bins):
+        bin_indices = np.where(discrete_labels == bin_id)[0]
+        if len(bin_indices) >= samples_per_label:
+            # Randomly sample from this bin
+            selected_indices = np.random.choice(bin_indices, samples_per_label, replace=False)
+        else:
+            # Take all available samples if not enough
+            selected_indices = bin_indices
+            print_analysis_progress(f"Warning: Only {len(bin_indices)} samples available for bin {bin_id}, taking all")
+        
+        sampled_data['samples'][bin_id] = []
+        for idx in selected_indices:
+            sample = all_samples[idx].copy()
+            sample['bin_id'] = bin_id
+            sample['bin_range'] = label_mapping[bin_id]
+            sampled_data['samples'][bin_id].append(sample)
+    
+    return sampled_data
+
+def print_sample_diagnostics(sample, sample_idx, bin_id, bin_range, dataset_name):
+    """
+    Print comprehensive diagnostics for a single sample.
+    
+    Args:
+        sample: Dictionary containing audio, video, text features
+        sample_idx: Unique identifier for the sample
+        bin_id: Sentiment bin ID
+        bin_range: Sentiment range string
+        dataset_name: Name of the dataset
+    """
+    print_analysis_progress(f"\n{'='*80}")
+    print_analysis_progress(f"SAMPLE DIAGNOSTICS - {dataset_name}")
+    print_analysis_progress(f"Sample Index: {sample_idx}")
+    print_analysis_progress(f"Video ID: {sample['video_id']}")
+    print_analysis_progress(f"Sentiment Bin: {bin_id} ({bin_range})")
+    print_analysis_progress(f"Actual Label: {sample['label'].item():.4f}")
+    print_analysis_progress(f"{'='*80}")
+    
+    # Analyze each modality
+    modalities = [
+        ('AUDIO', sample['audio'], 74),
+        ('VIDEO', sample['video'], 35), 
+        ('TEXT', sample['text'], 300)
+    ]
+    
+    for mod_name, features, expected_dim in modalities:
+        print_analysis_progress(f"\n--- {mod_name} FEATURE ANALYSIS ---")
+        print_analysis_progress(f"Shape: {features.shape}")
+        print_analysis_progress(f"Expected dimensions: [sequence_length, {expected_dim}]")
+        print_analysis_progress(f"Data type: {features.dtype}")
+        print_analysis_progress(f"Min value: {np.min(features):.6f}")
+        print_analysis_progress(f"Max value: {np.max(features):.6f}")
+        print_analysis_progress(f"Mean: {np.mean(features):.6f}")
+        print_analysis_progress(f"Std: {np.std(features):.6f}")
+        
+        # Check for NaN or Inf values
+        nan_count = np.sum(np.isnan(features))
+        inf_count = np.sum(np.isinf(features))
+        print_analysis_progress(f"NaN values: {nan_count}")
+        print_analysis_progress(f"Inf values: {inf_count}")
+        
+        # Find the actual sequence length (non-zero frames)
+        seq_len = features.shape[0]
+        non_zero_frames = []
+        for t in range(seq_len):
+            if not np.allclose(features[t], 0, atol=1e-7):
+                non_zero_frames.append(t)
+        
+        actual_seq_len = len(non_zero_frames)
+        print_analysis_progress(f"Actual sequence length (non-zero frames): {actual_seq_len}/{seq_len}")
+        
+        if actual_seq_len > 0:
+            # Show first timestep
+            first_idx = non_zero_frames[0]
+            print_analysis_progress(f"First timestep (t={first_idx}) values (first 10): {features[first_idx, :10]}")
+            
+            # Show middle timestep if available
+            if actual_seq_len > 1:
+                mid_idx = non_zero_frames[actual_seq_len // 2]
+                print_analysis_progress(f"Middle timestep (t={mid_idx}) values (first 10): {features[mid_idx, :10]}")
+            
+            # Show last timestep if different from first
+            if actual_seq_len > 2:
+                last_idx = non_zero_frames[-1]
+                print_analysis_progress(f"Last timestep (t={last_idx}) values (first 10): {features[last_idx, :10]}")
+        
+        print_analysis_progress(f"--- END {mod_name} ANALYSIS ---")
+
+def load_pretrained_encoder(checkpoint_path, model_config):
+    """
+    Load a pretrained encoder from checkpoint.
+    
+    Args:
+        checkpoint_path: Path to the model checkpoint
+        model_config: Dictionary containing model configuration
+    
+    Returns:
+        encoder: Loaded encoder model
+    """
+    print_analysis_progress(f"Loading pretrained encoder from: {checkpoint_path}")
+    
+    # Initialize encoder with the same configuration used during training
+    encoder = AVT_VQVAE_Encoder(
+        audio_dim=model_config['audio_dim'],
+        video_dim=model_config['video_dim'],
+        text_dim=model_config['text_dim'],
+        n_embeddings=model_config['n_embeddings'],
+        embedding_dim=model_config['embedding_dim']
+    )
+    
+    # Load checkpoint
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    checkpoint = torch.load(checkpoint_path, map_location=device)
+    
+    encoder.load_state_dict(checkpoint['Encoder_parameters'])
+    encoder = encoder.double().to(device)
+    encoder.eval()  # Set to evaluation mode
+    
+    print_analysis_progress(f"Encoder loaded successfully on {device}")
+    return encoder
+
+def analyze_sample_quantization(encoder, sample, sample_idx, bin_id, bin_range, dataset_name):
+    """
+    Analyze how a single sample gets quantized by the VQ-VAE encoder.
+    
+    Args:
+        encoder: Pretrained encoder model
+        sample: Sample data dictionary
+        sample_idx: Unique sample identifier
+        bin_id: Sentiment bin ID
+        bin_range: Sentiment range string
+        dataset_name: Dataset name
+    
+    Returns:
+        analysis_results: Dictionary containing detailed quantization analysis
+    """
+    print_analysis_progress(f"\n{'='*100}")
+    print_analysis_progress(f"QUANTIZATION ANALYSIS - {dataset_name} Sample {sample_idx}")
+    print_analysis_progress(f"Sentiment Bin: {bin_id} ({bin_range}), Label: {sample['label'].item():.4f}")
+    print_analysis_progress(f"{'='*100}")
+    
+    device = next(encoder.parameters()).device
+    
+    # Prepare input tensors (add batch dimension)
+    audio_feat = torch.from_numpy(sample['audio']).unsqueeze(0).double().to(device)  # [1, seq_len, 74]
+    video_feat = torch.from_numpy(sample['video']).unsqueeze(0).double().to(device)  # [1, seq_len, 35]  
+    text_feat = torch.from_numpy(sample['text']).unsqueeze(0).double().to(device)   # [1, seq_len, 300]
+    
+    with torch.no_grad():
+        # STEP 1: Get semantic representations through full encoder forward pass
+        # This captures the output of temporal attention modules before quantization
+        print_analysis_progress("  Step 1: Extracting semantic representations from temporal attention modules...")
+        original_training_state = encoder.training
+        encoder.train()
+        (audio_semantic_result, audio_encoder_result, video_semantic_result, video_encoder_result,
+         text_semantic_result, text_encoder_result, _, _, _, _,
+         _, _, video_embedding_loss, audio_embedding_loss, text_embedding_loss,
+         video_perplexity, audio_perplexity, text_perplexity, equal_num, cmcm_loss, _) = encoder(
+            audio_feat, video_feat, text_feat, epoch=0  # epoch doesn't matter for inference
+        )
+        
+        # STEP 2: Get quantized representations using individual VQ encoders
+        # This shows exactly how semantic vectors get mapped to codebook indices
+        encoder.train(original_training_state)
+        print_analysis_progress("  Step 2: Performing quantization using individual VQ encoders...")
+
+        encoder.eval()
+        
+        # Use individual VQ encoder methods for cleaner quantization analysis
+        out_vq_audio, audio_vq = encoder.Audio_VQ_Encoder(audio_feat)
+        out_vq_video, video_vq = encoder.Video_VQ_Encoder(video_feat)
+        out_vq_text, text_vq = encoder.Text_VQ_Encoder(text_feat)
+    
+    # Remove batch dimension for analysis
+    print_analysis_progress("  Step 3: Processing results for analysis...")
+    
+    # Semantic representations (output of temporal attention, before quantization)
+    audio_semantic = audio_semantic_result.squeeze(0).cpu().numpy()  # [seq_len, 256]
+    video_semantic = video_semantic_result.squeeze(0).cpu().numpy()  # [seq_len, 256]
+    text_semantic = text_semantic_result.squeeze(0).cpu().numpy()    # [seq_len, 256]
+    
+    # Quantized representations (256-dim segments from codebook)
+    audio_quantized = audio_vq.squeeze(0).cpu().numpy()  # [seq_len, 256]
+    video_quantized = video_vq.squeeze(0).cpu().numpy()  # [seq_len, 256]
+    text_quantized = text_vq.squeeze(0).cpu().numpy()   # [seq_len, 256]
+    
+    # Full codebook vectors (complete 768-dim vectors)
+    out_vq_audio_full = out_vq_audio.squeeze(0).cpu().numpy()  # [seq_len, 768]
+    out_vq_video_full = out_vq_video.squeeze(0).cpu().numpy()  # [seq_len, 768]
+    out_vq_text_full = out_vq_text.squeeze(0).cpu().numpy()   # [seq_len, 768]
+    
+    print_analysis_progress("  Semantic and quantized representations extracted successfully!")
+    
+    print_analysis_progress("\n--- SEMANTIC REPRESENTATIONS (BEFORE QUANTIZATION) ---")
+    print_analysis_progress(f"Audio semantic shape: {audio_semantic.shape}")
+    print_analysis_progress(f"Video semantic shape: {video_semantic.shape}")
+    print_analysis_progress(f"Text semantic shape: {text_semantic.shape}")
+    
+    # Show semantic representation statistics
+    for name, semantic in [("Audio", audio_semantic), ("Video", video_semantic), ("Text", text_semantic)]:
+        print_analysis_progress(f"\n{name} Semantic Statistics:")
+        print_analysis_progress(f"  Min: {np.min(semantic):.6f}, Max: {np.max(semantic):.6f}")
+        print_analysis_progress(f"  Mean: {np.mean(semantic):.6f}, Std: {np.std(semantic):.6f}")
+        
+        # Find non-zero timesteps
+        non_zero_timesteps = []
+        seq_len = semantic.shape[0]
+        for t in range(seq_len):
+            if not np.allclose(semantic[t], 0, atol=1e-7):
+                non_zero_timesteps.append(t)
+        
+        print_analysis_progress(f"  Non-zero timesteps: {len(non_zero_timesteps)}/{seq_len}")
+        if len(non_zero_timesteps) > 0:
+            print_analysis_progress(f"  First non-zero timestep (t={non_zero_timesteps[0]}) first 5 dims: {semantic[non_zero_timesteps[0], :5]}")
+            if len(non_zero_timesteps) > 1:
+                mid_idx = len(non_zero_timesteps) // 2
+                t_mid = non_zero_timesteps[mid_idx]
+                print_analysis_progress(f"  Middle non-zero timestep (t={t_mid}) first 5 dims: {semantic[t_mid, :5]}")
+            if len(non_zero_timesteps) > 2:
+                t_last = non_zero_timesteps[-1]
+                print_analysis_progress(f"  Last non-zero timestep (t={t_last}) first 5 dims: {semantic[t_last, :5]}")
+    
+    print_analysis_progress("\n--- QUANTIZATION INDEX ANALYSIS ---")
+    
+    # Get the quantizer to find which codebook indices were used
+    quantizer = encoder.Cross_quantizer
+    codebook_embedding = quantizer.embedding.detach().cpu().numpy()  # [n_embeddings, 768]
+    
+    # Analyze overall codebook usage patterns from training
+    print_analysis_progress("\n--- OVERALL CODEBOOK USAGE PATTERNS ---")
+    ema_counts = quantizer.ema_count.detach().cpu().numpy()  # [n_embeddings]
+    
+    # Find the most and least used codebook vectors
+    max_used_idx = np.argmax(ema_counts)
+    max_used_count = ema_counts[max_used_idx]
+    min_used_idx = np.argmin(ema_counts)
+    min_used_count = ema_counts[min_used_idx]
+    
+    # Calculate usage statistics
+    total_usage = np.sum(ema_counts)
+    mean_usage = np.mean(ema_counts)
+    std_usage = np.std(ema_counts)
+    median_usage = np.median(ema_counts)
+    
+    print_analysis_progress(f"Codebook Usage Statistics:")
+    print_analysis_progress(f"  Total codebook vectors: {len(ema_counts)}")
+    print_analysis_progress(f"  Total usage across all vectors: {total_usage:.2f}")
+    print_analysis_progress(f"  Mean usage per vector: {mean_usage:.2f}")
+    print_analysis_progress(f"  Median usage per vector: {median_usage:.2f}")
+    print_analysis_progress(f"  Standard deviation of usage: {std_usage:.2f}")
+    print_analysis_progress(f"  Usage coefficient of variation: {(std_usage/mean_usage)*100:.1f}%")
+    
+    print_analysis_progress(f"\nMost Used Codebook Vector:")
+    print_analysis_progress(f"  Index: {max_used_idx}")
+    print_analysis_progress(f"  Usage count: {max_used_count:.2f}")
+    print_analysis_progress(f"  Percentage of total usage: {(max_used_count/total_usage)*100:.2f}%")
+    print_analysis_progress(f"  Vector values (first 10 dims): {codebook_embedding[max_used_idx, :10]}")
+    print_analysis_progress(f"  Video segment (dims 0-4): {codebook_embedding[max_used_idx, :5]}")
+    print_analysis_progress(f"  Audio segment (dims 256-260): {codebook_embedding[max_used_idx, 256:261]}")
+    print_analysis_progress(f"  Text segment (dims 512-516): {codebook_embedding[max_used_idx, 512:517]}")
+    
+    print_analysis_progress(f"\nLeast Used Codebook Vector:")
+    print_analysis_progress(f"  Index: {min_used_idx}")
+    print_analysis_progress(f"  Usage count: {min_used_count:.2f}")
+    print_analysis_progress(f"  Percentage of total usage: {(min_used_count/total_usage)*100:.4f}%")
+    print_analysis_progress(f"  Vector values (first 10 dims): {codebook_embedding[min_used_idx, :10]}")
+    
+    # Show top 5 most used vectors
+    top_indices = np.argsort(ema_counts)[-5:][::-1]  # Top 5 in descending order
+    print_analysis_progress(f"\nTop 5 Most Used Codebook Vectors:")
+    for i, idx in enumerate(top_indices):
+        usage_pct = (ema_counts[idx]/total_usage)*100
+        print_analysis_progress(f"  Rank {i+1}: Vector {idx} (usage: {ema_counts[idx]:.2f}, {usage_pct:.2f}%)")
+    
+    # Show bottom 5 least used vectors
+    bottom_indices = np.argsort(ema_counts)[:5]  # Bottom 5 in ascending order
+    print_analysis_progress(f"\nTop 5 Least Used Codebook Vectors:")
+    for i, idx in enumerate(bottom_indices):
+        usage_pct = (ema_counts[idx]/total_usage)*100
+        print_analysis_progress(f"  Rank {i+1}: Vector {idx} (usage: {ema_counts[idx]:.2f}, {usage_pct:.4f}%)")
+    
+    # Analyze usage distribution
+    dead_vectors = np.sum(ema_counts < 0.01)  # Vectors with very low usage
+    highly_used_vectors = np.sum(ema_counts > mean_usage + 2*std_usage)  # Vectors with very high usage
+    
+    print_analysis_progress(f"\nUsage Distribution Analysis:")
+    print_analysis_progress(f"  Dead vectors (usage < 0.01): {dead_vectors} ({(dead_vectors/len(ema_counts))*100:.1f}%)")
+    print_analysis_progress(f"  Highly used vectors (usage > mean + 2σ): {highly_used_vectors} ({(highly_used_vectors/len(ema_counts))*100:.1f}%)")
+    
+    # Determine usage pattern
+    if std_usage/mean_usage > 1.0:
+        print_analysis_progress(f"  OBSERVATION: HIGH usage variance - some vectors heavily used, others rarely used")
+        print_analysis_progress(f"  → This suggests the model has found a concentrated set of preferred representations")
+    elif std_usage/mean_usage > 0.5:
+        print_analysis_progress(f"  OBSERVATION: MODERATE usage variance - somewhat uneven distribution")
+        print_analysis_progress(f"  → This suggests partial specialization in the codebook")
+    else:
+        print_analysis_progress(f"  OBSERVATION: LOW usage variance - relatively even distribution")
+        print_analysis_progress(f"  → This suggests the model uses the full codebook capacity fairly evenly")
+    
+    # Find quantization indices by computing distances for each modality
+    analysis_results = {
+        'sample_info': {
+            'sample_idx': sample_idx,
+            'video_id': sample['video_id'],
+            'bin_id': bin_id,
+            'bin_range': bin_range,
+            'label': sample['label'].item(),
+            'dataset_name': dataset_name
+        },
+        'semantic_representations': {
+            'audio': audio_semantic,
+            'video': video_semantic,
+            'text': text_semantic
+        },
+        'quantized_representations': {
+            'audio': audio_quantized,
+            'video': video_quantized, 
+            'text': text_quantized
+        },
+        'full_quantized_vectors': {
+            'audio': out_vq_audio_full,
+            'video': out_vq_video_full,
+            'text': out_vq_text_full
+        },
+        'quantization_indices': {},
+        'codebook_matches': {}
+    }
+    
+    # For each modality, find the quantization indices
+    modalities = [
+        ('audio', audio_semantic, audio_quantized, out_vq_audio_full, slice(256, 512)),  # Audio segment: dims 256-511
+        ('video', video_semantic, video_quantized, out_vq_video_full, slice(0, 256)),    # Video segment: dims 0-255
+        ('text', text_semantic, text_quantized, out_vq_text_full, slice(512, 768))      # Text segment: dims 512-767
+    ]
+    
+    for mod_name, semantic, quantized, full_vq, codebook_slice in modalities:
+        print_analysis_progress(f"\n{mod_name.upper()} Quantization Analysis:")
+        
+        # Get the relevant segment of the codebook for this modality
+        modality_codebook = codebook_embedding[:, codebook_slice]  # [n_embeddings, 256]
+        
+        seq_len = semantic.shape[0]
+        content_quantization_indices = []  # For non-zero (content) timesteps
+        padding_quantization_indices = []  # For zero (padding) timesteps
+        
+        # Classify timesteps as content vs padding based on semantic representations
+        content_timesteps = []
+        padding_timesteps = []
+        
+        for t in range(seq_len):
+            if not np.allclose(semantic[t], 0, atol=1e-7):
+                content_timesteps.append(t)
+            else:
+                padding_timesteps.append(t)
+        
+        print_analysis_progress(f"  Found {len(content_timesteps)} content timesteps and {len(padding_timesteps)} padding timesteps")
+        
+        # Analyze content timesteps (non-zero semantic representations)
+        if len(content_timesteps) > 0:
+            print_analysis_progress(f"\n  --- CONTENT TIMESTEPS ANALYSIS ---")
+            for t in content_timesteps:
+                # Find closest codebook vector by comparing the quantized result with codebook segments
+                distances = np.sum((modality_codebook - quantized[t])**2, axis=1)
+                closest_idx = np.argmin(distances)
+                content_quantization_indices.append((t, closest_idx, distances[closest_idx]))
+                
+                print_analysis_progress(f"  Timestep {t} (CONTENT): Quantized by codebook vector {closest_idx} (distance: {distances[closest_idx]:.6f})")
+                print_analysis_progress(f"    Semantic vector first 5 dims: {semantic[t, :5]}")
+                print_analysis_progress(f"    Quantized vector first 5 dims: {quantized[t, :5]}")
+                print_analysis_progress(f"    Codebook vector first 5 dims: {modality_codebook[closest_idx, :5]}")
+                print_analysis_progress(f"    Full codebook vector first 5 dims: {codebook_embedding[closest_idx, :5]}")
+        
+        # Analyze padding timesteps (zero semantic representations)  
+        if len(padding_timesteps) > 0:
+            print_analysis_progress(f"\n  --- PADDING TIMESTEPS ANALYSIS ---")
+            
+            # Collect all padding quantization indices to find patterns
+            padding_indices_used = []
+            
+            for t in padding_timesteps:
+                # Even though semantic is zero, the quantization process still assigns a codebook vector
+                distances = np.sum((modality_codebook - quantized[t])**2, axis=1)
+                closest_idx = np.argmin(distances)
+                padding_quantization_indices.append((t, closest_idx, distances[closest_idx]))
+                padding_indices_used.append(closest_idx)
+                
+                # Only show detailed info for first few padding timesteps to avoid spam
+                if len(padding_quantization_indices) <= 3:
+                    print_analysis_progress(f"  Timestep {t} (PADDING): Quantized by codebook vector {closest_idx} (distance: {distances[closest_idx]:.6f})")
+                    print_analysis_progress(f"    Semantic vector (should be ~0): {semantic[t, :5]}")
+                    print_analysis_progress(f"    Quantized vector first 5 dims: {quantized[t, :5]}")
+                    print_analysis_progress(f"    Codebook vector first 5 dims: {modality_codebook[closest_idx, :5]}")
+                    print_analysis_progress(f"    Full codebook vector first 5 dims: {codebook_embedding[closest_idx, :5]}")
+            
+            # Analyze padding patterns
+            from collections import Counter
+            padding_counter = Counter(padding_indices_used)
+            print_analysis_progress(f"\n  PADDING QUANTIZATION PATTERNS:")
+            print_analysis_progress(f"    Total padding timesteps: {len(padding_timesteps)}")
+            print_analysis_progress(f"    Unique codebook vectors used for padding: {len(padding_counter)}")
+            print_analysis_progress(f"    Most frequent padding indices: {padding_counter.most_common(5)}")
+            
+            # Calculate max used and average used codebook indices
+            if len(padding_counter) > 0:
+                # Max used codebook index (most frequent)
+                max_used_idx, max_count = padding_counter.most_common(1)[0]
+                print_analysis_progress(f"    Max used codebook index: {max_used_idx} (used {max_count} times)")
+                
+                # Average used codebook index (weighted by frequency)
+                total_usage = sum(padding_counter.values())
+                weighted_sum = sum(index * count for index, count in padding_counter.items())
+                avg_used_idx = weighted_sum / total_usage
+                print_analysis_progress(f"    Average used codebook index: {avg_used_idx:.2f} (frequency-weighted)")
+                
+                # Additional distribution statistics
+                all_indices = list(padding_counter.keys())
+                min_idx = min(all_indices)
+                max_idx = max(all_indices)
+                idx_range = max_idx - min_idx
+                print_analysis_progress(f"    Codebook index range for padding: [{min_idx}, {max_idx}] (span: {idx_range})")
+            
+            # Check if padding uses consistent vs diverse indices
+            if len(padding_counter) == 1:
+                single_idx = list(padding_counter.keys())[0]
+                print_analysis_progress(f"    OBSERVATION: All padding uses the SAME codebook vector {single_idx}")
+                print_analysis_progress(f"    → This suggests the model learned a dedicated 'padding' representation")
+            elif len(padding_counter) < len(padding_timesteps) * 0.5:
+                print_analysis_progress(f"    OBSERVATION: Padding uses a LIMITED set of codebook vectors")
+                print_analysis_progress(f"    → This suggests some specialization for padding representations")
+            else:
+                print_analysis_progress(f"    OBSERVATION: Padding uses DIVERSE codebook vectors")
+                print_analysis_progress(f"    → This suggests padding may not have specialized representations")
+        
+        # Store results separately for content and padding
+        analysis_results['quantization_indices'][mod_name] = {
+            'content': content_quantization_indices,
+            'padding': padding_quantization_indices,
+            'content_timesteps': content_timesteps,
+            'padding_timesteps': padding_timesteps
+        }
+    
+    print_analysis_progress(f"\n{'='*100}")
+    print_analysis_progress(f"COMPLETED QUANTIZATION ANALYSIS FOR SAMPLE {sample_idx}")
+    print_analysis_progress(f"{'='*100}")
+    
+    return analysis_results
+
+# def create_comprehensive_analysis_report(sampled_datasets, checkpoint_path, model_config, output_dir):
+#     """
+#     Create a comprehensive analysis report for all sampled data.
+    
+#     Args:
+#         sampled_datasets: Dictionary of sampled datasets (MOSEI and MOSI)
+#         checkpoint_path: Path to pretrained model checkpoint
+#         model_config: Model configuration dictionary
+#         output_dir: Directory to save analysis results
+#     """
+#     print_analysis_progress(f"\n{'='*120}")
+#     print_analysis_progress("COMPREHENSIVE CODEBOOK-SENTIMENT ANALYSIS")
+#     print_analysis_progress(f"{'='*120}")
+    
+#     os.makedirs(output_dir, exist_ok=True)
+    
+#     # Load pretrained encoder
+#     encoder = load_pretrained_encoder(checkpoint_path, model_config)
+    
+#     all_analyses = {}
+    
+#     for dataset_name, dataset_samples in sampled_datasets.items():
+#         print_analysis_progress(f"\n{'#'*80}")
+#         print_analysis_progress(f"ANALYZING {dataset_name.upper()} DATASET")
+#         print_analysis_progress(f"{'#'*80}")
+        
+#         bin_info = dataset_samples['bin_info']
+#         samples = dataset_samples['samples']
+        
+#         dataset_analyses = {}
+        
+#         for bin_id, bin_samples in samples.items():
+#             print_analysis_progress(f"\n--- Analyzing Sentiment Bin {bin_id}: {bin_info['label_mapping'][bin_id]} ---")
+            
+#             bin_analyses = []
+            
+#             for i, sample in enumerate(bin_samples):
+#                 print_analysis_progress(f"\nProcessing sample {i+1}/{len(bin_samples)} from bin {bin_id}...")
+                
+#                 # Print sample diagnostics
+#                 sample_idx = sample['global_idx']
+#                 print_sample_diagnostics(sample, sample_idx, bin_id, bin_info['label_mapping'][bin_id], dataset_name)
+                
+#                 # Analyze quantization
+#                 analysis = analyze_sample_quantization(
+#                     encoder, sample, sample_idx, bin_id, 
+#                     bin_info['label_mapping'][bin_id], dataset_name
+#                 )
+                
+#                 bin_analyses.append(analysis)
+            
+#             dataset_analyses[bin_id] = bin_analyses
+        
+#         all_analyses[dataset_name] = dataset_analyses
+    
+#     # Save comprehensive analysis
+#     analysis_summary_path = os.path.join(output_dir, 'codebook_sentiment_analysis_summary.txt')
+#     print_analysis_progress(f"\nSaving comprehensive analysis summary to: {analysis_summary_path}")
+    
+#     with open(analysis_summary_path, 'w') as f:
+#         f.write("COMPREHENSIVE CODEBOOK-SENTIMENT ANALYSIS SUMMARY\n")
+#         f.write("="*80 + "\n\n")
+#         f.write(f"Analysis timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+#         f.write(f"Checkpoint path: {checkpoint_path}\n")
+#         f.write(f"Model config: {model_config}\n\n")
+        
+#         for dataset_name, dataset_analyses in all_analyses.items():
+#             f.write(f"\n{dataset_name.upper()} DATASET ANALYSIS\n")
+#             f.write("-" * 50 + "\n")
+            
+#             for bin_id, bin_analyses in dataset_analyses.items():
+#                 f.write(f"\nSentiment Bin {bin_id}:\n")
+                
+#                 # Collect all quantization indices used in this bin
+#                 audio_indices = []
+#                 video_indices = []
+#                 text_indices = []
+                
+#                 for analysis in bin_analyses:
+#                     audio_indices.extend([idx for t, idx, dist in analysis['quantization_indices']['audio']])
+#                     video_indices.extend([idx for t, idx, dist in analysis['quantization_indices']['video']])
+#                     text_indices.extend([idx for t, idx, dist in analysis['quantization_indices']['text']])
+                
+#                 # Count frequency of codebook usage
+#                 audio_counter = Counter(audio_indices)
+#                 video_counter = Counter(video_indices)  
+#                 text_counter = Counter(text_indices)
+                
+#                 f.write(f"  Samples analyzed: {len(bin_analyses)}\n")
+#                 f.write(f"  Most used audio codebook vectors: {audio_counter.most_common(5)}\n")
+#                 f.write(f"  Most used video codebook vectors: {video_counter.most_common(5)}\n")
+#                 f.write(f"  Most used text codebook vectors: {text_counter.most_common(5)}\n\n")
+    
+#     print_analysis_progress(f"Analysis complete! Results saved to {output_dir}")
+#     return all_analyses
+
+def create_comprehensive_analysis_report(sampled_datasets, checkpoint_path, model_config, output_dir):
+    """
+    Create a comprehensive analysis report for all sampled data.
+    
+    Args:
+        sampled_datasets: Dictionary of sampled datasets (MOSEI and MOSI)
+        checkpoint_path: Path to pretrained model checkpoint
+        model_config: Model configuration dictionary
+        output_dir: Directory to save analysis results
+    """
+    print_analysis_progress(f"\n{'='*120}")
+    print_analysis_progress("COMPREHENSIVE CODEBOOK-SENTIMENT ANALYSIS")
+    print_analysis_progress(f"{'='*120}")
+    
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Load pretrained encoder
+    encoder = load_pretrained_encoder(checkpoint_path, model_config)
+    
+    all_analyses = {}
+    
+    for dataset_name, dataset_samples in sampled_datasets.items():
+        print_analysis_progress(f"\n{'#'*80}")
+        print_analysis_progress(f"ANALYZING {dataset_name.upper()} DATASET")
+        print_analysis_progress(f"{'#'*80}")
+        
+        bin_info = dataset_samples['bin_info']
+        samples = dataset_samples['samples']
+        
+        dataset_analyses = {}
+        
+        for bin_id, bin_samples in samples.items():
+            print_analysis_progress(f"\n--- Analyzing Sentiment Bin {bin_id}: {bin_info['label_mapping'][bin_id]} ---")
+            
+            bin_analyses = []
+            
+            for i, sample in enumerate(bin_samples):
+                print_analysis_progress(f"\nProcessing sample {i+1}/{len(bin_samples)} from bin {bin_id}...")
+                
+                # Print sample diagnostics
+                sample_idx = sample['global_idx']
+                print_sample_diagnostics(sample, sample_idx, bin_id, bin_info['label_mapping'][bin_id], dataset_name)
+                
+                # Analyze quantization
+                analysis = analyze_sample_quantization(
+                    encoder, sample, sample_idx, bin_id, 
+                    bin_info['label_mapping'][bin_id], dataset_name
+                )
+                
+                bin_analyses.append(analysis)
+            
+            dataset_analyses[bin_id] = bin_analyses
+        
+        all_analyses[dataset_name] = dataset_analyses
+    
+    # Save comprehensive analysis
+    analysis_summary_path = os.path.join(output_dir, 'codebook_sentiment_analysis_summary.txt')
+    print_analysis_progress(f"\nSaving comprehensive analysis summary to: {analysis_summary_path}")
+    
+    with open(analysis_summary_path, 'w') as f:
+        f.write("COMPREHENSIVE CODEBOOK-SENTIMENT ANALYSIS SUMMARY\n")
+        f.write("="*80 + "\n\n")
+        f.write(f"Analysis timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write(f"Checkpoint path: {checkpoint_path}\n")
+        f.write(f"Model config: {model_config}\n\n")
+        
+        for dataset_name, dataset_analyses in all_analyses.items():
+            f.write(f"\n{dataset_name.upper()} DATASET ANALYSIS\n")
+            f.write("-" * 50 + "\n")
+            
+            for bin_id, bin_analyses in dataset_analyses.items():
+                f.write(f"\nSentiment Bin {bin_id}:\n")
+                
+                # Collect all quantization indices used in this bin, separating content and padding
+                audio_content_indices = []
+                video_content_indices = []
+                text_content_indices = []
+                audio_padding_indices = []
+                video_padding_indices = []
+                text_padding_indices = []
+                
+                for analysis in bin_analyses:
+                    # Extract content indices (actual meaningful timesteps)
+                    audio_content_indices.extend([idx for t, idx, dist in analysis['quantization_indices']['audio']['content']])
+                    video_content_indices.extend([idx for t, idx, dist in analysis['quantization_indices']['video']['content']])
+                    text_content_indices.extend([idx for t, idx, dist in analysis['quantization_indices']['text']['content']])
+                    
+                    # Extract padding indices (zero timesteps)
+                    audio_padding_indices.extend([idx for t, idx, dist in analysis['quantization_indices']['audio']['padding']])
+                    video_padding_indices.extend([idx for t, idx, dist in analysis['quantization_indices']['video']['padding']])
+                    text_padding_indices.extend([idx for t, idx, dist in analysis['quantization_indices']['text']['padding']])
+                
+                # Count frequency of codebook usage for content timesteps
+                audio_content_counter = Counter(audio_content_indices)
+                video_content_counter = Counter(video_content_indices)  
+                text_content_counter = Counter(text_content_indices)
+                
+                # Count frequency of codebook usage for padding timesteps
+                audio_padding_counter = Counter(audio_padding_indices)
+                video_padding_counter = Counter(video_padding_indices)
+                text_padding_counter = Counter(text_padding_indices)
+                
+                f.write(f"  Samples analyzed: {len(bin_analyses)}\n")
+                f.write(f"  \n")
+                f.write(f"  CONTENT TIMESTEPS (meaningful data):\n")
+                f.write(f"    Most used audio codebook vectors: {audio_content_counter.most_common(5)}\n")
+                f.write(f"    Most used video codebook vectors: {video_content_counter.most_common(5)}\n")
+                f.write(f"    Most used text codebook vectors: {text_content_counter.most_common(5)}\n")
+                f.write(f"    Total content timesteps - Audio: {len(audio_content_indices)}, Video: {len(video_content_indices)}, Text: {len(text_content_indices)}\n")
+                f.write(f"  \n")
+                f.write(f"  PADDING TIMESTEPS (zero-padded frames):\n")
+                if len(audio_padding_indices) > 0:
+                    f.write(f"    Most used audio padding vectors: {audio_padding_counter.most_common(5)}\n")
+                    f.write(f"    Audio padding diversity: {len(audio_padding_counter)} unique vectors for {len(audio_padding_indices)} padding timesteps\n")
+                else:
+                    f.write(f"    No audio padding timesteps found\n")
+                    
+                if len(video_padding_indices) > 0:
+                    f.write(f"    Most used video padding vectors: {video_padding_counter.most_common(5)}\n")
+                    f.write(f"    Video padding diversity: {len(video_padding_counter)} unique vectors for {len(video_padding_indices)} padding timesteps\n")
+                else:
+                    f.write(f"    No video padding timesteps found\n")
+                    
+                if len(text_padding_indices) > 0:
+                    f.write(f"    Most used text padding vectors: {text_padding_counter.most_common(5)}\n")
+                    f.write(f"    Text padding diversity: {len(text_padding_counter)} unique vectors for {len(text_padding_indices)} padding timesteps\n")
+                else:
+                    f.write(f"    No text padding timesteps found\n")
+                
+                # Analysis of content vs padding patterns
+                f.write(f"  \n")
+                f.write(f"  CONTENT vs PADDING ANALYSIS:\n")
+                for mod_name, content_counter, padding_counter in [
+                    ('Audio', audio_content_counter, audio_padding_counter),
+                    ('Video', video_content_counter, video_padding_counter),
+                    ('Text', text_content_counter, text_padding_counter)
+                ]:
+                    if len(content_counter) > 0 and len(padding_counter) > 0:
+                        # Check if there's overlap between content and padding vectors
+                        content_vectors = set(content_counter.keys())
+                        padding_vectors = set(padding_counter.keys())
+                        overlap = content_vectors.intersection(padding_vectors)
+                        
+                        f.write(f"    {mod_name}: {len(overlap)} vectors used for both content and padding\n")
+                        if len(overlap) == 0:
+                            f.write(f"      → Perfect separation: content and padding use completely different vectors\n")
+                        elif len(overlap) < min(len(content_vectors), len(padding_vectors)) * 0.3:
+                            f.write(f"      → Good separation: minimal overlap between content and padding representations\n")
+                        else:
+                            f.write(f"      → Poor separation: significant overlap between content and padding vectors\n")
+                    elif len(padding_counter) == 0:
+                        f.write(f"    {mod_name}: No padding timesteps found (sequences may be full-length)\n")
+                    else:
+                        f.write(f"    {mod_name}: No content timesteps found (unusual - check data)\n")
+                
+                f.write(f"\n")
+    
+    print_analysis_progress(f"Analysis complete! Results saved to {output_dir}")
+    return all_analyses
+
+
+
+def replace_padding_with_inf(features, padding_value=-float('inf'), tolerance=1e-7, verbose=False):
+    """
+    Replace padded timesteps in multimodal features with a specified value (default: -inf).
+    
+    Args:
+        features: Input features - can be:
+                 - numpy array of shape [seq_len, feature_dim] 
+                 - torch tensor of shape [seq_len, feature_dim]
+                 - dictionary with keys like 'audio', 'video', 'text' containing feature arrays
+        padding_value: Value to replace padding timesteps with (default: -inf)
+        tolerance: Tolerance for identifying zero-padded timesteps (default: 1e-7)
+        verbose: Whether to print detailed information about padding replacement
+        
+    Returns:
+        features_modified: Features with padding timesteps replaced
+        padding_info: Dictionary containing information about replaced timesteps
+    """
+    import numpy as np
+    import torch
+    
+    def _process_single_modality(feat_array, modality_name=""):
+        """Process a single feature array/tensor"""
+        is_torch = isinstance(feat_array, torch.Tensor)
+        
+        # Convert to numpy for processing if needed
+        if is_torch:
+            feat_np = feat_array.detach().cpu().numpy()
+            device = feat_array.device
+            dtype = feat_array.dtype
+        else:
+            feat_np = feat_array.copy()
+        
+        seq_len, feat_dim = feat_np.shape
+        
+        # Identify padding timesteps (those with all near-zero values)
+        padding_timesteps = []
+        content_timesteps = []
+        
+        for t in range(seq_len):
+            if np.allclose(feat_np[t], 0, atol=tolerance):
+                padding_timesteps.append(t)
+            else:
+                content_timesteps.append(t)
+        
+        # Replace padding timesteps with the specified value
+        feat_modified = feat_np.copy()
+        if len(padding_timesteps) > 0:
+            for t in padding_timesteps:
+                feat_modified[t, :] = padding_value
+        
+        # Convert back to original format
+        if is_torch:
+            feat_modified = torch.from_numpy(feat_modified).to(dtype).to(device)
+        
+        # Prepare info
+        info = {
+            'original_shape': (seq_len, feat_dim),
+            'padding_timesteps': padding_timesteps,
+            'content_timesteps': content_timesteps,
+            'num_padding': len(padding_timesteps),
+            'num_content': len(content_timesteps),
+            'padding_ratio': len(padding_timesteps) / seq_len if seq_len > 0 else 0.0
+        }
+        
+        if verbose:
+            print_analysis_progress(f"{modality_name} Padding Replacement:")
+            print_analysis_progress(f"  Original shape: {(seq_len, feat_dim)}")
+            print_analysis_progress(f"  Padding timesteps: {len(padding_timesteps)}/{seq_len} ({info['padding_ratio']*100:.1f}%)")
+            print_analysis_progress(f"  Content timesteps: {len(content_timesteps)}/{seq_len}")
+            print_analysis_progress(f"  Replaced padding with: {padding_value}")
+            if len(padding_timesteps) > 0:
+                print_analysis_progress(f"  Padding timestep indices: {padding_timesteps[:10]}{'...' if len(padding_timesteps) > 10 else ''}")
+        
+        return feat_modified, info
+    
+    # Handle different input types
+    if isinstance(features, dict):
+        # Dictionary input (e.g., {'audio': array, 'video': array, 'text': array})
+        features_modified = {}
+        padding_info = {}
+        
+        for modality_name, feat_array in features.items():
+            if verbose:
+                print_analysis_progress(f"\nProcessing {modality_name.upper()} modality...")
+            
+            feat_modified, info = _process_single_modality(feat_array, modality_name.upper())
+            features_modified[modality_name] = feat_modified
+            padding_info[modality_name] = info
+    
+    else:
+        # Single array/tensor input
+        features_modified, padding_info = _process_single_modality(features, "FEATURES")
+    
+    return features_modified, padding_info
+
+
+def replace_sample_padding_with_inf(sample, padding_value=-float('inf'), tolerance=1e-7, verbose=False):
+    """
+    Replace padding timesteps with -inf for a single sample from your dataset.
+    
+    Args:
+        sample: Sample dictionary containing 'audio', 'video', 'text' keys with numpy arrays
+        padding_value: Value to replace padding timesteps with (default: -inf)
+        tolerance: Tolerance for identifying zero-padded timesteps (default: 1e-7)
+        verbose: Whether to print detailed information
+        
+    Returns:
+        sample_modified: Modified sample with padding replaced
+        padding_info: Dictionary containing padding information for each modality
+    """
+    # Extract features
+    features = {
+        'audio': sample['audio'],
+        'video': sample['video'], 
+        'text': sample['text']
+    }
+    
+    # Replace padding
+    features_modified, padding_info = replace_padding_with_inf(
+        features, padding_value=padding_value, tolerance=tolerance, verbose=verbose
+    )
+    
+    # Create modified sample
+    sample_modified = sample.copy()
+    sample_modified['audio'] = features_modified['audio']
+    sample_modified['video'] = features_modified['video']
+    sample_modified['text'] = features_modified['text']
+    
+    # Add padding info to sample
+    sample_modified['padding_info'] = padding_info
+    
+    if verbose:
+        print_analysis_progress(f"\nSample {sample['global_idx']} - Padding Replacement Summary:")
+        print_analysis_progress(f"  Video ID: {sample['video_id']}")
+        print_analysis_progress(f"  Label: {sample['label'].item():.4f}")
+        
+        total_padding = sum(info['num_padding'] for info in padding_info.values())
+        total_timesteps = sum(info['original_shape'][0] for info in padding_info.values())
+        overall_padding_ratio = total_padding / total_timesteps if total_timesteps > 0 else 0.0
+        
+        print_analysis_progress(f"  Overall padding ratio: {overall_padding_ratio*100:.1f}% ({total_padding}/{total_timesteps} timesteps)")
+    
+    return sample_modified, padding_info
+
+
+def process_sampled_datasets_with_inf_padding(sampled_datasets, padding_value=-float('inf'), tolerance=1e-7, verbose=False):
+    """
+    Process all sampled datasets to replace padding with -inf.
+    
+    Args:
+        sampled_datasets: Dictionary of sampled datasets (output from sample_by_sentiment_labels)
+        padding_value: Value to replace padding timesteps with (default: -inf)
+        tolerance: Tolerance for identifying zero-padded timesteps (default: 1e-7)
+        verbose: Whether to print detailed information
+        
+    Returns:
+        sampled_datasets_modified: Modified datasets with padding replaced
+        global_padding_stats: Global statistics about padding replacement
+    """
+    sampled_datasets_modified = {}
+    global_padding_stats = {
+        'total_samples_processed': 0,
+        'total_padding_timesteps': 0,
+        'total_content_timesteps': 0,
+        'by_dataset': {},
+        'by_modality': {'audio': {'padding': 0, 'content': 0}, 
+                       'video': {'padding': 0, 'content': 0}, 
+                       'text': {'padding': 0, 'content': 0}}
+    }
+    
+    for dataset_name, dataset_samples in sampled_datasets.items():
+        if verbose:
+            print_analysis_progress(f"\n{'='*80}")
+            print_analysis_progress(f"PROCESSING {dataset_name.upper()} DATASET FOR PADDING REPLACEMENT")
+            print_analysis_progress(f"{'='*80}")
+        
+        dataset_modified = {
+            'samples': {},
+            'bin_info': dataset_samples['bin_info']  # Keep bin info unchanged
+        }
+        
+        dataset_stats = {
+            'samples_processed': 0,
+            'padding_timesteps': 0,
+            'content_timesteps': 0,
+            'by_bin': {}
+        }
+        
+        for bin_id, bin_samples in dataset_samples['samples'].items():
+            if verbose:
+                print_analysis_progress(f"\nProcessing Sentiment Bin {bin_id}: {dataset_samples['bin_info']['label_mapping'][bin_id]}")
+            
+            bin_samples_modified = []
+            bin_stats = {'samples': 0, 'padding': 0, 'content': 0}
+            
+            for sample in bin_samples:
+                sample_modified, padding_info = replace_sample_padding_with_inf(
+                    sample, padding_value=padding_value, tolerance=tolerance, verbose=verbose
+                )
+                
+                bin_samples_modified.append(sample_modified)
+                
+                # Update statistics
+                bin_stats['samples'] += 1
+                for modality, info in padding_info.items():
+                    bin_stats['padding'] += info['num_padding']
+                    bin_stats['content'] += info['num_content']
+                    
+                    # Update global modality stats
+                    global_padding_stats['by_modality'][modality]['padding'] += info['num_padding']
+                    global_padding_stats['by_modality'][modality]['content'] += info['num_content']
+            
+            dataset_modified['samples'][bin_id] = bin_samples_modified
+            dataset_stats['by_bin'][bin_id] = bin_stats
+            dataset_stats['samples_processed'] += bin_stats['samples']
+            dataset_stats['padding_timesteps'] += bin_stats['padding']
+            dataset_stats['content_timesteps'] += bin_stats['content']
+        
+        sampled_datasets_modified[dataset_name] = dataset_modified
+        global_padding_stats['by_dataset'][dataset_name] = dataset_stats
+        global_padding_stats['total_samples_processed'] += dataset_stats['samples_processed']
+        global_padding_stats['total_padding_timesteps'] += dataset_stats['padding_timesteps']
+        global_padding_stats['total_content_timesteps'] += dataset_stats['content_timesteps']
+        
+        if verbose:
+            total_timesteps = dataset_stats['padding_timesteps'] + dataset_stats['content_timesteps']
+            padding_ratio = dataset_stats['padding_timesteps'] / total_timesteps if total_timesteps > 0 else 0.0
+            print_analysis_progress(f"\n{dataset_name} Dataset Summary:")
+            print_analysis_progress(f"  Samples processed: {dataset_stats['samples_processed']}")
+            print_analysis_progress(f"  Total timesteps: {total_timesteps}")
+            print_analysis_progress(f"  Padding timesteps: {dataset_stats['padding_timesteps']} ({padding_ratio*100:.1f}%)")
+            print_analysis_progress(f"  Content timesteps: {dataset_stats['content_timesteps']} ({(1-padding_ratio)*100:.1f}%)")
+    
+    if verbose:
+        print_analysis_progress(f"\n{'='*80}")
+        print_analysis_progress("GLOBAL PADDING REPLACEMENT SUMMARY")
+        print_analysis_progress(f"{'='*80}")
+        
+        total_global = global_padding_stats['total_padding_timesteps'] + global_padding_stats['total_content_timesteps']
+        global_padding_ratio = global_padding_stats['total_padding_timesteps'] / total_global if total_global > 0 else 0.0
+        
+        print_analysis_progress(f"Total samples processed: {global_padding_stats['total_samples_processed']}")
+        print_analysis_progress(f"Total timesteps: {total_global}")
+        print_analysis_progress(f"Total padding timesteps: {global_padding_stats['total_padding_timesteps']} ({global_padding_ratio*100:.1f}%)")
+        print_analysis_progress(f"Total content timesteps: {global_padding_stats['total_content_timesteps']} ({(1-global_padding_ratio)*100:.1f}%)")
+        
+        print_analysis_progress(f"\nBy Modality:")
+        for modality, stats in global_padding_stats['by_modality'].items():
+            mod_total = stats['padding'] + stats['content']
+            mod_padding_ratio = stats['padding'] / mod_total if mod_total > 0 else 0.0
+            print_analysis_progress(f"  {modality.upper()}: {stats['padding']}/{mod_total} padding ({mod_padding_ratio*100:.1f}%)")
+        
+        print_analysis_progress(f"Padding replacement value used: {padding_value}")
+    
+    return sampled_datasets_modified, global_padding_stats
+
+
+def main():
+    """
+    Main function to run the comprehensive codebook-sentiment analysis.
+    """
+    import argparse
+    
+    # Set up command-line argument parsing
+    parser = argparse.ArgumentParser(description='Comprehensive Codebook-Sentiment Analysis for VQ-VAE Models')
+    
+    # Model and checkpoint arguments
+    parser.add_argument('--checkpoint_path', type=str, required=True,
+                        help='Path to the pretrained model checkpoint')
+    parser.add_argument('--output_dir', type=str, required=True,
+                        help='Directory to save analysis results')
+    
+    # Analysis configuration arguments
+    parser.add_argument('--samples_per_label', type=int, default=2,
+                        help='Number of samples to collect per sentiment bin (default: 2)')
+    parser.add_argument('--num_sentiment_bins', type=int, default=7,
+                        help='Number of sentiment bins to create (default: 7)')
+    
+    # Data loading arguments
+    parser.add_argument('--batch_size', type=int, default=32,
+                        help='Batch size for data loading (default: 32)')
+    parser.add_argument('--max_seq_len', type=int, default=50,
+                        help='Maximum sequence length (default: 50)')
+    parser.add_argument('--num_workers', type=int, default=4,
+                        help='Number of data loading workers (default: 4)')
+    
+    # Model configuration arguments
+    parser.add_argument('--audio_dim', type=int, default=74,
+                        help='Audio feature dimension (default: 74)')
+    parser.add_argument('--video_dim', type=int, default=35,
+                        help='Video feature dimension (default: 35)')
+    parser.add_argument('--text_dim', type=int, default=300,
+                        help='Text feature dimension (default: 300)')
+    parser.add_argument('--n_embeddings', type=int, default=256,
+                        help='Number of codebook embeddings (default: 256)')
+    parser.add_argument('--embedding_dim', type=int, default=256,
+                        help='Embedding dimension (default: 256)')
+    
+    # Parse arguments
+    args = parser.parse_args()
+    
+    # Create model configuration dictionary
+    MODEL_CONFIG = {
+        'audio_dim': args.audio_dim,
+        'video_dim': args.video_dim,
+        'text_dim': args.text_dim,
+        'n_embeddings': args.n_embeddings,
+        'embedding_dim': args.embedding_dim
+    }
+    
+    print_analysis_progress("Starting comprehensive codebook-sentiment analysis...")
+    print_analysis_progress(f"Configuration:")
+    print_analysis_progress(f"  Checkpoint: {args.checkpoint_path}")
+    print_analysis_progress(f"  Output directory: {args.output_dir}")
+    print_analysis_progress(f"  Samples per label: {args.samples_per_label}")
+    print_analysis_progress(f"  Sentiment bins: {args.num_sentiment_bins}")
+    print_analysis_progress(f"  Model config: {MODEL_CONFIG}")
+    
+    # Validate checkpoint path
+    if not os.path.exists(args.checkpoint_path):
+        print_analysis_progress(f"ERROR: Checkpoint file not found at {args.checkpoint_path}")
+        exit(1)
+    
+    # Create output directory if it doesn't exist
+    os.makedirs(args.output_dir, exist_ok=True)
+    print_analysis_progress(f"Output directory created: {args.output_dir}")
+    
+    # Load datasets
+    print_analysis_progress("Loading MOSEI dataset...")
+    train_loader, val_loader, test_loader = get_mosei_supervised_dataloaders(
+        batch_size=args.batch_size, max_seq_len=args.max_seq_len, num_workers=args.num_workers
+    )
+    
+    print_analysis_progress("Loading MOSI dataset...")
+    mosi_train, mosi_val, mosi_test = get_mosi_dataloaders(
+        batch_size=args.batch_size, max_seq_len=args.max_seq_len, num_workers=args.num_workers
+    )
+    
+    # Sample data from different sentiment bins
+    print_analysis_progress("\nSampling data by sentiment labels...")
+    
+    mosei_samples = sample_by_sentiment_labels(
+        test_loader, "MOSEI", args.samples_per_label, args.num_sentiment_bins
+    )
+    
+    mosi_samples = sample_by_sentiment_labels(
+        mosi_test, "MOSI", args.samples_per_label, args.num_sentiment_bins
+    )
+    
+    sampled_datasets = {
+        'MOSEI': mosei_samples,
+        'MOSI': mosi_samples
+    }
+    
+    # Create comprehensive analysis
+    all_analyses = create_comprehensive_analysis_report(
+        sampled_datasets, args.checkpoint_path, MODEL_CONFIG, args.output_dir
+    )
+
+    # print_analysis_progress("\nReplacing padding timesteps with -inf...")
+    # sampled_datasets_with_inf, padding_stats = process_sampled_datasets_with_inf_padding(
+    #     sampled_datasets, 
+    #     padding_value=-float('inf'), 
+    #     tolerance=1e-7, 
+    #     verbose=True
+    # )
+    
+    # # Use the modified datasets for analysis
+    # all_analyses = create_comprehensive_analysis_report(
+    #     sampled_datasets_with_inf, args.checkpoint_path, MODEL_CONFIG, args.output_dir
+    # )
+    
+    print_analysis_progress("Analysis pipeline completed successfully!")
+    print_analysis_progress(f"Check results in: {args.output_dir}")
+
+if __name__ == "__main__":
+    main()

@@ -662,7 +662,7 @@ def test_all_dataloaders():
     
     print_progress("\n=== Testing Unsupervised MOSEI Dataset ===")
     try:
-        unsupervised_loader = get_mosei_unsupervised_dataloader(batch_size=32, max_seq_len=50)
+        unsupervised_loader = get_mosei_unsupervised_dataloader(batch_size=64, max_seq_len=50)
         for i, batch_data in enumerate(unsupervised_loader):
             audio_feature = batch_data['audio_fea']
             video_feature = batch_data['video_fea'] 
@@ -690,7 +690,7 @@ def test_all_dataloaders():
 
     print_progress("\n=== Testing MOSEI Unsupervised Split Dataset ===")
     try:
-        train_loader, test_train_loader, test_val_loader = get_mosei_unsupervised_split_dataloaders(batch_size=32, max_seq_len=50)
+        train_loader, test_train_loader, test_val_loader = get_mosei_unsupervised_split_dataloaders(batch_size=64, max_seq_len=50)
         
         # Test train split (train+val combined)
         for i, batch_data in enumerate(train_loader):
@@ -804,7 +804,7 @@ def test_all_dataloaders():
     
     print_progress("\n=== Testing MOSI Dataset ===")
     try:
-        mosi_train, mosi_val, mosi_test = get_mosi_dataloaders(batch_size=32, max_seq_len=50)
+        mosi_train, mosi_val, mosi_test = get_mosi_dataloaders(batch_size=64, max_seq_len=50)
         
         for i, batch_data in enumerate(mosi_test):
             audio_feature = batch_data['audio_fea']
