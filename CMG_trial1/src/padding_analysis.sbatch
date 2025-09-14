@@ -25,7 +25,7 @@ SRCDIR=/project/ag-jafra/Souptik/CMG_New/Experiments
 
 # Create output directories
 mkdir -p $SRCDIR/CMG_trial1/slurm/01_padding_analysis
-mkdir -p $SRCDIR/CMG_trial1/Results/padding_analysis_seqlen
+mkdir -p $SRCDIR/CMG_trial1/Results/content_length_analysis
 
 # Source bashrc and activate conda environment
 source ~/.bashrc
@@ -45,7 +45,7 @@ python -u comprehensive_padding_analysis.py
 echo ""
 echo "========================================="
 echo "Padding analysis completed!"
-echo "Results saved to: $SRCDIR/CMG_trial1/Results/padding_analysis_seqlen/"
+echo "Results saved to: $SRCDIR/CMG_trial1/Results/content_length_analysis/"
 echo "Check the following files for results:"
 echo "  - padding_analysis_summary.csv (main statistics)"
 echo "  - padding_analysis_detailed_report.txt (detailed report)"  

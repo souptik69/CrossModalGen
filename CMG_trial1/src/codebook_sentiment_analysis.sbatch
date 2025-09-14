@@ -3,21 +3,12 @@
 #SBATCH --job-name=Codebook_Sentiment_Analysis
 #SBATCH --partition=leinegpu
 #SBATCH --nodes=1
-#SBATCH --gres=gpu:a100-40g:1
+#SBATCH --gres=gpu:a100-80g:1
 #SBATCH --time=15:00:00
 #SBATCH --output=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/0_Check_Codebook_Index_1/codebook_sentiment_%j.out
 #SBATCH --error=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/0_Check_Codebook_Index_1/codebook_sentiment_%j.err
 
-# =============================================================================
-# SLURM JOB CONFIGURATION EXPLANATION:
-# 
-# --job-name: Identifies this job in the queue and log files
-# --partition: Specifies the GPU partition for computational resources
-# --nodes: Single node sufficient since we're analyzing samples, not training
-# --gres: GPU allocation - A100 provides ample memory for model inference
-# --time: 15 hours allows for thorough analysis of multiple sentiment bins
-# --output/--error: Separate logs help distinguish normal output from errors
-# =============================================================================
+
 
 # Create necessary directories for organized output management
 SRCDIR=/project/ag-jafra/Souptik/CMG_New/Experiments
@@ -51,8 +42,8 @@ echo "==========================================="
 # OPTION 1: Supervised Model Analysis (DEFAULT)
 # This model was trained with sentiment labels and should show clear
 # quantization patterns that correlate with emotional content
-CHECKPOINT_PATH="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models2/256codebook_Norm_seq10_10_supervised_reg_TAV_L2_test/checkpoint_1/MOSEI-model-supervised-unimodal-combined-12.pt"
-ANALYSIS_TYPE="supervised_10seq"
+CHECKPOINT_PATH="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models_3/128dim_256_Dynamic_Padding_reg_50_MOSEI_unsupervised_TAV_L2/checkpoint_1/MOSEI-model-unsupervised-26.pt"
+ANALYSIS_TYPE="128dim_256_Dynamic_Padding_reg_50_MOSEI_unsupervised_TAV_L2"
 
 # OPTION 2: Unsupervised Model Analysis (UNCOMMENT TO USE)
 # This model learned representations without explicit sentiment supervision
@@ -82,7 +73,7 @@ OUTPUT_DIR="/project/ag-jafra/Souptik/CMG_New/Experiments/Misc/codebook_sentimen
 SAMPLES_PER_LABEL=5        # More samples per bin provide better statistical validity
 NUM_SENTIMENT_BINS=7       # Seven bins capture the full emotional spectrum well
 BATCH_SIZE=16             # Smaller batches during analysis reduce memory pressure
-MAX_SEQ_LEN=10           # Matches training configuration for consistency
+MAX_SEQ_LEN=50           # Matches training configuration for consistency
 NUM_WORKERS=8            # Fewer workers during analysis prevent resource conflicts
 
 # Model architecture parameters that must match training configuration exactly
@@ -90,8 +81,10 @@ NUM_WORKERS=8            # Fewer workers during analysis prevent resource confli
 AUDIO_DIM=74             # Standard audio feature dimension for MOSEI/MOSI
 VIDEO_DIM=35             # Standard video feature dimension for MOSEI/MOSI  
 TEXT_DIM=300             # Standard text embedding dimension for MOSEI/MOSI
-N_EMBEDDINGS=256         # Codebook size that determines quantization granularity
+N_EMBEDDINGS=400         # Codebook size that determines quantization granularity
 EMBEDDING_DIM=256        # Dimension of individual semantic representations
+
+
 
 echo "Starting comprehensive codebook-sentiment analysis..."
 echo "Configuration Summary:"

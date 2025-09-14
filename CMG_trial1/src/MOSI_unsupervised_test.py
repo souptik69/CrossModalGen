@@ -193,16 +193,16 @@ def main():
         raise NotImplementedError
     
     if args.dataset_name == 'mosi':
-        train_dataloader, val_loader, test_dataloader = get_mosi_dataloaders(batch_size=args.batch_size, max_seq_len=20, num_workers=8)
+        train_dataloader, val_loader, test_dataloader = get_mosi_dataloaders(batch_size=args.batch_size, max_seq_len=50, num_workers=8)
     elif args.dataset_name == 'mosei':
-        unsupervised_dataloader, train_dataloader, test_dataloader = get_mosei_unsupervised_split_dataloaders(batch_size=args.batch_size, max_seq_len=20, num_workers=8)
+        unsupervised_dataloader, train_dataloader, test_dataloader = get_mosei_unsupervised_split_dataloaders(batch_size=args.batch_size, max_seq_len=50, num_workers=8)
     '''model setting'''
     video_dim = 35
     text_dim = 300
     audio_dim = 74
     # text_lstm_dim = 128
     n_embeddings = 256
-    embedding_dim = 256
+    embedding_dim = 128
     start_epoch = -1
     model_resume = True
     total_step = 0
@@ -242,7 +242,7 @@ def main():
 
     if model_resume is True:
         # Load unsupervised pretrained model
-        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models2/256codebook_Norm_seq50_20_unsupervised_reg_TAV_L2_test/checkpoint_1/MOSEI-model-unsupervised-10.pt"
+        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models_3/128dim_256_Dynamic_Padding_reg_50_MOSEI_unsupervised_TAV_L2/checkpoint_1/MOSEI-model-unsupervised-26.pt"
         logger.info(f"Loading unsupervised model from: {path_checkpoints}")
         checkpoints = torch.load(path_checkpoints)
         Encoder.load_state_dict(checkpoints['Encoder_parameters'])
@@ -550,7 +550,7 @@ def validate_epoch(Encoder, Decoder, test_dataloader, criterion_sentiment, epoch
                 all_preds_cross2.append(video_score)
 
         all_labels.append(labels)
-        losses.update(loss.item(), batch_dim * 50)
+        losses.update(loss.item(), batch_dim * audio_feature.size(1))
         batch_time.update(time.time() - end_time)
         end_time = time.time()
 

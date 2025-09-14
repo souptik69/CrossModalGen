@@ -1078,6 +1078,446 @@ def process_sampled_datasets_with_inf_padding(sampled_datasets, padding_value=-f
     return sampled_datasets_modified, global_padding_stats
 
 
+
+def create_codebook_sentiment_visualizations(sampled_datasets, checkpoint_path, model_config, output_dir):
+    """
+    Create visualizations showing how codebook indices are distributed across sentiment bins.
+    
+    Args:
+        sampled_datasets: Dictionary of sampled datasets (MOSEI and MOSI)
+        checkpoint_path: Path to pretrained model checkpoint
+        model_config: Model configuration dictionary
+        output_dir: Directory to save visualization results
+    """
+    print_analysis_progress(f"\n{'='*120}")
+    print_analysis_progress("CREATING CODEBOOK-SENTIMENT VISUALIZATIONS")
+    print_analysis_progress(f"{'='*120}")
+    
+    # Create visualization subdirectory
+    viz_dir = os.path.join(output_dir, 'visualizations')
+    os.makedirs(viz_dir, exist_ok=True)
+    
+    # Load pretrained encoder
+    encoder = load_pretrained_encoder(checkpoint_path, model_config)
+    
+    # Set up plot style
+    plt.style.use('default')
+    sns.set_palette("husl")
+    
+    # Collect all quantization data
+    all_data = {}
+    
+    for dataset_name, dataset_samples in sampled_datasets.items():
+        print_analysis_progress(f"\nProcessing {dataset_name} for visualization...")
+        
+        bin_info = dataset_samples['bin_info']
+        samples = dataset_samples['samples']
+        
+        dataset_data = {
+            'content_indices': {'audio': {}, 'video': {}, 'text': {}},
+            'padding_indices': {'audio': {}, 'video': {}, 'text': {}},
+            'sentiment_labels': {},
+            'bin_info': bin_info
+        }
+        
+        for bin_id, bin_samples in samples.items():
+            # Initialize storage for this bin
+            for modality in ['audio', 'video', 'text']:
+                dataset_data['content_indices'][modality][bin_id] = []
+                dataset_data['padding_indices'][modality][bin_id] = []
+            dataset_data['sentiment_labels'][bin_id] = []
+            
+            for sample in bin_samples:
+                # Analyze quantization for this sample
+                analysis = analyze_sample_quantization(
+                    encoder, sample, sample['global_idx'], bin_id, 
+                    bin_info['label_mapping'][bin_id], dataset_name
+                )
+                
+                # Extract indices for each modality
+                for modality in ['audio', 'video', 'text']:
+                    content_indices = [idx for t, idx, dist in analysis['quantization_indices'][modality]['content']]
+                    padding_indices = [idx for t, idx, dist in analysis['quantization_indices'][modality]['padding']]
+                    
+                    dataset_data['content_indices'][modality][bin_id].extend(content_indices)
+                    dataset_data['padding_indices'][modality][bin_id].extend(padding_indices)
+                
+                dataset_data['sentiment_labels'][bin_id].append(sample['label'].item())
+        
+        all_data[dataset_name] = dataset_data
+    
+    # Create visualizations
+    print_analysis_progress("Creating visualizations...")
+    
+    # 1. Codebook Usage Heatmaps by Sentiment Bin
+    create_codebook_heatmaps(all_data, viz_dir)
+    
+    # 2. Top Codebook Indices Bar Plots
+    create_top_indices_barplots(all_data, viz_dir)
+    
+    # 3. Codebook Diversity Analysis
+    create_diversity_analysis(all_data, viz_dir)
+    
+    # 4. Content vs Padding Comparison
+    # create_content_padding_comparison(all_data, viz_dir)
+    
+    # 5. Sentiment-Codebook Correlation Analysis
+    create_sentiment_correlation_analysis(all_data, viz_dir)
+    
+    print_analysis_progress(f"Visualizations saved to: {viz_dir}")
+
+
+def create_codebook_heatmaps(all_data, viz_dir):
+    """Create heatmaps showing codebook usage across sentiment bins."""
+    print_analysis_progress("Creating codebook usage heatmaps...")
+    
+    for dataset_name, dataset_data in all_data.items():
+        bin_info = dataset_data['bin_info']
+        n_bins = len(bin_info['label_mapping'])
+        
+        fig, axes = plt.subplots(2, 3, figsize=(18, 12))
+        fig.suptitle(f'{dataset_name} - Codebook Usage Heatmaps', fontsize=16, fontweight='bold')
+        
+        modalities = ['audio', 'video', 'text']
+        data_types = ['content_indices', 'padding_indices']
+        
+        for i, data_type in enumerate(data_types):
+            for j, modality in enumerate(modalities):
+                ax = axes[i, j]
+                
+                # Collect usage data for heatmap
+                codebook_usage = defaultdict(lambda: defaultdict(int))
+                all_indices = set()
+                
+                for bin_id in range(n_bins):
+                    indices = dataset_data[data_type][modality].get(bin_id, [])
+                    counter = Counter(indices)
+                    
+                    for idx, count in counter.items():
+                        codebook_usage[bin_id][idx] = count
+                        all_indices.add(idx)
+                
+                if all_indices:
+                    # Create matrix for heatmap
+                    sorted_indices = sorted(all_indices)
+                    matrix = np.zeros((n_bins, len(sorted_indices)))
+                    
+                    for bin_idx, bin_id in enumerate(range(n_bins)):
+                        for idx_pos, codebook_idx in enumerate(sorted_indices):
+                            matrix[bin_idx, idx_pos] = codebook_usage[bin_id][codebook_idx]
+                    
+                    # Plot heatmap
+                    sns.heatmap(matrix, ax=ax, cmap='viridis', cbar=True, 
+                               xticklabels=[f'{idx}' for idx in sorted_indices[::max(1, len(sorted_indices)//10)]], 
+                               yticklabels=[f'Bin {i}' for i in range(n_bins)])
+                    
+                    title_suffix = "Content" if data_type == 'content_indices' else "Padding"
+                    ax.set_title(f'{modality.title()} - {title_suffix}')
+                    ax.set_xlabel('Codebook Index')
+                    ax.set_ylabel('Sentiment Bin')
+                else:
+                    ax.text(0.5, 0.5, 'No Data', ha='center', va='center', transform=ax.transAxes)
+                    ax.set_title(f'{modality.title()} - {"Content" if data_type == "content_indices" else "Padding"}')
+        
+        plt.tight_layout()
+        plt.savefig(os.path.join(viz_dir, f'{dataset_name}_codebook_heatmaps.png'), dpi=300, bbox_inches='tight')
+        plt.close()
+
+
+def create_top_indices_barplots(all_data, viz_dir):
+    """Create bar plots showing top codebook indices for each sentiment bin."""
+    print_analysis_progress("Creating top indices bar plots...")
+    
+    for dataset_name, dataset_data in all_data.items():
+        bin_info = dataset_data['bin_info']
+        n_bins = len(bin_info['label_mapping'])
+        
+        modalities = ['audio', 'video', 'text']
+        
+        for modality in modalities:
+            fig, axes = plt.subplots(2, (n_bins + 1) // 2, figsize=(4 * ((n_bins + 1) // 2), 8))
+            if n_bins == 1:
+                axes = [axes]
+            elif len(axes.shape) == 1:
+                axes = axes.reshape(1, -1)
+            
+            fig.suptitle(f'{dataset_name} - Top {modality.title()} Codebook Indices by Sentiment Bin', 
+                        fontsize=14, fontweight='bold')
+            
+            for bin_id in range(n_bins):
+                row = bin_id // ((n_bins + 1) // 2)
+                col = bin_id % ((n_bins + 1) // 2)
+                ax = axes[row, col] if len(axes.shape) > 1 else axes[col]
+                
+                # Get content indices for this bin
+                content_indices = dataset_data['content_indices'][modality].get(bin_id, [])
+                
+                if content_indices:
+                    counter = Counter(content_indices)
+                    top_indices = counter.most_common(10)
+                    
+                    indices, counts = zip(*top_indices)
+                    
+                    bars = ax.bar(range(len(indices)), counts, alpha=0.7)
+                    ax.set_xlabel('Codebook Index')
+                    ax.set_ylabel('Usage Count')
+                    ax.set_title(f'Bin {bin_id}: {bin_info["label_mapping"][bin_id]}')
+                    ax.set_xticks(range(len(indices)))
+                    ax.set_xticklabels([str(idx) for idx in indices], rotation=45)
+                    
+                    # Add value labels on bars
+                    for bar, count in zip(bars, counts):
+                        height = bar.get_height()
+                        ax.text(bar.get_x() + bar.get_width()/2., height + 0.5,
+                               f'{count}', ha='center', va='bottom', fontsize=8)
+                else:
+                    ax.text(0.5, 0.5, 'No Content Data', ha='center', va='center', transform=ax.transAxes)
+                    ax.set_title(f'Bin {bin_id}: {bin_info["label_mapping"][bin_id]}')
+            
+            # Hide empty subplots
+            for bin_id in range(n_bins, len(axes.flat)):
+                axes.flat[bin_id].set_visible(False)
+            
+            plt.tight_layout()
+            plt.savefig(os.path.join(viz_dir, f'{dataset_name}_{modality}_top_indices.png'), 
+                       dpi=300, bbox_inches='tight')
+            plt.close()
+
+
+def create_diversity_analysis(all_data, viz_dir):
+    """Create plots analyzing codebook diversity across sentiment bins."""
+    print_analysis_progress("Creating diversity analysis plots...")
+    
+    fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+    fig.suptitle('Codebook Diversity Analysis Across Datasets', fontsize=16, fontweight='bold')
+    
+    # Plot 1: Number of unique indices per bin
+    ax1 = axes[0, 0]
+    
+    for dataset_name, dataset_data in all_data.items():
+        bin_info = dataset_data['bin_info']
+        n_bins = len(bin_info['label_mapping'])
+        
+        modalities = ['audio', 'video', 'text']
+        bin_ids = list(range(n_bins))
+        
+        for modality in modalities:
+            unique_counts = []
+            for bin_id in bin_ids:
+                content_indices = dataset_data['content_indices'][modality].get(bin_id, [])
+                unique_counts.append(len(set(content_indices)))
+            
+            ax1.plot(bin_ids, unique_counts, marker='o', label=f'{dataset_name}-{modality}', alpha=0.7)
+    
+    ax1.set_xlabel('Sentiment Bin')
+    ax1.set_ylabel('Number of Unique Codebook Indices')
+    ax1.set_title('Codebook Diversity by Sentiment Bin')
+    ax1.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    ax1.grid(True, alpha=0.3)
+    
+    # Plot 2: Total usage per bin
+    ax2 = axes[0, 1]
+    
+    for dataset_name, dataset_data in all_data.items():
+        bin_info = dataset_data['bin_info']
+        n_bins = len(bin_info['label_mapping'])
+        
+        for modality in modalities:
+            total_counts = []
+            for bin_id in range(n_bins):
+                content_indices = dataset_data['content_indices'][modality].get(bin_id, [])
+                total_counts.append(len(content_indices))
+            
+            ax2.plot(range(n_bins), total_counts, marker='s', label=f'{dataset_name}-{modality}', alpha=0.7)
+    
+    ax2.set_xlabel('Sentiment Bin')
+    ax2.set_ylabel('Total Codebook Usage')
+    ax2.set_title('Total Codebook Usage by Sentiment Bin')
+    ax2.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    ax2.grid(True, alpha=0.3)
+    
+    # Plot 3: Content vs Padding ratio
+    ax3 = axes[1, 0]
+    
+    for dataset_name, dataset_data in all_data.items():
+        bin_info = dataset_data['bin_info']
+        n_bins = len(bin_info['label_mapping'])
+        
+        for modality in modalities:
+            ratios = []
+            for bin_id in range(n_bins):
+                content_count = len(dataset_data['content_indices'][modality].get(bin_id, []))
+                padding_count = len(dataset_data['padding_indices'][modality].get(bin_id, []))
+                total = content_count + padding_count
+                ratio = content_count / total if total > 0 else 0
+                ratios.append(ratio)
+            
+            ax3.plot(range(n_bins), ratios, marker='^', label=f'{dataset_name}-{modality}', alpha=0.7)
+    
+    ax3.set_xlabel('Sentiment Bin')
+    ax3.set_ylabel('Content/(Content+Padding) Ratio')
+    ax3.set_title('Content vs Padding Ratio by Sentiment Bin')
+    ax3.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    ax3.grid(True, alpha=0.3)
+    ax3.set_ylim(0, 1)
+    
+    # Plot 4: Average sentiment per bin
+    ax4 = axes[1, 1]
+    
+    for dataset_name, dataset_data in all_data.items():
+        bin_info = dataset_data['bin_info']
+        n_bins = len(bin_info['label_mapping'])
+        
+        avg_sentiments = []
+        bin_labels = []
+        
+        for bin_id in range(n_bins):
+            sentiments = dataset_data['sentiment_labels'].get(bin_id, [])
+            if sentiments:
+                avg_sentiments.append(np.mean(sentiments))
+                bin_labels.append(f'Bin {bin_id}')
+        
+        if avg_sentiments:
+            bars = ax4.bar([f'{dataset_name}\n{label}' for label in bin_labels], avg_sentiments, 
+                          alpha=0.7, label=dataset_name)
+            
+            # Add value labels on bars
+            for bar, val in zip(bars, avg_sentiments):
+                height = bar.get_height()
+                ax4.text(bar.get_x() + bar.get_width()/2., height + 0.01,
+                        f'{val:.3f}', ha='center', va='bottom', fontsize=8)
+    
+    ax4.set_ylabel('Average Sentiment Score')
+    ax4.set_title('Average Sentiment Score by Bin')
+    ax4.tick_params(axis='x', rotation=45)
+    
+    plt.tight_layout()
+    plt.savefig(os.path.join(viz_dir, 'diversity_analysis.png'), dpi=300, bbox_inches='tight')
+    plt.close()
+
+
+def create_content_padding_comparison(all_data, viz_dir):
+    """Create visualizations comparing content vs padding codebook usage."""
+    print_analysis_progress("Creating content vs padding comparison plots...")
+    
+    for dataset_name, dataset_data in all_data.items():
+        fig, axes = plt.subplots(1, 3, figsize=(18, 6))
+        fig.suptitle(f'{dataset_name} - Content vs Padding Codebook Usage', fontsize=14, fontweight='bold')
+        
+        modalities = ['audio', 'video', 'text']
+        
+        for j, modality in enumerate(modalities):
+            ax = axes[j]
+            
+            # Collect all content and padding indices across all bins
+            all_content_indices = []
+            all_padding_indices = []
+            
+            bin_info = dataset_data['bin_info']
+            n_bins = len(bin_info['label_mapping'])
+            
+            for bin_id in range(n_bins):
+                all_content_indices.extend(dataset_data['content_indices'][modality].get(bin_id, []))
+                all_padding_indices.extend(dataset_data['padding_indices'][modality].get(bin_id, []))
+            
+            # Create histograms
+            if all_content_indices:
+                content_counter = Counter(all_content_indices)
+                content_indices, content_counts = zip(*content_counter.most_common(20))
+                
+                x_pos = np.arange(len(content_indices))
+                ax.bar(x_pos - 0.2, content_counts, 0.4, label='Content', alpha=0.7)
+            
+            if all_padding_indices:
+                padding_counter = Counter(all_padding_indices)
+                padding_indices, padding_counts = zip(*padding_counter.most_common(20))
+                
+                # Align with content indices for comparison
+                padding_counts_aligned = []
+                for idx in content_indices if all_content_indices else padding_indices:
+                    padding_counts_aligned.append(padding_counter.get(idx, 0))
+                
+                x_pos = np.arange(len(content_indices) if all_content_indices else len(padding_indices))
+                ax.bar(x_pos + 0.2, padding_counts_aligned if all_content_indices else padding_counts, 
+                      0.4, label='Padding', alpha=0.7)
+            
+            ax.set_xlabel('Codebook Index')
+            ax.set_ylabel('Usage Count')
+            ax.set_title(f'{modality.title()} Modality')
+            ax.legend()
+            
+            # Set x-tick labels
+            if all_content_indices:
+                ax.set_xticks(x_pos)
+                ax.set_xticklabels([str(idx) for idx in content_indices], rotation=45)
+            elif all_padding_indices:
+                ax.set_xticks(x_pos)
+                ax.set_xticklabels([str(idx) for idx in padding_indices], rotation=45)
+        
+        plt.tight_layout()
+        plt.savefig(os.path.join(viz_dir, f'{dataset_name}_content_padding_comparison.png'), 
+                   dpi=300, bbox_inches='tight')
+        plt.close()
+
+
+def create_sentiment_correlation_analysis(all_data, viz_dir):
+    """Create scatter plots showing correlation between sentiment and codebook usage patterns."""
+    print_analysis_progress("Creating sentiment correlation analysis...")
+    
+    fig, axes = plt.subplots(2, 3, figsize=(18, 12))
+    fig.suptitle('Sentiment vs Codebook Usage Correlation Analysis', fontsize=16, fontweight='bold')
+    
+    modalities = ['audio', 'video', 'text']
+    
+    for j, modality in enumerate(modalities):
+        # Top subplot: Unique indices vs sentiment
+        ax1 = axes[0, j]
+        # Bottom subplot: Total usage vs sentiment
+        ax2 = axes[1, j]
+        
+        for dataset_name, dataset_data in all_data.items():
+            bin_info = dataset_data['bin_info']
+            n_bins = len(bin_info['label_mapping'])
+            
+            sentiments = []
+            unique_counts = []
+            total_counts = []
+            
+            for bin_id in range(n_bins):
+                # Get average sentiment for this bin
+                bin_sentiments = dataset_data['sentiment_labels'].get(bin_id, [])
+                if bin_sentiments:
+                    avg_sentiment = np.mean(bin_sentiments)
+                    sentiments.append(avg_sentiment)
+                    
+                    # Get codebook usage statistics
+                    content_indices = dataset_data['content_indices'][modality].get(bin_id, [])
+                    unique_counts.append(len(set(content_indices)))
+                    total_counts.append(len(content_indices))
+            
+            if sentiments:
+                # Plot unique indices vs sentiment
+                ax1.scatter(sentiments, unique_counts, alpha=0.7, s=100, label=dataset_name)
+                
+                # Plot total usage vs sentiment
+                ax2.scatter(sentiments, total_counts, alpha=0.7, s=100, label=dataset_name)
+        
+        ax1.set_xlabel('Average Sentiment Score')
+        ax1.set_ylabel('Number of Unique Codebook Indices')
+        ax1.set_title(f'{modality.title()} - Diversity vs Sentiment')
+        ax1.legend()
+        ax1.grid(True, alpha=0.3)
+        
+        ax2.set_xlabel('Average Sentiment Score')
+        ax2.set_ylabel('Total Codebook Usage')
+        ax2.set_title(f'{modality.title()} - Usage vs Sentiment')
+        ax2.legend()
+        ax2.grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    plt.savefig(os.path.join(viz_dir, 'sentiment_correlation_analysis.png'), dpi=300, bbox_inches='tight')
+    plt.close()
+
 def main():
     """
     Main function to run the comprehensive codebook-sentiment analysis.
@@ -1119,6 +1559,11 @@ def main():
     parser.add_argument('--embedding_dim', type=int, default=256,
                         help='Embedding dimension (default: 256)')
     
+    parser.add_argument('--skip_analysis', action='store_true', default=True,
+                        help='Skip detailed text analysis and only create visualizations')
+    parser.add_argument('--create_visualizations', action='store_true', default=True,
+                        help='Create visualization plots (default: True)')
+    
     # Parse arguments
     args = parser.parse_args()
     
@@ -1138,6 +1583,8 @@ def main():
     print_analysis_progress(f"  Samples per label: {args.samples_per_label}")
     print_analysis_progress(f"  Sentiment bins: {args.num_sentiment_bins}")
     print_analysis_progress(f"  Model config: {MODEL_CONFIG}")
+    print_analysis_progress(f"  Create visualizations: {args.create_visualizations}")
+    print_analysis_progress(f"  Skip detailed analysis: {args.skip_analysis}")
     
     # Validate checkpoint path
     if not os.path.exists(args.checkpoint_path):
@@ -1176,9 +1623,9 @@ def main():
     }
     
     # Create comprehensive analysis
-    all_analyses = create_comprehensive_analysis_report(
-        sampled_datasets, args.checkpoint_path, MODEL_CONFIG, args.output_dir
-    )
+    # all_analyses = create_comprehensive_analysis_report(
+    #     sampled_datasets, args.checkpoint_path, MODEL_CONFIG, args.output_dir
+    # )
 
     # print_analysis_progress("\nReplacing padding timesteps with -inf...")
     # sampled_datasets_with_inf, padding_stats = process_sampled_datasets_with_inf_padding(
@@ -1193,8 +1640,25 @@ def main():
     #     sampled_datasets_with_inf, args.checkpoint_path, MODEL_CONFIG, args.output_dir
     # )
     
+    # print_analysis_progress("Analysis pipeline completed successfully!")
+    # print_analysis_progress(f"Check results in: {args.output_dir}")
+    if not args.skip_analysis:
+        print_analysis_progress("\nCreating comprehensive text analysis...")
+        all_analyses = create_comprehensive_analysis_report(
+            sampled_datasets, args.checkpoint_path, MODEL_CONFIG, args.output_dir
+        )
+    
+    # Create visualizations
+    if args.create_visualizations:
+        print_analysis_progress("\nCreating visualizations...")
+        create_codebook_sentiment_visualizations(
+            sampled_datasets, args.checkpoint_path, MODEL_CONFIG, args.output_dir
+        )
+    
     print_analysis_progress("Analysis pipeline completed successfully!")
     print_analysis_progress(f"Check results in: {args.output_dir}")
+    if args.create_visualizations:
+        print_analysis_progress(f"Check visualizations in: {os.path.join(args.output_dir, 'visualizations')}")
 
 if __name__ == "__main__":
     main()
