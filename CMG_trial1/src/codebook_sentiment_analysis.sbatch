@@ -3,16 +3,16 @@
 #SBATCH --job-name=Codebook_Sentiment_Analysis
 #SBATCH --partition=leinegpu
 #SBATCH --nodes=1
-#SBATCH --gres=gpu:a100-80g:1
+#SBATCH --gres=gpu:a100-40g:1
 #SBATCH --time=15:00:00
-#SBATCH --output=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/0_Check_Codebook_Index_1/codebook_sentiment_%j.out
-#SBATCH --error=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/0_Check_Codebook_Index_1/codebook_sentiment_%j.err
+#SBATCH --output=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/0_Check_Codebook_Index_2/codebook_sentiment_%j.out
+#SBATCH --error=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/0_Check_Codebook_Index_2/codebook_sentiment_%j.err
 
 
 
 # Create necessary directories for organized output management
 SRCDIR=/project/ag-jafra/Souptik/CMG_New/Experiments
-mkdir -p $SRCDIR/CMG_trial1/slurm/0_Check_Codebook_Index_1
+mkdir -p $SRCDIR/CMG_trial1/slurm/0_Check_Codebook_Index_2
 mkdir -p $SRCDIR/Misc/codebook_sentiment_analysis_10
 
 # Activate the conda environment with all required dependencies
@@ -42,8 +42,8 @@ echo "==========================================="
 # OPTION 1: Supervised Model Analysis (DEFAULT)
 # This model was trained with sentiment labels and should show clear
 # quantization patterns that correlate with emotional content
-CHECKPOINT_PATH="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models_3/128dim_256_Dynamic_Padding_reg_50_MOSEI_unsupervised_TAV_L2/checkpoint_1/MOSEI-model-unsupervised-26.pt"
-ANALYSIS_TYPE="128dim_256_Dynamic_Padding_reg_50_MOSEI_unsupervised_TAV_L2"
+CHECKPOINT_PATH="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models_3/ContentAware_MOSEI_unsupervised_TAV/checkpoint/MOSEI-model-unsupervised-29.pt"
+ANALYSIS_TYPE="ContentAware_MOSEI_unsupervised_TAV"
 
 # OPTION 2: Unsupervised Model Analysis (UNCOMMENT TO USE)
 # This model learned representations without explicit sentiment supervision

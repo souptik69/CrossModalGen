@@ -194,8 +194,8 @@ def main():
     text_dim = 300
     audio_dim = 74
     # text_lstm_dim = 128
-    n_embeddings = 256
-    embedding_dim = 128
+    n_embeddings = 400
+    embedding_dim = 256
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Text_ar_lstm = nn.LSTM(text_dim, text_lstm_dim, num_layers=2, batch_first=True, bidirectional=True)
@@ -281,7 +281,8 @@ def test_msr_mode(Encoder, Decoder, test_dataloader, args):
         # video_feature_raw = video_feature_raw.double().cuda()
         # audio_feature_raw = audio_feature_raw.double().cuda()
 
-        text_feature, audio_feature, video_feature, labels = batch_data['text_fea'], batch_data['audio_fea'], batch_data['video_fea'], batch_data['labels']
+        # text_feature, audio_feature, video_feature, labels = batch_data['text_fea'], batch_data['audio_fea'], batch_data['video_fea'], batch_data['labels']
+        text_feature, audio_feature, video_feature, labels, attention_mask, lengths = batch_data['text_fea'], batch_data['audio_fea'], batch_data['video_fea'], batch_data['labels'], batch_data['attention_mask'], batch_data['lengths']
         labels = labels.double().cuda()
 
         batch_dim = text_feature.size()[0]
@@ -308,14 +309,16 @@ def test_msr_mode(Encoder, Decoder, test_dataloader, args):
         text_feature = text_feature.cuda().to(torch.float64)
         audio_feature = audio_feature.cuda().to(torch.float64)
         video_feature = video_feature.cuda().to(torch.float64)
+        attention_mask = attention_mask.cuda()
+        lengths = lengths.cuda()
 
         # Get VQ representations
-        out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(audio_feature)
-        out_vq_video, video_vq = Encoder.Video_VQ_Encoder(video_feature)
-        out_vq_text, text_vq = Encoder.Text_VQ_Encoder(text_feature)
+        out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(audio_feature, attention_mask=attention_mask)
+        out_vq_video, video_vq = Encoder.Video_VQ_Encoder(video_feature, attention_mask=attention_mask)
+        out_vq_text, text_vq = Encoder.Text_VQ_Encoder(text_feature, attention_mask=attention_mask)
 
         # Test multimodal prediction
-        combined_score = Decoder.combined_sentiment_decoder(out_vq_video, out_vq_audio, out_vq_text)
+        combined_score = Decoder.combined_sentiment_decoder(out_vq_video, out_vq_audio, out_vq_text, attention_mask=attention_mask)
         loss = criterion_sentiment(combined_score, labels)
 
         all_preds.append(combined_score)
@@ -390,7 +393,8 @@ def test_cmg_mode(Encoder, Decoder, test_dataloader, args):
         # text_feature_raw = text_feature_raw.double().cuda()
         # video_feature_raw = video_feature_raw.double().cuda()
         # audio_feature_raw = audio_feature_raw.double().cuda()
-        text_feature, audio_feature, video_feature, labels = batch_data['text_fea'], batch_data['audio_fea'], batch_data['video_fea'], batch_data['labels']
+        # text_feature, audio_feature, video_feature, labels = batch_data['text_fea'], batch_data['audio_fea'], batch_data['video_fea'], batch_data['labels']
+        text_feature, audio_feature, video_feature, labels, attention_mask, lengths = batch_data['text_fea'], batch_data['audio_fea'], batch_data['video_fea'], batch_data['labels'], batch_data['attention_mask'], batch_data['lengths']
         labels = labels.double().cuda()
 
         batch_dim = text_feature.size()[0]
@@ -418,16 +422,18 @@ def test_cmg_mode(Encoder, Decoder, test_dataloader, args):
         text_feature = text_feature.cuda().to(torch.float64)
         audio_feature = audio_feature.cuda().to(torch.float64)
         video_feature = video_feature.cuda().to(torch.float64)
+        attention_mask = attention_mask.cuda()
+        lengths = lengths.cuda()
 
         # Get VQ representations
-        out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(audio_feature)
-        out_vq_video, video_vq = Encoder.Video_VQ_Encoder(video_feature)
-        out_vq_text, text_vq = Encoder.Text_VQ_Encoder(text_feature)
+        out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(audio_feature, attention_mask=attention_mask)
+        out_vq_video, video_vq = Encoder.Video_VQ_Encoder(video_feature, attention_mask=attention_mask)
+        out_vq_text, text_vq = Encoder.Text_VQ_Encoder(text_feature, attention_mask=attention_mask)
 
         # Test individual modalities
-        audio_score = Decoder.audio_sentiment_decoder(out_vq_audio)
-        video_score = Decoder.video_sentiment_decoder(out_vq_video)
-        text_score = Decoder.text_sentiment_decoder(out_vq_text)
+        audio_score = Decoder.audio_sentiment_decoder(out_vq_audio, attention_mask=attention_mask)
+        video_score = Decoder.video_sentiment_decoder(out_vq_video, attention_mask=attention_mask)
+        text_score = Decoder.text_sentiment_decoder(out_vq_text, attention_mask=attention_mask)
 
         all_audio_preds.append(audio_score)
         all_video_preds.append(video_score)

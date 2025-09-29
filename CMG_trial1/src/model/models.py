@@ -27,18 +27,30 @@ class Encoder(Module):
         self.num_layers = num_layers
         self.norm = norm
 
-    def forward(self, src):
-        r"""Pass the input through the endocder layers in turn.
+    # def forward(self, src):
+    #     r"""Pass the input through the endocder layers in turn.
 
-        """
+    #     """
+    #     output = src
+
+    #     for i in range(self.num_layers):
+    #         output = self.layers[i](output)
+
+    #     if self.norm:
+    #         output = self.norm(output)
+
+    #     return output
+
+    def forward(self, src, src_key_padding_mask=None):
+        """Pass input and mask through encoder layers."""
         output = src
-
+        
         for i in range(self.num_layers):
-            output = self.layers[i](output)
-
+            output = self.layers[i](output, src_key_padding_mask)
+        
         if self.norm:
             output = self.norm(output)
-
+        
         return output
 
 
@@ -98,18 +110,44 @@ class EncoderLayer(Module):
 
         self.activation = _get_activation_fn(activation)
 
-    def forward(self, src):
-        r"""Pass the input through the endocder layer.
+    # def forward(self, src):
+    #     r"""Pass the input through the endocder layer.
+    #     """
+    #     src2 = self.self_attn(src, src, src)[0]
+    #     src = src + self.dropout1(src2)
+    #     src = self.norm1(src)
+    #     if hasattr(self, "activation"):
+    #         src2 = self.linear2(self.dropout(self.activation(self.linear1(src))))
+    #     else:  # for backward compatibility
+    #         src2 = self.linear2(self.dropout(F.relu(self.linear1(src))))
+    #     src = src + self.dropout2(src2)
+    #     src = self.norm2(src)
+    #     return src
+
+    def forward(self, src, src_key_padding_mask=None):
         """
-        src2 = self.self_attn(src, src, src)[0]
+        Forward pass with attention masking.
+        src_key_padding_mask: (batch_size, seq_len) with True for positions to mask
+        """
+        src2 = self.self_attn(
+            src, src, src,
+            key_padding_mask=src_key_padding_mask
+        )[0]
+        
         src = src + self.dropout1(src2)
         src = self.norm1(src)
+        
         if hasattr(self, "activation"):
             src2 = self.linear2(self.dropout(self.activation(self.linear1(src))))
-        else:  # for backward compatibility
+        else:
             src2 = self.linear2(self.dropout(F.relu(self.linear1(src))))
+        
         src = src + self.dropout2(src2)
         src = self.norm2(src)
+
+        if src_key_padding_mask is not None:
+            padding_mask_expanded = (~src_key_padding_mask).transpose(0, 1).unsqueeze(-1)
+            src = src * padding_mask_expanded  
         return src
 
 
@@ -223,106 +261,3 @@ class New_Audio_Guided_Attention(nn.Module):
 
         return c_s_att_visual_feat
 
-#
-# #
-# class New_Audio_Guided_Attention(nn.Module):
-#     def __init__(self):
-#         super(New_Audio_Guided_Attention, self).__init__()
-#         self.hidden_size = 512
-#         self.relu = nn.ReLU()
-#         # channel attention
-#         self.affine_video_1 = nn.Linear(512, 512)
-#         self.affine_audio_1 = nn.Linear(128, 512)
-#         self.affine_bottleneck = nn.Linear(512, 256)
-#         self.affine_v_c_att = nn.Linear(256, 512)
-#         # spatial attention
-#         self.affine_video_2 = nn.Linear(512, 256)
-#         self.affine_audio_2 = nn.Linear(128, 256)
-#         self.affine_v_s_att = nn.Linear(256, 1)
-#
-#
-#         self.latent_dim = 2
-#         self.video_query = nn.Linear(512, 512//self.latent_dim)
-#         self.video_key = nn.Linear(512, 512//self.latent_dim)
-#         self.video_value = nn.Linear(512, 512)
-#
-#         self.affine_video_ave = nn.Linear(512, 256)
-#         self.affine_video_3 = nn.Linear(512, 256)
-#         self.ave_bottleneck = nn.Linear(512, 256)
-#         self.ave_v_att = nn.Linear(256, 1)
-#
-#         self.tanh = nn.Tanh()
-#         self.softmax = nn.Softmax(dim=-1)
-#         self.dropout = nn.Dropout(0.2)
-#         self.norm = nn.LayerNorm(512)
-#         # self.video_gated = nn.Linear(512, 256)
-#         # self.audio_gated = nn.Linear(128, 512)
-#         # self.audio_decoder = DecoderLayer(d_model=512, nhead=4, dim_feedforward=512, dropout=0.2)
-#         # self.video_decoder = DecoderLayer(d_model=512, nhead=4, dim_feedforward=512, dropout=0.2)
-#         # self.audio_ff = nn.Linear(512, 256)
-#
-#
-#     def forward(self, video, audio):
-#         '''
-#         :param visual_feature: [batch, 10, 7, 7, 512]
-#         :param audio_feature:  [batch, 10, 128]
-#         :return: [batch, 10, 512]
-#         '''
-#         audio = audio.transpose(1, 0)
-#         batch, t_size, h, w, v_dim = video.size()
-#         a_dim = audio.size(-1)
-#         audio_feature = audio.reshape(batch * t_size, a_dim)
-#         visual_feature = video.reshape(batch, t_size, -1, v_dim)
-#         raw_visual_feature = visual_feature
-#
-#         # ============================== Self Attention =======================================
-#         #visual_feature = c_att_visual_feat
-#         video_query_feature = self.video_query(visual_feature).reshape(batch * t_size, h * w, -1)  # [B, h*w, C]
-#         video_key_feature = self.video_key(visual_feature).reshape(batch * t_size, h * w, -1).permute(0, 2,
-#                                                                                                       1)  # [B, C, h*w]
-#         energy = torch.bmm(video_query_feature, video_key_feature)
-#         attention = self.softmax(energy)
-#         video_value_feature = self.video_value(visual_feature).reshape(batch * t_size, h * w, -1)
-#         output = torch.matmul(attention, video_value_feature)
-#         output = self.norm(visual_feature.reshape(batch * t_size, h * w, -1) + self.dropout(output))
-#         #c_att_visual_feat = output
-#         visual_feature = output
-#         # ============================== Video Spatial Attention ====================================
-#         video_average = visual_feature.sum(dim=1)/(h*w)
-#         video_average = video_average.reshape(batch*t_size, v_dim)
-#         video_average = self.relu(self.affine_video_ave(video_average)).unsqueeze(-2)
-#         self_video_att_feat = visual_feature.reshape(batch*t_size, -1, v_dim)
-#         self_video_att_query = self.relu(self.affine_video_3(self_video_att_feat))
-#         self_query = self_video_att_query * video_average
-#         self_spatial_att_maps = self.softmax(self.tanh(self.ave_v_att(self_query)).transpose(2,1))
-#         self_att_feat = torch.bmm(self_spatial_att_maps, visual_feature).squeeze().reshape(batch, t_size, v_dim)
-#
-#
-#         # ============================== Channel Attention ====================================
-#         audio_query_1 = self.relu(self.affine_audio_1(audio_feature)).unsqueeze(-2)
-#         video_query_1 = self.relu(self.affine_video_1(visual_feature)).reshape(batch*t_size, h*w, -1)
-#         audio_video_query_raw = (audio_query_1 * video_query_1).mean(-2)
-#         audio_video_query = self.relu(self.affine_bottleneck(audio_video_query_raw))
-#         channel_att_maps = self.affine_v_c_att(audio_video_query).sigmoid().reshape(batch, t_size, -1, v_dim)
-#         c_att_visual_feat = (raw_visual_feature * (channel_att_maps + 1))      #加一是残差连接
-#
-#
-#         # ============================== Spatial Attention =====================================
-#         # channel attended visual feature: [batch * 10, 49, v_dim]
-#         c_att_visual_feat = c_att_visual_feat.reshape(batch*t_size, -1, v_dim)
-#         c_att_visual_query = self.relu(self.affine_video_2(c_att_visual_feat))
-#         audio_query_2 = self.relu(self.affine_audio_2(audio_feature)).unsqueeze(-2)
-#         #audio_query_2 = self.relu(self.audio_ff(audio_query_1))
-#         audio_video_query_2 = c_att_visual_query * audio_query_2
-#         spatial_att_maps = self.softmax(self.tanh(self.affine_v_s_att(audio_video_query_2)).transpose(2, 1))
-#         c_s_att_visual_feat = torch.bmm(spatial_att_maps, c_att_visual_feat).squeeze().reshape(batch, t_size, v_dim)
-#
-#         c_s_att_visual_feat = c_s_att_visual_feat + 0.2*self_att_feat.sigmoid()*c_s_att_visual_feat
-#         #c_s_att_visual_feat = 0.5*c_s_att_visual_feat.sigmoid()*self_att_feat + 0.5 * self_att_feat.sigmoid() * c_s_att_visual_feat
-#
-#         return c_s_att_visual_feat, spatial_att_maps
-
-# visual_feature = torch.randn(32, 10, 7, 7, 512)
-# audio_feature = torch.randn(32, 10, 128)
-# model = New_Audio_Guided_Attention()
-# retult = model(visual_feature, audio_feature)

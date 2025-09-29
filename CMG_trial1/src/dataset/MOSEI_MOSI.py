@@ -549,6 +549,90 @@ def collate_func_AVT_dynamic_padding(samples):
         'video_ids': video_ids
     }
 
+
+def collate_func_AVT_with_lengths(samples):
+    """
+    Enhanced collate function that returns lengths and attention masks.
+    This is critical for proper padding awareness throughout the model.
+    """
+    # Step 1: Extract raw features from samples
+    raw_audio_features = [sample[0] for sample in samples]
+    raw_video_features = [sample[1] for sample in samples]
+    raw_text_features = [sample[2] for sample in samples]
+    labels = [sample[3] for sample in samples]
+    video_ids = [sample[4] for sample in samples]
+    
+    # Step 2: Detect actual sequence lengths by finding where trailing zero padding starts
+    actual_lengths = []
+    
+    for text_feat in raw_text_features:
+        seq_len = text_feat.shape[0]
+        actual_length = seq_len  # Initialize to full sequence length
+        
+        # Scan backwards from the end to find where actual content stops
+        for t in range(seq_len - 1, -1, -1):
+            if np.any(text_feat[t] != 0):  # Found non-zero content
+                actual_length = t + 1
+                break
+        
+        actual_length = max(1, actual_length)  # Ensure at least 1 timestep
+        actual_lengths.append(actual_length)
+    
+    # Step 3: Find the maximum actual length in this batch
+    max_length_in_batch = max(actual_lengths)
+    
+    # Step 4: Apply zero padding to reach batch maximum length
+    # We use zero padding here because we'll mask it out properly
+    padded_audio = []
+    padded_video = []
+    padded_text = []
+    
+    for i in range(len(samples)):
+        audio_seq = raw_audio_features[i][:actual_lengths[i]]
+        video_seq = raw_video_features[i][:actual_lengths[i]]
+        text_seq = raw_text_features[i][:actual_lengths[i]]
+        
+        current_length = actual_lengths[i]
+        
+        if current_length < max_length_in_batch:
+            padding_needed = max_length_in_batch - current_length
+            
+            # Use zero padding (will be masked out)
+            audio_padding = np.zeros((padding_needed, audio_seq.shape[1]), dtype=np.float32)
+            video_padding = np.zeros((padding_needed, video_seq.shape[1]), dtype=np.float32)
+            text_padding = np.zeros((padding_needed, text_seq.shape[1]), dtype=np.float32)
+            
+            padded_audio_seq = np.concatenate([audio_seq, audio_padding], axis=0)
+            padded_video_seq = np.concatenate([video_seq, video_padding], axis=0)
+            padded_text_seq = np.concatenate([text_seq, text_padding], axis=0)
+        else:
+            padded_audio_seq = audio_seq
+            padded_video_seq = video_seq
+            padded_text_seq = text_seq
+        
+        padded_audio.append(padded_audio_seq)
+        padded_video.append(padded_video_seq)
+        padded_text.append(padded_text_seq)
+    
+    # Step 5: Create attention mask
+    batch_size = len(samples)
+    attention_mask = torch.zeros(batch_size, max_length_in_batch, dtype=torch.bool)
+    
+    for i, length in enumerate(actual_lengths):
+        attention_mask[i, :length] = True
+    
+    # Step 6: Convert to tensors
+    return {
+        'audio_fea': torch.from_numpy(np.asarray(padded_audio)).float(),
+        'video_fea': torch.from_numpy(np.asarray(padded_video)).float(),
+        'text_fea': torch.from_numpy(np.asarray(padded_text)).float(),
+        'labels': torch.from_numpy(np.asarray(labels)).float(),
+        'video_ids': video_ids,
+        'lengths': torch.LongTensor(actual_lengths),
+        'attention_mask': attention_mask
+    }
+
+
 # ===============================================================================
 # DATALOADER FUNCTIONS
 # ===============================================================================
@@ -572,7 +656,7 @@ def get_mosei_unsupervised_dataloader(batch_size= 64, max_seq_len=50, num_worker
         shuffle=True,
         num_workers=num_workers,
         pin_memory=False,
-        collate_fn=collate_func_AVT_dynamic_padding
+        collate_fn=collate_func_AVT_with_lengths
     )
 
 
@@ -608,13 +692,13 @@ def get_mosei_unsupervised_split_dataloaders(batch_size=64, max_seq_len=50, num_
     # Create dataloaders with VGGSound-style collate function
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
                              num_workers=num_workers, pin_memory=False,
-                             collate_fn=collate_func_AVT_dynamic_padding)
+                             collate_fn=collate_func_AVT_with_lengths)
     test_train_loader = DataLoader(test_train_dataset, batch_size=batch_size, shuffle=False,
                                   num_workers=num_workers, pin_memory=False,
-                                  collate_fn=collate_func_AVT_dynamic_padding)
+                                  collate_fn=collate_func_AVT_with_lengths)
     test_val_loader = DataLoader(test_val_dataset, batch_size=batch_size, shuffle=False,
                                 num_workers=num_workers, pin_memory=False,
-                                collate_fn=collate_func_AVT_dynamic_padding)
+                                collate_fn=collate_func_AVT_with_lengths)
     
     return train_loader, test_train_loader, test_val_loader
 
@@ -642,13 +726,13 @@ def get_mosei_supervised_dataloaders(batch_size=64, max_seq_len=50, num_workers=
     # Create dataloaders with VGGSound-style collate function
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, 
                              num_workers=num_workers, pin_memory=False, 
-                             collate_fn=collate_func_AVT_dynamic_padding)
+                             collate_fn=collate_func_AVT_with_lengths)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False,
                            num_workers=num_workers, pin_memory=False,
-                           collate_fn=collate_func_AVT_dynamic_padding)
+                           collate_fn=collate_func_AVT_with_lengths)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False,
                             num_workers=num_workers, pin_memory=False,
-                            collate_fn=collate_func_AVT_dynamic_padding)
+                            collate_fn=collate_func_AVT_with_lengths)
     
     return train_loader, val_loader, test_loader
 
@@ -674,13 +758,13 @@ def get_mosi_dataloaders(batch_size=64, max_seq_len=50, num_workers=8):
     # Create dataloaders with VGGSound-style collate function
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
                              num_workers=num_workers, pin_memory=False,
-                             collate_fn=collate_func_AVT_dynamic_padding)
+                             collate_fn=collate_func_AVT_with_lengths)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False,
                            num_workers=num_workers, pin_memory=False,
-                           collate_fn=collate_func_AVT_dynamic_padding)
+                           collate_fn=collate_func_AVT_with_lengths)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False,
                             num_workers=num_workers, pin_memory=False,
-                            collate_fn=collate_func_AVT_dynamic_padding)
+                            collate_fn=collate_func_AVT_with_lengths)
     
     return train_loader, val_loader, test_loader
 
@@ -907,14 +991,14 @@ def test_all_dataloaders():
     print_progress("="*80)
     
     # Test collate pattern first
-    print_progress("\nTesting ORIGINAL collate function with random data...")
-    test_collate_pattern()
+    # print_progress("\nTesting ORIGINAL collate function with random data...")
+    # test_collate_pattern()
 
-    print_progress("Testing DYNAMIC padding collate function...")
-    dynamic_results = test_dynamic_collate_pattern()
+    # print_progress("Testing DYNAMIC padding collate function...")
+    # dynamic_results = test_dynamic_collate_pattern()
 
-    print_progress(f"\nComparison Summary:")
-    print_progress(f"  Dynamic collate batch length: {dynamic_results['audio_fea'].shape[1]}")
+    # print_progress(f"\nComparison Summary:")
+    # print_progress(f"  Dynamic collate batch length: {dynamic_results['audio_fea'].shape[1]}")
     
     print_progress("\n=== Testing Unsupervised MOSEI Dataset ===")
     try:

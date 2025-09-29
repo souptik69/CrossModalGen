@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import StepLR, MultiStepLR
 import numpy as np
 from configs.opts import parser
-from model.main_model_mosei import AVT_VQVAE_Encoder, Sentiment_Decoder_Combined, Sentiment_Decoder
+from model.main_model_mosei import AVT_VQVAE_Encoder, Sentiment_Decoder_Combined_Masked, Sentiment_Decoder_Masked
 from utils import AverageMeter, Prepare_logger, get_and_save_args
 from utils.container import metricsContainer
 import torch.nn.functional as F
@@ -201,8 +201,8 @@ def main():
     text_dim = 300
     audio_dim = 74
     # text_lstm_dim = 128
-    n_embeddings = 256
-    embedding_dim = 128
+    n_embeddings = 400
+    embedding_dim = 256
     start_epoch = -1
     model_resume = True
     total_step = 0
@@ -216,9 +216,9 @@ def main():
     # Encoder = AVT_VQVAE_Encoder(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2, n_embeddings, embedding_dim)
 
     if args.test_mode == 'MSR':
-        Decoder = Sentiment_Decoder_Combined(input_dim=embedding_dim * 3)
+        Decoder = Sentiment_Decoder_Combined_Masked(input_dim=embedding_dim * 3)
     else:
-        Decoder = Sentiment_Decoder(input_dim=embedding_dim * 3)
+        Decoder = Sentiment_Decoder_Masked(input_dim=embedding_dim * 3)
 
     # Text_ar_lstm.double()
     # Video_ar_lstm.double()
@@ -340,7 +340,8 @@ def train_epoch(Encoder, Decoder, train_dataloader, criterion_sentiment, optimiz
         
         # Feed input to model
         # text_feature_raw, audio_feature_raw, video_feature_raw, labels = batch_data['text_fea'], batch_data['audio_fea'], batch_data['video_fea'], batch_data['labels']
-        text_feature, audio_feature, video_feature, labels = batch_data['text_fea'], batch_data['audio_fea'], batch_data['video_fea'], batch_data['labels']
+        # text_feature, audio_feature, video_feature, labels = batch_data['text_fea'], batch_data['audio_fea'], batch_data['video_fea'], batch_data['labels']
+        text_feature, audio_feature, video_feature, labels, attention_mask, lengths = batch_data['text_fea'], batch_data['audio_fea'], batch_data['video_fea'], batch_data['labels'], batch_data['attention_mask'], batch_data['lengths']
         # text_feature_raw = text_feature_raw.double().cuda()
         # video_feature_raw = video_feature_raw.double().cuda()
         # audio_feature_raw = audio_feature_raw.double().cuda()
@@ -368,6 +369,8 @@ def train_epoch(Encoder, Decoder, train_dataloader, criterion_sentiment, optimiz
         text_feature = text_feature.cuda().to(torch.float64)
         audio_feature = audio_feature.cuda().to(torch.float64)
         video_feature = video_feature.cuda().to(torch.float64)
+        attention_mask = attention_mask.cuda()
+        lengths = lengths.cuda()
 
         # with torch.no_grad():
         #     # Get VQ representations
@@ -377,11 +380,11 @@ def train_epoch(Encoder, Decoder, train_dataloader, criterion_sentiment, optimiz
 
         if args.test_mode == 'MSR':
             with torch.no_grad():
-                out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(audio_feature)
-                out_vq_video, video_vq = Encoder.Video_VQ_Encoder(video_feature)
-                out_vq_text, text_vq = Encoder.Text_VQ_Encoder(text_feature)
+                out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(audio_feature, attention_mask=attention_mask)
+                out_vq_video, video_vq = Encoder.Video_VQ_Encoder(video_feature, attention_mask=attention_mask)
+                out_vq_text, text_vq = Encoder.Text_VQ_Encoder(text_feature, attention_mask=attention_mask)
 
-            combined_score = Decoder(out_vq_video, out_vq_audio, out_vq_text)
+            combined_score = Decoder(out_vq_video, out_vq_audio, out_vq_text, attention_mask=attention_mask)
             combined_sentiment_loss = criterion_sentiment(combined_score, labels)
             
             loss_items = {
@@ -393,8 +396,8 @@ def train_epoch(Encoder, Decoder, train_dataloader, criterion_sentiment, optimiz
         else:  # CMG mode
             if args.modality == 'audio':
                 with torch.no_grad():
-                    out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(audio_feature)
-                audio_score = Decoder(out_vq_audio)
+                    out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(audio_feature, attention_mask=attention_mask)
+                audio_score = Decoder(out_vq_audio, attention_mask=attention_mask)
                 audio_sentiment_loss = criterion_sentiment(audio_score, labels)
                 loss_items = {
                     "audio_sentiment_loss": audio_sentiment_loss.item(),
@@ -403,8 +406,8 @@ def train_epoch(Encoder, Decoder, train_dataloader, criterion_sentiment, optimiz
                 loss = audio_sentiment_loss
             elif args.modality == 'video':
                 with torch.no_grad():
-                    out_vq_video, video_vq = Encoder.Video_VQ_Encoder(video_feature)
-                video_score = Decoder(out_vq_video)
+                    out_vq_video, video_vq = Encoder.Video_VQ_Encoder(video_feature, attention_mask=attention_mask)
+                video_score = Decoder(out_vq_video, attention_mask=attention_mask)
                 video_sentiment_loss = criterion_sentiment(video_score, labels)
                 loss_items = {
                     "video_sentiment_loss": video_sentiment_loss.item(),
@@ -414,8 +417,8 @@ def train_epoch(Encoder, Decoder, train_dataloader, criterion_sentiment, optimiz
 
             else:  # text
                 with torch.no_grad():
-                    out_vq_text, text_vq = Encoder.Text_VQ_Encoder(text_feature)
-                text_score = Decoder(out_vq_text)
+                    out_vq_text, text_vq = Encoder.Text_VQ_Encoder(text_feature, attention_mask=attention_mask)
+                text_score = Decoder(out_vq_text, attention_mask=attention_mask)
                 text_sentiment_loss = criterion_sentiment(text_score, labels)
                 loss_items = {
                     "text_sentiment_loss": text_sentiment_loss.item(),
@@ -476,7 +479,8 @@ def validate_epoch(Encoder, Decoder, test_dataloader, criterion_sentiment, epoch
 
         # Feed input to model
         # text_feature_raw, audio_feature_raw, video_feature_raw, labels = batch_data['text_fea'], batch_data['audio_fea'], batch_data['video_fea'], batch_data['labels']
-        text_feature, audio_feature, video_feature, labels = batch_data['text_fea'], batch_data['audio_fea'], batch_data['video_fea'], batch_data['labels']
+        # text_feature, audio_feature, video_feature, labels = batch_data['text_fea'], batch_data['audio_fea'], batch_data['video_fea'], batch_data['labels']
+        text_feature, audio_feature, video_feature, labels, attention_mask, lengths = batch_data['text_fea'], batch_data['audio_fea'], batch_data['video_fea'], batch_data['labels'], batch_data['attention_mask'], batch_data['lengths']
         # text_feature_raw = text_feature_raw.double().cuda()
         # video_feature_raw = video_feature_raw.double().cuda()
         # audio_feature_raw = audio_feature_raw.double().cuda()
@@ -502,15 +506,18 @@ def validate_epoch(Encoder, Decoder, test_dataloader, criterion_sentiment, epoch
         text_feature = text_feature.cuda().to(torch.float64)
         audio_feature = audio_feature.cuda().to(torch.float64)
         video_feature = video_feature.cuda().to(torch.float64)
+        attention_mask = attention_mask.cuda()
+        lengths = lengths.cuda()
 
         # Get VQ representations
-        out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(audio_feature)
-        out_vq_video, video_vq = Encoder.Video_VQ_Encoder(video_feature)
-        out_vq_text, text_vq = Encoder.Text_VQ_Encoder(text_feature)
+        out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(audio_feature, attention_mask=attention_mask)
+        out_vq_video, video_vq = Encoder.Video_VQ_Encoder(video_feature, attention_mask=attention_mask)
+        out_vq_text, text_vq = Encoder.Text_VQ_Encoder(text_feature, attention_mask=attention_mask)
+     
 
         if args.test_mode == 'MSR':
             # Test multimodal
-            combined_score = Decoder(out_vq_video, out_vq_audio, out_vq_text)
+            combined_score = Decoder(out_vq_video, out_vq_audio, out_vq_text, attention_mask=attention_mask)
             loss = criterion_sentiment(combined_score, labels)
             all_preds.append(combined_score)
             
@@ -518,9 +525,9 @@ def validate_epoch(Encoder, Decoder, test_dataloader, criterion_sentiment, epoch
             # Test trained modality and cross-modal generalization
             if args.modality == 'audio':
                 # Trained on audio, test on video and text
-                audio_score = Decoder(out_vq_audio)
-                video_score = Decoder(out_vq_video)
-                text_score = Decoder(out_vq_text)
+                audio_score = Decoder(out_vq_audio, attention_mask=attention_mask)
+                video_score = Decoder(out_vq_video, attention_mask=attention_mask)
+                text_score = Decoder(out_vq_text, attention_mask=attention_mask)
                 
                 loss = criterion_sentiment(audio_score, labels)
                 all_preds.append(audio_score)
@@ -529,9 +536,9 @@ def validate_epoch(Encoder, Decoder, test_dataloader, criterion_sentiment, epoch
                 
             elif args.modality == 'video':
                 # Trained on video, test on audio and text
-                video_score = Decoder(out_vq_video)
-                audio_score = Decoder(out_vq_audio)
-                text_score = Decoder(out_vq_text)
+                video_score = Decoder(out_vq_video, attention_mask=attention_mask)
+                audio_score = Decoder(out_vq_audio, attention_mask=attention_mask)
+                text_score = Decoder(out_vq_text, attention_mask=attention_mask)
                 
                 loss = criterion_sentiment(video_score, labels)
                 all_preds.append(video_score)
@@ -540,9 +547,9 @@ def validate_epoch(Encoder, Decoder, test_dataloader, criterion_sentiment, epoch
                 
             else:  # text
                 # Trained on text, test on audio and video
-                text_score = Decoder(out_vq_text)
-                audio_score = Decoder(out_vq_audio)
-                video_score = Decoder(out_vq_video)
+                text_score = Decoder(out_vq_text, attention_mask=attention_mask)
+                audio_score = Decoder(out_vq_audio, attention_mask=attention_mask)
+                video_score = Decoder(out_vq_video, attention_mask=attention_mask)
                 
                 loss = criterion_sentiment(text_score, labels)
                 all_preds.append(text_score)
