@@ -15,7 +15,7 @@ from torch.optim.lr_scheduler import StepLR, MultiStepLR
 import numpy as np
 from configs.opts import parser
 from model.main_model_mosei import AVT_VQVAE_Encoder, AVT_VQVAE_Decoder
-from model.CPC import Cross_CPC, Cross_CPC_AVT_pad
+from model.CPC import Cross_CPC, Cross_CPC_AVT_pad, Cross_CPC_AVT_pad_window
 from utils import AverageMeter, Prepare_logger, get_and_save_args
 from utils.container import metricsContainer
 from utils.Recorder import Recorder
@@ -109,8 +109,8 @@ def main():
     text_dim = 300
     audio_dim = 74
     # text_lstm_dim = 128
-    n_embeddings = 400
-    embedding_dim = 256
+    n_embeddings = 128
+    embedding_dim = 30
     start_epoch = -1
     # model_resume = False
     model_resume = False
@@ -124,7 +124,7 @@ def main():
     Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_dim, n_embeddings, embedding_dim)
     # Encoder = AVT_VQVAE_Encoder(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2, n_embeddings, embedding_dim)
 
-    CPC = Cross_CPC_AVT_pad(embedding_dim, hidden_dim=256, context_dim=256, num_layers=2)
+    CPC = Cross_CPC_AVT_pad_window(embedding_dim, hidden_dim=30, context_dim=30, num_layers=2)
 
     Decoder = AVT_VQVAE_Decoder(audio_dim, video_dim, text_dim, embedding_dim)
     # Decoder = AVT_VQVAE_Decoder_modal(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2)
@@ -155,7 +155,7 @@ def main():
 
     '''loss'''
     criterion_sentiment = nn.MSELoss().cuda()
-    # criterion_sentiment = nn.L1Loss().cuda()
+    # criterion_sentiment_val = nn.L1Loss().cuda()
     # criterion_sentiment = nn.CrossEntropyLoss().cuda()
     
 
@@ -275,16 +275,16 @@ def train_epoch(CPC,Encoder, Decoder,train_dataloader, criterion_sentiment, opti
     optimizer.zero_grad()
 
     quantizer = Encoder.Cross_quantizer
-    with torch.no_grad():
-        logger.info(f"INITIALIZATION_1 - Vector 200 (first 5 video dims): {quantizer.embedding[200, :5]}")
-        logger.info(f"INITIALIZATION_1 - Vector 200 (first 5 audio dims): {quantizer.embedding[200, 256:261]}")
-        logger.info(f"INITIALIZATION_1 - Vector 200 (first 5 text dims): {quantizer.embedding[200, 512:517]}")
-        logger.info(f"INITIALIZATION_1 - Vector 120 (first 5 video dims): {quantizer.embedding[120, :5]}")
-        logger.info(f"INITIALIZATION_1 - Vector 120 (first 5 audio dims): {quantizer.embedding[120, 256:261]}")
-        logger.info(f"INITIALIZATION_1 - Vector 120 (first 5 text dims): {quantizer.embedding[120, 512:517]}")
-        logger.info(f"INITIALIZATION_1 - Vector 45 (first 5 video dims): {quantizer.embedding[45, :5]}")
-        logger.info(f"INITIALIZATION_1 - Vector 45 (first 5 audio dims): {quantizer.embedding[45, 256:261]}")
-        logger.info(f"INITIALIZATION_1 - Vector 45 (first 5 text dims): {quantizer.embedding[45, 512:517]}")
+    # with torch.no_grad():
+    #     logger.info(f"INITIALIZATION_1 - Vector 200 (first 5 video dims): {quantizer.embedding[200, :5]}")
+    #     logger.info(f"INITIALIZATION_1 - Vector 200 (first 5 audio dims): {quantizer.embedding[200, 256:261]}")
+    #     logger.info(f"INITIALIZATION_1 - Vector 200 (first 5 text dims): {quantizer.embedding[200, 512:517]}")
+    #     logger.info(f"INITIALIZATION_1 - Vector 120 (first 5 video dims): {quantizer.embedding[120, :5]}")
+    #     logger.info(f"INITIALIZATION_1 - Vector 120 (first 5 audio dims): {quantizer.embedding[120, 256:261]}")
+    #     logger.info(f"INITIALIZATION_1 - Vector 120 (first 5 text dims): {quantizer.embedding[120, 512:517]}")
+    #     logger.info(f"INITIALIZATION_1 - Vector 45 (first 5 video dims): {quantizer.embedding[45, :5]}")
+    #     logger.info(f"INITIALIZATION_1 - Vector 45 (first 5 audio dims): {quantizer.embedding[45, 256:261]}")
+    #     logger.info(f"INITIALIZATION_1 - Vector 45 (first 5 text dims): {quantizer.embedding[45, 512:517]}")
 
 
     for n_iter, batch_data in enumerate(train_dataloader):
@@ -336,363 +336,253 @@ def train_epoch(CPC,Encoder, Decoder,train_dataloader, criterion_sentiment, opti
         = Encoder(audio_feature, video_feature, text_feature, epoch, attention_mask=attention_mask)
 
 
-        if n_iter == 0:  # Log every 10 iterations to match semantic logging frequency
-            with torch.no_grad():
-                logger.info(f"\n===== SEQUENCE LENGTH INFO - RAW FEATURES (Iter {n_iter}) =====")
-                logger.info(f"Batch size: {text_feature.size(0)}")
-                logger.info(f"Original lengths from dataloader: {lengths}")
-                logger.info(f"Audio feature shape: {audio_feature.shape} (timesteps: {audio_feature.size(1)})")
-                logger.info(f"Video feature shape: {video_feature.shape} (timesteps: {video_feature.size(1)})")
-                logger.info(f"Text feature shape: {text_feature.shape} (timesteps: {text_feature.size(1)})")
+        # if n_iter == 1:  # Log every 10 iterations to match semantic logging frequency
+        #     with torch.no_grad():
+        #         logger.info(f"\n===== SEQUENCE LENGTH INFO - RAW FEATURES (Iter {n_iter}) =====")
+        #         logger.info(f"Batch size: {text_feature.size(0)}")
+        #         logger.info(f"Original lengths from dataloader: {lengths}")
+        #         logger.info(f"Audio feature shape: {audio_feature.shape} (timesteps: {audio_feature.size(1)})")
+        #         logger.info(f"Video feature shape: {video_feature.shape} (timesteps: {video_feature.size(1)})")
+        #         logger.info(f"Text feature shape: {text_feature.shape} (timesteps: {text_feature.size(1)})")
                 
-                # Count effective (non-padded) timesteps using attention mask
-                effective_lengths = attention_mask.sum(dim=1)  # Sum along sequence dimension
-                logger.info(f"Effective lengths from attention mask: {effective_lengths}")
+        #         # Count effective (non-padded) timesteps using attention mask
+        #         effective_lengths = attention_mask.sum(dim=1)  # Sum along sequence dimension
+        #         logger.info(f"Effective lengths from attention mask: {effective_lengths}")
 
-                # Log attention mask information
-                logger.info(f"\n===== ATTENTION MASK INFO (Iter {n_iter}) =====")
-                logger.info(f"Attention mask shape: {attention_mask.shape}")
-                logger.info(f"Full attention masks for all batch samples:\n{attention_mask}")
+        #         # Log attention mask information
+        #         logger.info(f"\n===== ATTENTION MASK INFO (Iter {n_iter}) =====")
+        #         logger.info(f"Attention mask shape: {attention_mask.shape}")
+        #         logger.info(f"Full attention masks for all batch samples:\n{attention_mask}")
                 
-                # Show last 5 timesteps of attention mask to match feature logging
-                attention_mask_last5 = attention_mask[:, -5:]
-                logger.info(f"Attention mask (last 5 timesteps, shape {attention_mask_last5.shape}):\n{attention_mask_last5}")
+        #         # Show last 5 timesteps of attention mask to match feature logging
+        #         attention_mask_last5 = attention_mask[:, -5:]
+        #         logger.info(f"Attention mask (last 5 timesteps, shape {attention_mask_last5.shape}):\n{attention_mask_last5}")
                 
-                # Show attention mask statistics
-                total_positions = attention_mask.numel()
-                active_positions = attention_mask.sum().item()
-                padding_ratio = 1.0 - (active_positions / total_positions)
-                logger.info(f"Attention mask stats - Active positions: {active_positions}/{total_positions} ({padding_ratio:.2%} padding)")
+        #         # Show attention mask statistics
+        #         total_positions = attention_mask.numel()
+        #         active_positions = attention_mask.sum().item()
+        #         padding_ratio = 1.0 - (active_positions / total_positions)
+        #         logger.info(f"Attention mask stats - Active positions: {active_positions}/{total_positions} ({padding_ratio:.2%} padding)")
 
-                # Extract last 5 timesteps and first 5 feature dimensions: [batch_size, 5_timesteps, 5_features]
-                raw_audio_subset = audio_feature[:, -5:, :5]    # All samples, last 5 steps, first 5 features
-                raw_video_subset = video_feature[:, -5:, :5]    # All samples, last 5 steps, first 5 features  
-                raw_text_subset = text_feature[:, -5:, :5]      # All samples, last 5 steps, first 5 features
+        #         # Extract last 5 timesteps and first 5 feature dimensions: [batch_size, 5_timesteps, 5_features]
+        #         raw_audio_subset = audio_feature[:, -5:, :5]    # All samples, last 5 steps, first 5 features
+        #         raw_video_subset = video_feature[:, -5:, :5]    # All samples, last 5 steps, first 5 features  
+        #         raw_text_subset = text_feature[:, -5:, :5]      # All samples, last 5 steps, first 5 features
         
-                logger.info(f"\n===== RAW INPUT FEATURES - Last 5 Steps, First 5 Dims (Iter {n_iter}) =====")
-                logger.info(f"Raw Audio features (shape {raw_audio_subset.shape}):\n{raw_audio_subset}")
-                logger.info(f"Raw Video features (shape {raw_video_subset.shape}):\n{raw_video_subset}")  
-                logger.info(f"Raw Text features (shape {raw_text_subset.shape}):\n{raw_text_subset}")
-                logger.info("=" * 70)
+        #         logger.info(f"\n===== RAW INPUT FEATURES - Last 5 Steps, First 5 Dims (Iter {n_iter}) =====")
+        #         logger.info(f"Raw Audio features (shape {raw_audio_subset.shape}):\n{raw_audio_subset}")
+        #         logger.info(f"Raw Video features (shape {raw_video_subset.shape}):\n{raw_video_subset}")  
+        #         logger.info(f"Raw Text features (shape {raw_text_subset.shape}):\n{raw_text_subset}")
+        #         logger.info("=" * 70)
 
-        if n_iter == 1:  # Log every 10 iterations to match semantic logging frequency
-            with torch.no_grad():
-                logger.info(f"\n===== SEQUENCE LENGTH INFO - RAW FEATURES (Iter {n_iter}) =====")
-                logger.info(f"Batch size: {text_feature.size(0)}")
-                logger.info(f"Original lengths from dataloader: {lengths}")
-                logger.info(f"Audio feature shape: {audio_feature.shape} (timesteps: {audio_feature.size(1)})")
-                logger.info(f"Video feature shape: {video_feature.shape} (timesteps: {video_feature.size(1)})")
-                logger.info(f"Text feature shape: {text_feature.shape} (timesteps: {text_feature.size(1)})")
-                
-                # Count effective (non-padded) timesteps using attention mask
-                effective_lengths = attention_mask.sum(dim=1)  # Sum along sequence dimension
-                logger.info(f"Effective lengths from attention mask: {effective_lengths}")
 
-                # Log attention mask information
-                logger.info(f"\n===== ATTENTION MASK INFO (Iter {n_iter}) =====")
-                logger.info(f"Attention mask shape: {attention_mask.shape}")
-                logger.info(f"Full attention masks for all batch samples:\n{attention_mask}")
+        # if n_iter % 100 == 0:  # Log every 10 iterations to match semantic logging frequency
+        #     with torch.no_grad():
+        #         logger.info(f"\n===== SEQUENCE LENGTH INFO - RAW FEATURES (Iter {n_iter}) =====")
+        #         logger.info(f"Batch size: {text_feature.size(0)}")
+        #         logger.info(f"Original lengths from dataloader: {lengths}")
+        #         logger.info(f"Audio feature shape: {audio_feature.shape} (timesteps: {audio_feature.size(1)})")
+        #         logger.info(f"Video feature shape: {video_feature.shape} (timesteps: {video_feature.size(1)})")
+        #         logger.info(f"Text feature shape: {text_feature.shape} (timesteps: {text_feature.size(1)})")
                 
-                # Show last 5 timesteps of attention mask to match feature logging
-                attention_mask_last5 = attention_mask[:, -5:]
-                logger.info(f"Attention mask (last 5 timesteps, shape {attention_mask_last5.shape}):\n{attention_mask_last5}")
-                
-                # Show attention mask statistics
-                total_positions = attention_mask.numel()
-                active_positions = attention_mask.sum().item()
-                padding_ratio = 1.0 - (active_positions / total_positions)
-                logger.info(f"Attention mask stats - Active positions: {active_positions}/{total_positions} ({padding_ratio:.2%} padding)")
+        #         # Count effective (non-padded) timesteps using attention mask
+        #         effective_lengths = attention_mask.sum(dim=1)  # Sum along sequence dimension
+        #         logger.info(f"Effective lengths from attention mask: {effective_lengths}")
 
-                # Extract last 5 timesteps and first 5 feature dimensions: [batch_size, 5_timesteps, 5_features]
-                raw_audio_subset = audio_feature[:, -5:, :5]    # All samples, last 5 steps, first 5 features
-                raw_video_subset = video_feature[:, -5:, :5]    # All samples, last 5 steps, first 5 features  
-                raw_text_subset = text_feature[:, -5:, :5]      # All samples, last 5 steps, first 5 features
+        #         # Log attention mask information
+        #         logger.info(f"\n===== ATTENTION MASK INFO (Iter {n_iter}) =====")
+        #         logger.info(f"Attention mask shape: {attention_mask.shape}")
+        #         logger.info(f"Full attention masks for all batch samples:\n{attention_mask}")
+                
+        #         # Show last 5 timesteps of attention mask to match feature logging
+        #         attention_mask_last5 = attention_mask[:, -5:]
+        #         logger.info(f"Attention mask (last 5 timesteps, shape {attention_mask_last5.shape}):\n{attention_mask_last5}")
+                
+        #         # Show attention mask statistics
+        #         total_positions = attention_mask.numel()
+        #         active_positions = attention_mask.sum().item()
+        #         padding_ratio = 1.0 - (active_positions / total_positions)
+        #         logger.info(f"Attention mask stats - Active positions: {active_positions}/{total_positions} ({padding_ratio:.2%} padding)")
+
+        #         # Extract last 5 timesteps and first 5 feature dimensions: [batch_size, 5_timesteps, 5_features]
+        #         raw_audio_subset = audio_feature[:, -5:, :5]    # All samples, last 5 steps, first 5 features
+        #         raw_video_subset = video_feature[:, -5:, :5]    # All samples, last 5 steps, first 5 features  
+        #         raw_text_subset = text_feature[:, -5:, :5]      # All samples, last 5 steps, first 5 features
         
-                logger.info(f"\n===== RAW INPUT FEATURES - Last 5 Steps, First 5 Dims (Iter {n_iter}) =====")
-                logger.info(f"Raw Audio features (shape {raw_audio_subset.shape}):\n{raw_audio_subset}")
-                logger.info(f"Raw Video features (shape {raw_video_subset.shape}):\n{raw_video_subset}")  
-                logger.info(f"Raw Text features (shape {raw_text_subset.shape}):\n{raw_text_subset}")
-                logger.info("=" * 70)
+        #         logger.info(f"\n===== RAW INPUT FEATURES - Last 5 Steps, First 5 Dims (Iter {n_iter}) =====")
+        #         logger.info(f"Raw Audio features (shape {raw_audio_subset.shape}):\n{raw_audio_subset}")
+        #         logger.info(f"Raw Video features (shape {raw_video_subset.shape}):\n{raw_video_subset}")  
+        #         logger.info(f"Raw Text features (shape {raw_text_subset.shape}):\n{raw_text_subset}")
+        #         logger.info("=" * 70)
 
 
-        if n_iter % 100 == 0:  # Log every 10 iterations to match semantic logging frequency
-            with torch.no_grad():
-                logger.info(f"\n===== SEQUENCE LENGTH INFO - RAW FEATURES (Iter {n_iter}) =====")
-                logger.info(f"Batch size: {text_feature.size(0)}")
-                logger.info(f"Original lengths from dataloader: {lengths}")
-                logger.info(f"Audio feature shape: {audio_feature.shape} (timesteps: {audio_feature.size(1)})")
-                logger.info(f"Video feature shape: {video_feature.shape} (timesteps: {video_feature.size(1)})")
-                logger.info(f"Text feature shape: {text_feature.shape} (timesteps: {text_feature.size(1)})")
+
+
+
+
+
+        # if n_iter == 1:  # Log every 10 iterations for frequent monitoring
+        #     with torch.no_grad():
+        #         logger.info(f"\n===== SEQUENCE LENGTH INFO - ENCODER RESULTS (Iter {n_iter}) =====")
+        #         logger.info(f"Audio encoder shape: {audio_encoder_result.shape} (timesteps: {audio_encoder_result.size(1)})")
+        #         logger.info(f"Video encoder shape: {video_encoder_result.shape} (timesteps: {video_encoder_result.size(1)})")
+        #         logger.info(f"Text encoder shape: {text_encoder_result.shape} (timesteps: {text_encoder_result.size(1)})")
                 
-                # Count effective (non-padded) timesteps using attention mask
-                effective_lengths = attention_mask.sum(dim=1)  # Sum along sequence dimension
-                logger.info(f"Effective lengths from attention mask: {effective_lengths}")
-
-                # Log attention mask information
-                logger.info(f"\n===== ATTENTION MASK INFO (Iter {n_iter}) =====")
-                logger.info(f"Attention mask shape: {attention_mask.shape}")
-                logger.info(f"Full attention masks for all batch samples:\n{attention_mask}")
-                
-                # Show last 5 timesteps of attention mask to match feature logging
-                attention_mask_last5 = attention_mask[:, -5:]
-                logger.info(f"Attention mask (last 5 timesteps, shape {attention_mask_last5.shape}):\n{attention_mask_last5}")
-                
-                # Show attention mask statistics
-                total_positions = attention_mask.numel()
-                active_positions = attention_mask.sum().item()
-                padding_ratio = 1.0 - (active_positions / total_positions)
-                logger.info(f"Attention mask stats - Active positions: {active_positions}/{total_positions} ({padding_ratio:.2%} padding)")
-
-                # Extract last 5 timesteps and first 5 feature dimensions: [batch_size, 5_timesteps, 5_features]
-                raw_audio_subset = audio_feature[:, -5:, :5]    # All samples, last 5 steps, first 5 features
-                raw_video_subset = video_feature[:, -5:, :5]    # All samples, last 5 steps, first 5 features  
-                raw_text_subset = text_feature[:, -5:, :5]      # All samples, last 5 steps, first 5 features
+        #         # Check if sequence length changed after encoding
+        #         length_change_audio = audio_feature.size(1) - audio_encoder_result.size(1)
+        #         length_change_video = video_feature.size(1) - video_encoder_result.size(1)
+        #         length_change_text = text_feature.size(1) - text_encoder_result.size(1)
+        #         logger.info(f"Length changes after encoding - Audio: {length_change_audio}, Video: {length_change_video}, Text: {length_change_text}")
         
-                logger.info(f"\n===== RAW INPUT FEATURES - Last 5 Steps, First 5 Dims (Iter {n_iter}) =====")
-                logger.info(f"Raw Audio features (shape {raw_audio_subset.shape}):\n{raw_audio_subset}")
-                logger.info(f"Raw Video features (shape {raw_video_subset.shape}):\n{raw_video_subset}")  
-                logger.info(f"Raw Text features (shape {raw_text_subset.shape}):\n{raw_text_subset}")
-                logger.info("=" * 70)
-
-
-
-
-
-
-        if n_iter == 0:  # Log every 10 iterations for frequent monitoring
-            with torch.no_grad():
-                logger.info(f"\n===== SEQUENCE LENGTH INFO - ENCODER RESULTS (Iter {n_iter}) =====")
-                logger.info(f"Audio encoder shape: {audio_encoder_result.shape} (timesteps: {audio_encoder_result.size(1)})")
-                logger.info(f"Video encoder shape: {video_encoder_result.shape} (timesteps: {video_encoder_result.size(1)})")
-                logger.info(f"Text encoder shape: {text_encoder_result.shape} (timesteps: {text_encoder_result.size(1)})")
+        #         # Extract last 5 timesteps and first 5 feature dimensions: [batch_size, 5_timesteps, 5_features]
+        #         audio_encoder = audio_encoder_result[:, -5:, :5]  # All samples, last 5 steps, first 5 features
+        #         video_encoder = video_encoder_result[:, -5:, :5]  # All samples, last 5 steps, first 5 features
+        #         text_encoder = text_encoder_result[:, -5:, :5]    # All samples, last 5 steps, first 5 features
                 
-                # Check if sequence length changed after encoding
-                length_change_audio = audio_feature.size(1) - audio_encoder_result.size(1)
-                length_change_video = video_feature.size(1) - video_encoder_result.size(1)
-                length_change_text = text_feature.size(1) - text_encoder_result.size(1)
-                logger.info(f"Length changes after encoding - Audio: {length_change_audio}, Video: {length_change_video}, Text: {length_change_text}")
+        #         logger.info(f"\n===== ENOCDER FEATURES - Last 5 Steps, First 5 Dims (Iter {n_iter}) =====")
+        #         logger.info(f"Audio Encoder (shape {audio_encoder.shape}):\n{audio_encoder}")
+        #         logger.info(f"Video Encoder (shape {video_encoder.shape}):\n{video_encoder}")
+        #         logger.info(f"Text Encoder (shape {text_encoder.shape}):\n{text_encoder}")
+        #         logger.info("=" * 70)
+
+        # if n_iter % 100 == 0:  # Log every 10 iterations for frequent monitoring
+        #     with torch.no_grad():
+        #         logger.info(f"\n===== SEQUENCE LENGTH INFO - ENCODER RESULTS (Iter {n_iter}) =====")
+        #         logger.info(f"Audio encoder shape: {audio_encoder_result.shape} (timesteps: {audio_encoder_result.size(1)})")
+        #         logger.info(f"Video encoder shape: {video_encoder_result.shape} (timesteps: {video_encoder_result.size(1)})")
+        #         logger.info(f"Text encoder shape: {text_encoder_result.shape} (timesteps: {text_encoder_result.size(1)})")
+                
+        #         # Check if sequence length changed after encoding
+        #         length_change_audio = audio_feature.size(1) - audio_encoder_result.size(1)
+        #         length_change_video = video_feature.size(1) - video_encoder_result.size(1)
+        #         length_change_text = text_feature.size(1) - text_encoder_result.size(1)
+        #         logger.info(f"Length changes after encoding - Audio: {length_change_audio}, Video: {length_change_video}, Text: {length_change_text}")
         
-                # Extract last 5 timesteps and first 5 feature dimensions: [batch_size, 5_timesteps, 5_features]
-                audio_encoder = audio_encoder_result[:, -5:, :5]  # All samples, last 5 steps, first 5 features
-                video_encoder = video_encoder_result[:, -5:, :5]  # All samples, last 5 steps, first 5 features
-                text_encoder = text_encoder_result[:, -5:, :5]    # All samples, last 5 steps, first 5 features
+        #         # Extract last 5 timesteps and first 5 feature dimensions: [batch_size, 5_timesteps, 5_features]
+        #         audio_encoder = audio_encoder_result[:, -5:, :5]  # All samples, last 5 steps, first 5 features
+        #         video_encoder = video_encoder_result[:, -5:, :5]  # All samples, last 5 steps, first 5 features
+        #         text_encoder = text_encoder_result[:, -5:, :5]    # All samples, last 5 steps, first 5 features
                 
-                logger.info(f"\n===== ENOCDER FEATURES - Last 5 Steps, First 5 Dims (Iter {n_iter}) =====")
-                logger.info(f"Audio Encoder (shape {audio_encoder.shape}):\n{audio_encoder}")
-                logger.info(f"Video Encoder (shape {video_encoder.shape}):\n{video_encoder}")
-                logger.info(f"Text Encoder (shape {text_encoder.shape}):\n{text_encoder}")
-                logger.info("=" * 70)
-
-        if n_iter == 1:  # Log every 10 iterations for frequent monitoring
-            with torch.no_grad():
-                logger.info(f"\n===== SEQUENCE LENGTH INFO - ENCODER RESULTS (Iter {n_iter}) =====")
-                logger.info(f"Audio encoder shape: {audio_encoder_result.shape} (timesteps: {audio_encoder_result.size(1)})")
-                logger.info(f"Video encoder shape: {video_encoder_result.shape} (timesteps: {video_encoder_result.size(1)})")
-                logger.info(f"Text encoder shape: {text_encoder_result.shape} (timesteps: {text_encoder_result.size(1)})")
-                
-                # Check if sequence length changed after encoding
-                length_change_audio = audio_feature.size(1) - audio_encoder_result.size(1)
-                length_change_video = video_feature.size(1) - video_encoder_result.size(1)
-                length_change_text = text_feature.size(1) - text_encoder_result.size(1)
-                logger.info(f"Length changes after encoding - Audio: {length_change_audio}, Video: {length_change_video}, Text: {length_change_text}")
-        
-                # Extract last 5 timesteps and first 5 feature dimensions: [batch_size, 5_timesteps, 5_features]
-                audio_encoder = audio_encoder_result[:, -5:, :5]  # All samples, last 5 steps, first 5 features
-                video_encoder = video_encoder_result[:, -5:, :5]  # All samples, last 5 steps, first 5 features
-                text_encoder = text_encoder_result[:, -5:, :5]    # All samples, last 5 steps, first 5 features
-                
-                logger.info(f"\n===== ENOCDER FEATURES - Last 5 Steps, First 5 Dims (Iter {n_iter}) =====")
-                logger.info(f"Audio Encoder (shape {audio_encoder.shape}):\n{audio_encoder}")
-                logger.info(f"Video Encoder (shape {video_encoder.shape}):\n{video_encoder}")
-                logger.info(f"Text Encoder (shape {text_encoder.shape}):\n{text_encoder}")
-                logger.info("=" * 70)
-
-        if n_iter % 100 == 0:  # Log every 10 iterations for frequent monitoring
-            with torch.no_grad():
-                logger.info(f"\n===== SEQUENCE LENGTH INFO - ENCODER RESULTS (Iter {n_iter}) =====")
-                logger.info(f"Audio encoder shape: {audio_encoder_result.shape} (timesteps: {audio_encoder_result.size(1)})")
-                logger.info(f"Video encoder shape: {video_encoder_result.shape} (timesteps: {video_encoder_result.size(1)})")
-                logger.info(f"Text encoder shape: {text_encoder_result.shape} (timesteps: {text_encoder_result.size(1)})")
-                
-                # Check if sequence length changed after encoding
-                length_change_audio = audio_feature.size(1) - audio_encoder_result.size(1)
-                length_change_video = video_feature.size(1) - video_encoder_result.size(1)
-                length_change_text = text_feature.size(1) - text_encoder_result.size(1)
-                logger.info(f"Length changes after encoding - Audio: {length_change_audio}, Video: {length_change_video}, Text: {length_change_text}")
-        
-                # Extract last 5 timesteps and first 5 feature dimensions: [batch_size, 5_timesteps, 5_features]
-                audio_encoder = audio_encoder_result[:, -5:, :5]  # All samples, last 5 steps, first 5 features
-                video_encoder = video_encoder_result[:, -5:, :5]  # All samples, last 5 steps, first 5 features
-                text_encoder = text_encoder_result[:, -5:, :5]    # All samples, last 5 steps, first 5 features
-                
-                logger.info(f"\n===== ENOCDER FEATURES - Last 5 Steps, First 5 Dims (Iter {n_iter}) =====")
-                logger.info(f"Audio Encoder (shape {audio_encoder.shape}):\n{audio_encoder}")
-                logger.info(f"Video Encoder (shape {video_encoder.shape}):\n{video_encoder}")
-                logger.info(f"Text Encoder (shape {text_encoder.shape}):\n{text_encoder}")
-                logger.info("=" * 70)
+        #         logger.info(f"\n===== ENOCDER FEATURES - Last 5 Steps, First 5 Dims (Iter {n_iter}) =====")
+        #         logger.info(f"Audio Encoder (shape {audio_encoder.shape}):\n{audio_encoder}")
+        #         logger.info(f"Video Encoder (shape {video_encoder.shape}):\n{video_encoder}")
+        #         logger.info(f"Text Encoder (shape {text_encoder.shape}):\n{text_encoder}")
+        #         logger.info("=" * 70)
 
         
         
-        if n_iter == 0:  # Log every 10 iterations for frequent monitoring
-            with torch.no_grad():
-                logger.info(f"\n===== SEQUENCE LENGTH INFO - SEMANTIC RESULTS (Iter {n_iter}) =====")
-                logger.info(f"Audio semantic shape: {audio_semantic_result.shape} (timesteps: {audio_semantic_result.size(1)})")
-                logger.info(f"Video semantic shape: {video_semantic_result.shape} (timesteps: {video_semantic_result.size(1)})")
-                logger.info(f"Text semantic shape: {text_semantic_result.shape} (timesteps: {text_semantic_result.size(1)})")
-                
-                # Check if sequence length changed from encoder to semantic
-                semantic_length_change_audio = audio_encoder_result.size(1) - audio_semantic_result.size(1)
-                semantic_length_change_video = video_encoder_result.size(1) - video_semantic_result.size(1)
-                semantic_length_change_text = text_encoder_result.size(1) - text_semantic_result.size(1)
-                logger.info(f"Length changes from encoder to semantic - Audio: {semantic_length_change_audio}, Video: {semantic_length_change_video}, Text: {semantic_length_change_text}")
-                # Extract last 5 timesteps and first 5 feature dimensions: [batch_size, 5_timesteps, 5_features]
-                audio_subset = audio_semantic_result[:, -5:, :5]  # All samples, last 5 steps, first 5 features
-                video_subset = video_semantic_result[:, -5:, :5]  # All samples, last 5 steps, first 5 features
-                text_subset = text_semantic_result[:, -5:, :5]    # All samples, last 5 steps, first 5 features
-                
-                logger.info(f"\n===== SEMANTIC FEATURES - Last 5 Steps, First 5 Dims (Iter {n_iter}) =====")
-                logger.info(f"Audio semantic (shape {audio_subset.shape}):\n{audio_subset}")
-                logger.info(f"Video semantic (shape {video_subset.shape}):\n{video_subset}")
-                logger.info(f"Text semantic (shape {text_subset.shape}):\n{text_subset}")
-                logger.info("=" * 70)
 
         
-        if n_iter == 1:  # Log every 10 iterations for frequent monitoring
-            with torch.no_grad():
-                logger.info(f"\n===== SEQUENCE LENGTH INFO - SEMANTIC RESULTS (Iter {n_iter}) =====")
-                logger.info(f"Audio semantic shape: {audio_semantic_result.shape} (timesteps: {audio_semantic_result.size(1)})")
-                logger.info(f"Video semantic shape: {video_semantic_result.shape} (timesteps: {video_semantic_result.size(1)})")
-                logger.info(f"Text semantic shape: {text_semantic_result.shape} (timesteps: {text_semantic_result.size(1)})")
+        # if n_iter == 1:  # Log every 10 iterations for frequent monitoring
+        #     with torch.no_grad():
+        #         logger.info(f"\n===== SEQUENCE LENGTH INFO - SEMANTIC RESULTS (Iter {n_iter}) =====")
+        #         logger.info(f"Audio semantic shape: {audio_semantic_result.shape} (timesteps: {audio_semantic_result.size(1)})")
+        #         logger.info(f"Video semantic shape: {video_semantic_result.shape} (timesteps: {video_semantic_result.size(1)})")
+        #         logger.info(f"Text semantic shape: {text_semantic_result.shape} (timesteps: {text_semantic_result.size(1)})")
                 
-                # Check if sequence length changed from encoder to semantic
-                semantic_length_change_audio = audio_encoder_result.size(1) - audio_semantic_result.size(1)
-                semantic_length_change_video = video_encoder_result.size(1) - video_semantic_result.size(1)
-                semantic_length_change_text = text_encoder_result.size(1) - text_semantic_result.size(1)
-                logger.info(f"Length changes from encoder to semantic - Audio: {semantic_length_change_audio}, Video: {semantic_length_change_video}, Text: {semantic_length_change_text}")
-                # Extract last 5 timesteps and first 5 feature dimensions: [batch_size, 5_timesteps, 5_features]
-                audio_subset = audio_semantic_result[:, -5:, :5]  # All samples, last 5 steps, first 5 features
-                video_subset = video_semantic_result[:, -5:, :5]  # All samples, last 5 steps, first 5 features
-                text_subset = text_semantic_result[:, -5:, :5]    # All samples, last 5 steps, first 5 features
+        #         # Check if sequence length changed from encoder to semantic
+        #         semantic_length_change_audio = audio_encoder_result.size(1) - audio_semantic_result.size(1)
+        #         semantic_length_change_video = video_encoder_result.size(1) - video_semantic_result.size(1)
+        #         semantic_length_change_text = text_encoder_result.size(1) - text_semantic_result.size(1)
+        #         logger.info(f"Length changes from encoder to semantic - Audio: {semantic_length_change_audio}, Video: {semantic_length_change_video}, Text: {semantic_length_change_text}")
+        #         # Extract last 5 timesteps and first 5 feature dimensions: [batch_size, 5_timesteps, 5_features]
+        #         audio_subset = audio_semantic_result[:, -5:, :5]  # All samples, last 5 steps, first 5 features
+        #         video_subset = video_semantic_result[:, -5:, :5]  # All samples, last 5 steps, first 5 features
+        #         text_subset = text_semantic_result[:, -5:, :5]    # All samples, last 5 steps, first 5 features
                 
-                logger.info(f"\n===== SEMANTIC FEATURES - Last 5 Steps, First 5 Dims (Iter {n_iter}) =====")
-                logger.info(f"Audio semantic (shape {audio_subset.shape}):\n{audio_subset}")
-                logger.info(f"Video semantic (shape {video_subset.shape}):\n{video_subset}")
-                logger.info(f"Text semantic (shape {text_subset.shape}):\n{text_subset}")
-                logger.info("=" * 70)
+        #         logger.info(f"\n===== SEMANTIC FEATURES - Last 5 Steps, First 5 Dims (Iter {n_iter}) =====")
+        #         logger.info(f"Audio semantic (shape {audio_subset.shape}):\n{audio_subset}")
+        #         logger.info(f"Video semantic (shape {video_subset.shape}):\n{video_subset}")
+        #         logger.info(f"Text semantic (shape {text_subset.shape}):\n{text_subset}")
+        #         logger.info("=" * 70)
 
 
-        if n_iter % 100 == 0:  # Log every 10 iterations for frequent monitoring
-            with torch.no_grad():
-                logger.info(f"\n===== SEQUENCE LENGTH INFO - SEMANTIC RESULTS (Iter {n_iter}) =====")
-                logger.info(f"Audio semantic shape: {audio_semantic_result.shape} (timesteps: {audio_semantic_result.size(1)})")
-                logger.info(f"Video semantic shape: {video_semantic_result.shape} (timesteps: {video_semantic_result.size(1)})")
-                logger.info(f"Text semantic shape: {text_semantic_result.shape} (timesteps: {text_semantic_result.size(1)})")
+        # if n_iter % 100 == 0:  # Log every 10 iterations for frequent monitoring
+        #     with torch.no_grad():
+        #         logger.info(f"\n===== SEQUENCE LENGTH INFO - SEMANTIC RESULTS (Iter {n_iter}) =====")
+        #         logger.info(f"Audio semantic shape: {audio_semantic_result.shape} (timesteps: {audio_semantic_result.size(1)})")
+        #         logger.info(f"Video semantic shape: {video_semantic_result.shape} (timesteps: {video_semantic_result.size(1)})")
+        #         logger.info(f"Text semantic shape: {text_semantic_result.shape} (timesteps: {text_semantic_result.size(1)})")
                 
-                # Check if sequence length changed from encoder to semantic
-                semantic_length_change_audio = audio_encoder_result.size(1) - audio_semantic_result.size(1)
-                semantic_length_change_video = video_encoder_result.size(1) - video_semantic_result.size(1)
-                semantic_length_change_text = text_encoder_result.size(1) - text_semantic_result.size(1)
-                logger.info(f"Length changes from encoder to semantic - Audio: {semantic_length_change_audio}, Video: {semantic_length_change_video}, Text: {semantic_length_change_text}")
-                # Extract last 5 timesteps and first 5 feature dimensions: [batch_size, 5_timesteps, 5_features]
-                audio_subset = audio_semantic_result[:, -5:, :5]  # All samples, last 5 steps, first 5 features
-                video_subset = video_semantic_result[:, -5:, :5]  # All samples, last 5 steps, first 5 features
-                text_subset = text_semantic_result[:, -5:, :5]    # All samples, last 5 steps, first 5 features
+        #         # Check if sequence length changed from encoder to semantic
+        #         semantic_length_change_audio = audio_encoder_result.size(1) - audio_semantic_result.size(1)
+        #         semantic_length_change_video = video_encoder_result.size(1) - video_semantic_result.size(1)
+        #         semantic_length_change_text = text_encoder_result.size(1) - text_semantic_result.size(1)
+        #         logger.info(f"Length changes from encoder to semantic - Audio: {semantic_length_change_audio}, Video: {semantic_length_change_video}, Text: {semantic_length_change_text}")
+        #         # Extract last 5 timesteps and first 5 feature dimensions: [batch_size, 5_timesteps, 5_features]
+        #         audio_subset = audio_semantic_result[:, -5:, :5]  # All samples, last 5 steps, first 5 features
+        #         video_subset = video_semantic_result[:, -5:, :5]  # All samples, last 5 steps, first 5 features
+        #         text_subset = text_semantic_result[:, -5:, :5]    # All samples, last 5 steps, first 5 features
                 
-                logger.info(f"\n===== SEMANTIC FEATURES - Last 5 Steps, First 5 Dims (Iter {n_iter}) =====")
-                logger.info(f"Audio semantic (shape {audio_subset.shape}):\n{audio_subset}")
-                logger.info(f"Video semantic (shape {video_subset.shape}):\n{video_subset}")
-                logger.info(f"Text semantic (shape {text_subset.shape}):\n{text_subset}")
-                logger.info("=" * 70)
+        #         logger.info(f"\n===== SEMANTIC FEATURES - Last 5 Steps, First 5 Dims (Iter {n_iter}) =====")
+        #         logger.info(f"Audio semantic (shape {audio_subset.shape}):\n{audio_subset}")
+        #         logger.info(f"Video semantic (shape {video_subset.shape}):\n{video_subset}")
+        #         logger.info(f"Text semantic (shape {text_subset.shape}):\n{text_subset}")
+        #         logger.info("=" * 70)
         
-        if n_iter == 0:  # Log every 10 iterations for frequent monitoring
-            with torch.no_grad():
-                logger.info(f"\n===== SEQUENCE LENGTH INFO - VQ RESULTS (Iter {n_iter}) =====")
-                logger.info(f"Audio VQ shape: {out_vq_audio.shape} (timesteps: {out_vq_audio.size(1)})")
-                logger.info(f"Video VQ shape: {out_vq_video.shape} (timesteps: {out_vq_video.size(1)})")
-                logger.info(f"Text VQ shape: {out_vq_text.shape} (timesteps: {out_vq_text.size(1)})")
+
+        # if n_iter == 1:  # Log every 10 iterations for frequent monitoring
+        #     with torch.no_grad():
+        #         logger.info(f"\n===== SEQUENCE LENGTH INFO - VQ RESULTS (Iter {n_iter}) =====")
+        #         logger.info(f"Audio VQ shape: {out_vq_audio.shape} (timesteps: {out_vq_audio.size(1)})")
+        #         logger.info(f"Video VQ shape: {out_vq_video.shape} (timesteps: {out_vq_video.size(1)})")
+        #         logger.info(f"Text VQ shape: {out_vq_text.shape} (timesteps: {out_vq_text.size(1)})")
                 
-                # # Check if sequence length changed from semantic to VQ
-                # vq_length_change_audio = audio_semantic_result.size(1) - out_vq_audio.size(1)
-                # vq_length_change_video = video_semantic_result.size(1) - out_vq_video.size(1)
-                # vq_length_change_text = text_semantic_result.size(1) - out_vq_text.size(1)
-                # logger.info(f"Length changes from semantic to VQ - Audio: {vq_length_change_audio}, Video: {vq_length_change_video}, Text: {vq_length_change_text}")
+        #         # # Check if sequence length changed from semantic to VQ
+        #         # vq_length_change_audio = audio_semantic_result.size(1) - out_vq_audio.size(1)
+        #         # vq_length_change_video = video_semantic_result.size(1) - out_vq_video.size(1)
+        #         # vq_length_change_text = text_semantic_result.size(1) - out_vq_text.size(1)
+        #         # logger.info(f"Length changes from semantic to VQ - Audio: {vq_length_change_audio}, Video: {vq_length_change_video}, Text: {vq_length_change_text}")
         
-                # Extract last 5 timesteps and first 5 feature dimensions: [batch_size, 5_timesteps, 5_features]
-                audio_vq_subset = out_vq_audio[:, -5:, :5]  # All samples, last 5 steps, first 5 features
-                video_vq_subset = out_vq_video[:, -5:, :5]  # All samples, last 5 steps, first 5 features
-                text_vq_subset = out_vq_text[:, -5:, :5]    # All samples, last 5 steps, first 5 features
+        #         # Extract last 5 timesteps and first 5 feature dimensions: [batch_size, 5_timesteps, 5_features]
+        #         audio_vq_subset = out_vq_audio[:, -5:, :5]  # All samples, last 5 steps, first 5 features
+        #         video_vq_subset = out_vq_video[:, -5:, :5]  # All samples, last 5 steps, first 5 features
+        #         text_vq_subset = out_vq_text[:, -5:, :5]    # All samples, last 5 steps, first 5 features
                 
-                logger.info(f"\n===== VQ FEATURES - Last 5 Steps, First 5 Dims (Iter {n_iter}) =====")
-                logger.info(f"Audio VQ (shape {audio_vq_subset.shape}):\n{audio_vq_subset}")
-                logger.info(f"Video VQ (shape {video_vq_subset.shape}):\n{video_vq_subset}")
-                logger.info(f"Text VQ (shape {text_vq_subset.shape}):\n{text_vq_subset}")
-                logger.info("=" * 70)
+        #         logger.info(f"\n===== VQ FEATURES - Last 5 Steps, First 5 Dims (Iter {n_iter}) =====")
+        #         logger.info(f"Audio VQ (shape {audio_vq_subset.shape}):\n{audio_vq_subset}")
+        #         logger.info(f"Video VQ (shape {video_vq_subset.shape}):\n{video_vq_subset}")
+        #         logger.info(f"Text VQ (shape {text_vq_subset.shape}):\n{text_vq_subset}")
+        #         logger.info("=" * 70)
 
-        if n_iter == 1:  # Log every 10 iterations for frequent monitoring
-            with torch.no_grad():
-                logger.info(f"\n===== SEQUENCE LENGTH INFO - VQ RESULTS (Iter {n_iter}) =====")
-                logger.info(f"Audio VQ shape: {out_vq_audio.shape} (timesteps: {out_vq_audio.size(1)})")
-                logger.info(f"Video VQ shape: {out_vq_video.shape} (timesteps: {out_vq_video.size(1)})")
-                logger.info(f"Text VQ shape: {out_vq_text.shape} (timesteps: {out_vq_text.size(1)})")
+        # if n_iter % 100 == 0:  # Log every 10 iterations for frequent monitoring
+        #     with torch.no_grad():
+        #         logger.info(f"\n===== SEQUENCE LENGTH INFO - VQ RESULTS (Iter {n_iter}) =====")
+        #         logger.info(f"Audio VQ shape: {out_vq_audio.shape} (timesteps: {out_vq_audio.size(1)})")
+        #         logger.info(f"Video VQ shape: {out_vq_video.shape} (timesteps: {out_vq_video.size(1)})")
+        #         logger.info(f"Text VQ shape: {out_vq_text.shape} (timesteps: {out_vq_text.size(1)})")
                 
-                # # Check if sequence length changed from semantic to VQ
-                # vq_length_change_audio = audio_semantic_result.size(1) - out_vq_audio.size(1)
-                # vq_length_change_video = video_semantic_result.size(1) - out_vq_video.size(1)
-                # vq_length_change_text = text_semantic_result.size(1) - out_vq_text.size(1)
-                # logger.info(f"Length changes from semantic to VQ - Audio: {vq_length_change_audio}, Video: {vq_length_change_video}, Text: {vq_length_change_text}")
+        #         # # Check if sequence length changed from semantic to VQ
+        #         # vq_length_change_audio = audio_semantic_result.size(1) - out_vq_audio.size(1)
+        #         # vq_length_change_video = video_semantic_result.size(1) - out_vq_video.size(1)
+        #         # vq_length_change_text = text_semantic_result.size(1) - out_vq_text.size(1)
+        #         # logger.info(f"Length changes from semantic to VQ - Audio: {vq_length_change_audio}, Video: {vq_length_change_video}, Text: {vq_length_change_text}")
         
-                # Extract last 5 timesteps and first 5 feature dimensions: [batch_size, 5_timesteps, 5_features]
-                audio_vq_subset = out_vq_audio[:, -5:, :5]  # All samples, last 5 steps, first 5 features
-                video_vq_subset = out_vq_video[:, -5:, :5]  # All samples, last 5 steps, first 5 features
-                text_vq_subset = out_vq_text[:, -5:, :5]    # All samples, last 5 steps, first 5 features
+        #         # Extract last 5 timesteps and first 5 feature dimensions: [batch_size, 5_timesteps, 5_features]
+        #         audio_vq_subset = out_vq_audio[:, -5:, :5]  # All samples, last 5 steps, first 5 features
+        #         video_vq_subset = out_vq_video[:, -5:, :5]  # All samples, last 5 steps, first 5 features
+        #         text_vq_subset = out_vq_text[:, -5:, :5]    # All samples, last 5 steps, first 5 features
                 
-                logger.info(f"\n===== VQ FEATURES - Last 5 Steps, First 5 Dims (Iter {n_iter}) =====")
-                logger.info(f"Audio VQ (shape {audio_vq_subset.shape}):\n{audio_vq_subset}")
-                logger.info(f"Video VQ (shape {video_vq_subset.shape}):\n{video_vq_subset}")
-                logger.info(f"Text VQ (shape {text_vq_subset.shape}):\n{text_vq_subset}")
-                logger.info("=" * 70)
-
-        if n_iter % 100 == 0:  # Log every 10 iterations for frequent monitoring
-            with torch.no_grad():
-                logger.info(f"\n===== SEQUENCE LENGTH INFO - VQ RESULTS (Iter {n_iter}) =====")
-                logger.info(f"Audio VQ shape: {out_vq_audio.shape} (timesteps: {out_vq_audio.size(1)})")
-                logger.info(f"Video VQ shape: {out_vq_video.shape} (timesteps: {out_vq_video.size(1)})")
-                logger.info(f"Text VQ shape: {out_vq_text.shape} (timesteps: {out_vq_text.size(1)})")
-                
-                # # Check if sequence length changed from semantic to VQ
-                # vq_length_change_audio = audio_semantic_result.size(1) - out_vq_audio.size(1)
-                # vq_length_change_video = video_semantic_result.size(1) - out_vq_video.size(1)
-                # vq_length_change_text = text_semantic_result.size(1) - out_vq_text.size(1)
-                # logger.info(f"Length changes from semantic to VQ - Audio: {vq_length_change_audio}, Video: {vq_length_change_video}, Text: {vq_length_change_text}")
-        
-                # Extract last 5 timesteps and first 5 feature dimensions: [batch_size, 5_timesteps, 5_features]
-                audio_vq_subset = out_vq_audio[:, -5:, :5]  # All samples, last 5 steps, first 5 features
-                video_vq_subset = out_vq_video[:, -5:, :5]  # All samples, last 5 steps, first 5 features
-                text_vq_subset = out_vq_text[:, -5:, :5]    # All samples, last 5 steps, first 5 features
-                
-                logger.info(f"\n===== VQ FEATURES - Last 5 Steps, First 5 Dims (Iter {n_iter}) =====")
-                logger.info(f"Audio VQ (shape {audio_vq_subset.shape}):\n{audio_vq_subset}")
-                logger.info(f"Video VQ (shape {video_vq_subset.shape}):\n{video_vq_subset}")
-                logger.info(f"Text VQ (shape {text_vq_subset.shape}):\n{text_vq_subset}")
-                logger.info("=" * 70)
-
-
-
+        #         logger.info(f"\n===== VQ FEATURES - Last 5 Steps, First 5 Dims (Iter {n_iter}) =====")
+        #         logger.info(f"Audio VQ (shape {audio_vq_subset.shape}):\n{audio_vq_subset}")
+        #         logger.info(f"Video VQ (shape {video_vq_subset.shape}):\n{video_vq_subset}")
+        #         logger.info(f"Text VQ (shape {text_vq_subset.shape}):\n{text_vq_subset}")
+        #         logger.info("=" * 70)
 
         
         if n_iter == 0:
             quantizer = Encoder.Cross_quantizer
             with torch.no_grad():
-                logger.info(f"INITIALIZATION_1 - Vector 200 (first 5 video dims): {quantizer.embedding[200, :5]}")
-                logger.info(f"INITIALIZATION_1 - Vector 200 (first 5 audio dims): {quantizer.embedding[200, 256:261]}")
-                logger.info(f"INITIALIZATION_1 - Vector 200 (first 5 text dims): {quantizer.embedding[200, 512:517]}")
-                logger.info(f"INITIALIZATION_1 - Vector 120 (first 5 video dims): {quantizer.embedding[120, :5]}")
-                logger.info(f"INITIALIZATION_1 - Vector 120 (first 5 audio dims): {quantizer.embedding[120, 256:261]}")
-                logger.info(f"INITIALIZATION_1 - Vector 120 (first 5 text dims): {quantizer.embedding[120, 512:517]}")
-                logger.info(f"INITIALIZATION_1 - Vector 45 (first 5 video dims): {quantizer.embedding[45, :5]}")
-                logger.info(f"INITIALIZATION_1 - Vector 45 (first 5 audio dims): {quantizer.embedding[45, 256:261]}")
-                logger.info(f"INITIALIZATION_1 - Vector 45 (first 5 text dims): {quantizer.embedding[45, 512:517]}")
-                logger.info(f"INITIALIZATION Epoch 0 - Count for vector 200: {quantizer.ema_count[200]}")
+                # logger.info(f"INITIALIZATION_1 - Vector 200 (first 5 video dims): {quantizer.embedding[200, :5]}")
+                # logger.info(f"INITIALIZATION_1 - Vector 200 (first 5 audio dims): {quantizer.embedding[200, 256:261]}")
+                # logger.info(f"INITIALIZATION_1 - Vector 200 (first 5 text dims): {quantizer.embedding[200, 512:517]}")
+                # logger.info(f"INITIALIZATION_1 - Vector 120 (first 5 video dims): {quantizer.embedding[120, :5]}")
+                # logger.info(f"INITIALIZATION_1 - Vector 120 (first 5 audio dims): {quantizer.embedding[120, 256:261]}")
+                # logger.info(f"INITIALIZATION_1 - Vector 120 (first 5 text dims): {quantizer.embedding[120, 512:517]}")
+                # logger.info(f"INITIALIZATION_1 - Vector 45 (first 5 video dims): {quantizer.embedding[45, :5]}")
+                # logger.info(f"INITIALIZATION_1 - Vector 45 (first 5 audio dims): {quantizer.embedding[45, 256:261]}")
+                # logger.info(f"INITIALIZATION_1 - Vector 45 (first 5 text dims): {quantizer.embedding[45, 512:517]}")
+                logger.info(f"INITIALIZATION Epoch 0 - Count for vector 100: {quantizer.ema_count[100]}")
                 logger.info(f"INITIALIZATION Epoch 0 - Count for vector 120: {quantizer.ema_count[120]}")
                 logger.info(f"INITIALIZATION Epoch 0 - Count for vector 45: {quantizer.ema_count[45]}")
                 logger.info(f"Init Codebook min: {quantizer.embedding.min().item()}, max: {quantizer.embedding.max().item()}")
@@ -701,18 +591,18 @@ def train_epoch(CPC,Encoder, Decoder,train_dataloader, criterion_sentiment, opti
             quantizer = Encoder.Cross_quantizer
             with torch.no_grad():
                 most_used_idx = torch.argmax(quantizer.ema_count)
-                random_idx1 = (most_used_idx + 1) % 400
-                random_idx2 = (most_used_idx + 100) % 400
+                random_idx1 = (most_used_idx + 1) % 128
+                random_idx2 = (most_used_idx + 100) % 128
                 logger.info(f"\n===== BATCH ({n_iter}) DEBUG =====")
-                logger.info(f"Most used vector ({most_used_idx}) value (first 5 video dims): {quantizer.embedding[most_used_idx, :5]}")
-                logger.info(f"Most used vector ({most_used_idx}) value (first 5 audio dims): {quantizer.embedding[most_used_idx, 256:261]}")
-                logger.info(f"Most used vector ({most_used_idx}) value (first 5 text dims): {quantizer.embedding[most_used_idx, 512:517]}")
-                logger.info(f"Random ({random_idx1}) vector value (first 5 video dims): {quantizer.embedding[random_idx1, :5]}")
-                logger.info(f"Random {random_idx1} vector value (first 5 audio dims): {quantizer.embedding[random_idx1, 256:261]}")
-                logger.info(f"Random {random_idx1} vector value (first 5 text dims): {quantizer.embedding[random_idx1, 512:517]}")
-                logger.info(f"Random {random_idx2} vector value (first 5 video dims): {quantizer.embedding[random_idx2, :5]}")
-                logger.info(f"Random {random_idx2} vector value (first 5 audio dims): {quantizer.embedding[random_idx2, 256:261]}")
-                logger.info(f"Random {random_idx2} vector value (first 5 text dims): {quantizer.embedding[random_idx2, 512:517]}")
+                # logger.info(f"Most used vector ({most_used_idx}) value (first 5 video dims): {quantizer.embedding[most_used_idx, :5]}")
+                # logger.info(f"Most used vector ({most_used_idx}) value (first 5 audio dims): {quantizer.embedding[most_used_idx, 256:261]}")
+                # logger.info(f"Most used vector ({most_used_idx}) value (first 5 text dims): {quantizer.embedding[most_used_idx, 512:517]}")
+                # logger.info(f"Random ({random_idx1}) vector value (first 5 video dims): {quantizer.embedding[random_idx1, :5]}")
+                # logger.info(f"Random {random_idx1} vector value (first 5 audio dims): {quantizer.embedding[random_idx1, 256:261]}")
+                # logger.info(f"Random {random_idx1} vector value (first 5 text dims): {quantizer.embedding[random_idx1, 512:517]}")
+                # logger.info(f"Random {random_idx2} vector value (first 5 video dims): {quantizer.embedding[random_idx2, :5]}")
+                # logger.info(f"Random {random_idx2} vector value (first 5 audio dims): {quantizer.embedding[random_idx2, 256:261]}")
+                # logger.info(f"Random {random_idx2} vector value (first 5 text dims): {quantizer.embedding[random_idx2, 512:517]}")
                 logger.info(f"Count statistics - min: {quantizer.ema_count.min()}, max: {quantizer.ema_count.max()}, mean: {quantizer.ema_count.mean()}")
                 logger.info(f"Count histogram: {torch.histc(quantizer.ema_count, bins=10, min=0, max=quantizer.ema_count.max())}")
                 logger.info(f"Number of dead vectors (count < 0.01): {(quantizer.ema_count < 0.01).sum()}")
@@ -722,18 +612,18 @@ def train_epoch(CPC,Encoder, Decoder,train_dataloader, criterion_sentiment, opti
             quantizer = Encoder.Cross_quantizer
             with torch.no_grad():
                 most_used_idx = torch.argmax(quantizer.ema_count)
-                random_idx1 = (most_used_idx + 1) % 400
-                random_idx2 = (most_used_idx + 100) % 400
+                random_idx1 = (most_used_idx + 1) % 128
+                random_idx2 = (most_used_idx + 100) % 128
                 logger.info(f"\n===== BATCH ({n_iter}) DEBUG =====")
-                logger.info(f"Most used vector ({most_used_idx}) value (first 5 video dims): {quantizer.embedding[most_used_idx, :5]}")
-                logger.info(f"Most used vector ({most_used_idx}) value (first 5 audio dims): {quantizer.embedding[most_used_idx, 256:261]}")
-                logger.info(f"Most used vector ({most_used_idx}) value (first 5 text dims): {quantizer.embedding[most_used_idx, 512:517]}")
-                logger.info(f"Random ({random_idx1}) vector value (first 5 video dims): {quantizer.embedding[random_idx1, :5]}")
-                logger.info(f"Random {random_idx1} vector value (first 5 audio dims): {quantizer.embedding[random_idx1, 256:261]}")
-                logger.info(f"Random {random_idx1} vector value (first 5 text dims): {quantizer.embedding[random_idx1, 512:517]}")
-                logger.info(f"Random {random_idx2} vector value (first 5 video dims): {quantizer.embedding[random_idx2, :5]}")
-                logger.info(f"Random {random_idx2} vector value (first 5 audio dims): {quantizer.embedding[random_idx2, 256:261]}")
-                logger.info(f"Random {random_idx2} vector value (first 5 text dims): {quantizer.embedding[random_idx2, 512:517]}")
+                # logger.info(f"Most used vector ({most_used_idx}) value (first 5 video dims): {quantizer.embedding[most_used_idx, :5]}")
+                # logger.info(f"Most used vector ({most_used_idx}) value (first 5 audio dims): {quantizer.embedding[most_used_idx, 256:261]}")
+                # logger.info(f"Most used vector ({most_used_idx}) value (first 5 text dims): {quantizer.embedding[most_used_idx, 512:517]}")
+                # logger.info(f"Random ({random_idx1}) vector value (first 5 video dims): {quantizer.embedding[random_idx1, :5]}")
+                # logger.info(f"Random {random_idx1} vector value (first 5 audio dims): {quantizer.embedding[random_idx1, 256:261]}")
+                # logger.info(f"Random {random_idx1} vector value (first 5 text dims): {quantizer.embedding[random_idx1, 512:517]}")
+                # logger.info(f"Random {random_idx2} vector value (first 5 video dims): {quantizer.embedding[random_idx2, :5]}")
+                # logger.info(f"Random {random_idx2} vector value (first 5 audio dims): {quantizer.embedding[random_idx2, 256:261]}")
+                # logger.info(f"Random {random_idx2} vector value (first 5 text dims): {quantizer.embedding[random_idx2, 512:517]}")
                 logger.info(f"Count statistics - min: {quantizer.ema_count.min()}, max: {quantizer.ema_count.max()}, mean: {quantizer.ema_count.mean()}")
                 logger.info(f"Count histogram: {torch.histc(quantizer.ema_count, bins=10, min=0, max=quantizer.ema_count.max())}")
                 logger.info(f"Number of dead vectors (count < 0.01): {(quantizer.ema_count < 0.01).sum()}")
@@ -743,18 +633,18 @@ def train_epoch(CPC,Encoder, Decoder,train_dataloader, criterion_sentiment, opti
             quantizer = Encoder.Cross_quantizer
             with torch.no_grad():
                 most_used_idx = torch.argmax(quantizer.ema_count)
-                random_idx1 = (most_used_idx + 1) % 400
-                random_idx2 = (most_used_idx + 100) % 400
+                random_idx1 = (most_used_idx + 1) % 128
+                random_idx2 = (most_used_idx + 100) % 128
                 logger.info(f"\n===== BATCH ({n_iter}) DEBUG =====")
-                logger.info(f"Most used vector ({most_used_idx}) value (first 5 video dims): {quantizer.embedding[most_used_idx, :5]}")
-                logger.info(f"Most used vector ({most_used_idx}) value (first 5 audio dims): {quantizer.embedding[most_used_idx, 256:261]}")
-                logger.info(f"Most used vector ({most_used_idx}) value (first 5 text dims): {quantizer.embedding[most_used_idx, 512:517]}")
-                logger.info(f"Random ({random_idx1}) vector value (first 5 video dims): {quantizer.embedding[random_idx1, :5]}")
-                logger.info(f"Random {random_idx1} vector value (first 5 audio dims): {quantizer.embedding[random_idx1, 256:261]}")
-                logger.info(f"Random {random_idx1} vector value (first 5 text dims): {quantizer.embedding[random_idx1, 512:517]}")
-                logger.info(f"Random {random_idx2} vector value (first 5 video dims): {quantizer.embedding[random_idx2, :5]}")
-                logger.info(f"Random {random_idx2} vector value (first 5 audio dims): {quantizer.embedding[random_idx2, 256:261]}")
-                logger.info(f"Random {random_idx2} vector value (first 5 text dims): {quantizer.embedding[random_idx2, 512:517]}")
+                # logger.info(f"Most used vector ({most_used_idx}) value (first 5 video dims): {quantizer.embedding[most_used_idx, :5]}")
+                # logger.info(f"Most used vector ({most_used_idx}) value (first 5 audio dims): {quantizer.embedding[most_used_idx, 256:261]}")
+                # logger.info(f"Most used vector ({most_used_idx}) value (first 5 text dims): {quantizer.embedding[most_used_idx, 512:517]}")
+                # logger.info(f"Random ({random_idx1}) vector value (first 5 video dims): {quantizer.embedding[random_idx1, :5]}")
+                # logger.info(f"Random {random_idx1} vector value (first 5 audio dims): {quantizer.embedding[random_idx1, 256:261]}")
+                # logger.info(f"Random {random_idx1} vector value (first 5 text dims): {quantizer.embedding[random_idx1, 512:517]}")
+                # logger.info(f"Random {random_idx2} vector value (first 5 video dims): {quantizer.embedding[random_idx2, :5]}")
+                # logger.info(f"Random {random_idx2} vector value (first 5 audio dims): {quantizer.embedding[random_idx2, 256:261]}")
+                # logger.info(f"Random {random_idx2} vector value (first 5 text dims): {quantizer.embedding[random_idx2, 512:517]}")
                 logger.info(f"Count statistics - min: {quantizer.ema_count.min()}, max: {quantizer.ema_count.max()}, mean: {quantizer.ema_count.mean()}")
                 logger.info(f"Count histogram: {torch.histc(quantizer.ema_count, bins=10, min=0, max=quantizer.ema_count.max())}")
                 logger.info(f"Number of dead vectors (count < 0.01): {(quantizer.ema_count < 0.01).sum()}")
@@ -764,18 +654,18 @@ def train_epoch(CPC,Encoder, Decoder,train_dataloader, criterion_sentiment, opti
             quantizer = Encoder.Cross_quantizer
             with torch.no_grad():
                 most_used_idx = torch.argmax(quantizer.ema_count)
-                random_idx1 = (most_used_idx + 1) % 400
-                random_idx2 = (most_used_idx + 100) % 400
+                random_idx1 = (most_used_idx + 1) % 128
+                random_idx2 = (most_used_idx + 100) % 128
                 logger.info(f"\n===== BATCH ({n_iter}) DEBUG =====")
-                logger.info(f"Most used vector ({most_used_idx}) value (first 5 video dims): {quantizer.embedding[most_used_idx, :5]}")
-                logger.info(f"Most used vector ({most_used_idx}) value (first 5 audio dims): {quantizer.embedding[most_used_idx, 256:261]}")
-                logger.info(f"Most used vector ({most_used_idx}) value (first 5 text dims): {quantizer.embedding[most_used_idx, 512:517]}")
-                logger.info(f"Random ({random_idx1}) vector value (first 5 video dims): {quantizer.embedding[random_idx1, :5]}")
-                logger.info(f"Random {random_idx1} vector value (first 5 audio dims): {quantizer.embedding[random_idx1, 256:261]}")
-                logger.info(f"Random {random_idx1} vector value (first 5 text dims): {quantizer.embedding[random_idx1, 512:517]}")
-                logger.info(f"Random {random_idx2} vector value (first 5 video dims): {quantizer.embedding[random_idx2, :5]}")
-                logger.info(f"Random {random_idx2} vector value (first 5 audio dims): {quantizer.embedding[random_idx2, 256:261]}")
-                logger.info(f"Random {random_idx2} vector value (first 5 text dims): {quantizer.embedding[random_idx2, 512:517]}")
+                # logger.info(f"Most used vector ({most_used_idx}) value (first 5 video dims): {quantizer.embedding[most_used_idx, :5]}")
+                # logger.info(f"Most used vector ({most_used_idx}) value (first 5 audio dims): {quantizer.embedding[most_used_idx, 256:261]}")
+                # logger.info(f"Most used vector ({most_used_idx}) value (first 5 text dims): {quantizer.embedding[most_used_idx, 512:517]}")
+                # logger.info(f"Random ({random_idx1}) vector value (first 5 video dims): {quantizer.embedding[random_idx1, :5]}")
+                # logger.info(f"Random {random_idx1} vector value (first 5 audio dims): {quantizer.embedding[random_idx1, 256:261]}")
+                # logger.info(f"Random {random_idx1} vector value (first 5 text dims): {quantizer.embedding[random_idx1, 512:517]}")
+                # logger.info(f"Random {random_idx2} vector value (first 5 video dims): {quantizer.embedding[random_idx2, :5]}")
+                # logger.info(f"Random {random_idx2} vector value (first 5 audio dims): {quantizer.embedding[random_idx2, 256:261]}")
+                # logger.info(f"Random {random_idx2} vector value (first 5 text dims): {quantizer.embedding[random_idx2, 512:517]}")
                 logger.info(f"Count statistics - min: {quantizer.ema_count.min()}, max: {quantizer.ema_count.max()}, mean: {quantizer.ema_count.mean()}")
                 logger.info(f"Count histogram: {torch.histc(quantizer.ema_count, bins=10, min=0, max=quantizer.ema_count.max())}")
                 logger.info(f"Number of dead vectors (count < 0.01): {(quantizer.ema_count < 0.01).sum()}")
@@ -785,18 +675,18 @@ def train_epoch(CPC,Encoder, Decoder,train_dataloader, criterion_sentiment, opti
             quantizer = Encoder.Cross_quantizer
             with torch.no_grad():
                 most_used_idx = torch.argmax(quantizer.ema_count)
-                random_idx1 = (most_used_idx + 1) % 400
-                random_idx2 = (most_used_idx + 100) % 400
+                random_idx1 = (most_used_idx + 1) % 128
+                random_idx2 = (most_used_idx + 100) % 128
                 logger.info(f"\n===== BATCH ({n_iter}) DEBUG =====")
-                logger.info(f"Most used vector ({most_used_idx}) value (first 5 video dims): {quantizer.embedding[most_used_idx, :5]}")
-                logger.info(f"Most used vector ({most_used_idx}) value (first 5 audio dims): {quantizer.embedding[most_used_idx, 256:261]}")
-                logger.info(f"Most used vector ({most_used_idx}) value (first 5 text dims): {quantizer.embedding[most_used_idx, 512:517]}")
-                logger.info(f"Random ({random_idx1}) vector value (first 5 video dims): {quantizer.embedding[random_idx1, :5]}")
-                logger.info(f"Random {random_idx1} vector value (first 5 audio dims): {quantizer.embedding[random_idx1, 256:261]}")
-                logger.info(f"Random {random_idx1} vector value (first 5 text dims): {quantizer.embedding[random_idx1, 512:517]}")
-                logger.info(f"Random {random_idx2} vector value (first 5 video dims): {quantizer.embedding[random_idx2, :5]}")
-                logger.info(f"Random {random_idx2} vector value (first 5 audio dims): {quantizer.embedding[random_idx2, 256:261]}")
-                logger.info(f"Random {random_idx2} vector value (first 5 text dims): {quantizer.embedding[random_idx2, 512:517]}")
+                # logger.info(f"Most used vector ({most_used_idx}) value (first 5 video dims): {quantizer.embedding[most_used_idx, :5]}")
+                # logger.info(f"Most used vector ({most_used_idx}) value (first 5 audio dims): {quantizer.embedding[most_used_idx, 256:261]}")
+                # logger.info(f"Most used vector ({most_used_idx}) value (first 5 text dims): {quantizer.embedding[most_used_idx, 512:517]}")
+                # logger.info(f"Random ({random_idx1}) vector value (first 5 video dims): {quantizer.embedding[random_idx1, :5]}")
+                # logger.info(f"Random {random_idx1} vector value (first 5 audio dims): {quantizer.embedding[random_idx1, 256:261]}")
+                # logger.info(f"Random {random_idx1} vector value (first 5 text dims): {quantizer.embedding[random_idx1, 512:517]}")
+                # logger.info(f"Random {random_idx2} vector value (first 5 video dims): {quantizer.embedding[random_idx2, :5]}")
+                # logger.info(f"Random {random_idx2} vector value (first 5 audio dims): {quantizer.embedding[random_idx2, 256:261]}")
+                # logger.info(f"Random {random_idx2} vector value (first 5 text dims): {quantizer.embedding[random_idx2, 512:517]}")
                 logger.info(f"Count statistics - min: {quantizer.ema_count.min()}, max: {quantizer.ema_count.max()}, mean: {quantizer.ema_count.mean()}")
                 logger.info(f"Count histogram: {torch.histc(quantizer.ema_count, bins=10, min=0, max=quantizer.ema_count.max())}")
                 logger.info(f"Number of dead vectors (count < 0.01): {(quantizer.ema_count < 0.01).sum()}")
@@ -806,6 +696,7 @@ def train_epoch(CPC,Encoder, Decoder,train_dataloader, criterion_sentiment, opti
  
 
         accuracy1, accuracy2, accuracy3, accuracy4, accuracy5, accuracy6, accuracy7, accuracy8, accuracy9, cpc_loss, \
+        accuracy_1, accuracy_2, accuracy_3, accuracy_4, accuracy_5, accuracy_6, nce_loss_1,\
         audio_recon_loss, video_recon_loss, text_recon_loss, audio_score, video_score, text_score, combined_score,  \
         video_sentiment_loss, audio_sentiment_loss, text_sentiment_loss, combined_sentiment_loss \
         = mi_first_forward(CPC, audio_feature, video_feature, text_feature, Decoder,epoch,
@@ -838,6 +729,13 @@ def train_epoch(CPC,Encoder, Decoder,train_dataloader, criterion_sentiment, opti
             "acc_vv": accuracy8.item(),
             "acc_tt": accuracy9.item(),
             "cpc_loss": cpc_loss.item(),
+            "acc_a/v": accuracy_1.item(),
+            "acc_a/t": accuracy_2.item(),
+            "acc_v/t": accuracy_3.item(),
+            "acc_v/a": accuracy_4.item(),
+            "acc_t/a": accuracy_5.item(),
+            "acc_t/v": accuracy_6.item(),
+            "multimodal_Loss": nce_loss_1,
             "cmcm_loss": cmcm_loss.item(),
             "segment_loss": segment_loss.item(),
             "audio_perplexity": audio_perplexity.item(),
@@ -849,7 +747,7 @@ def train_epoch(CPC,Encoder, Decoder,train_dataloader, criterion_sentiment, opti
 
         # VGG downstream
         loss =  audio_recon_loss + video_recon_loss + text_recon_loss + audio_embedding_loss +  video_embedding_loss + text_embedding_loss\
-                + cpc_loss + cmcm_loss + video_sentiment_loss + audio_sentiment_loss + text_sentiment_loss + combined_sentiment_loss
+                + cpc_loss + cmcm_loss + video_sentiment_loss + audio_sentiment_loss + text_sentiment_loss + combined_sentiment_loss + nce_loss_1
 
 
         # Update epoch loss meters
@@ -896,7 +794,92 @@ def train_epoch(CPC,Encoder, Decoder,train_dataloader, criterion_sentiment, opti
 
     return losses.avg, n_iter + total_step, epoch_losses
 
+
+
+def multimodal_temporal_contrastive_loss_intra_sequence(
+    video_emb, 
+    audio_emb, 
+    text_emb, 
+    lengths, 
+    attention_mask,
+    temperature=1.0,
+    cross_modal_weight=1.0
+):
+    batch_size, time_length, embed_dim = video_emb.shape
+    device = video_emb.device
+    
+    lengths = lengths.to(device)
+    attention_mask = attention_mask.to(device)
+    
+    lsoftmax = nn.LogSoftmax(dim=1)  # Note: dim=1 for temporal dimension
+    softmax = nn.Softmax(dim=1)
+    
+    total_nce = 0.0
+    total_valid_samples = 0
+    
+    acc_accumulators = {
+        'audio_video': 0, 'audio_text': 0, 'video_text': 0,
+        'video_audio': 0, 'text_audio': 0, 'text_video': 0
+    }
+
+    for b in range(batch_size):
+        valid_mask = attention_mask[b, :].bool()  # [time_length]
+        valid_indices = torch.where(valid_mask)[0]  # Indices of valid timesteps
+        n_valid = len(valid_indices)
         
+        if n_valid <= 1:  # Need at least 2 timesteps for contrastive learning
+            continue
+        
+        video_seq = video_emb[b, valid_indices, :]
+        audio_seq = audio_emb[b, valid_indices, :]
+        text_seq = text_emb[b, valid_indices, :]
+        
+        sim_audio_video = torch.mm(audio_seq, video_seq.t()) / temperature  # audio->video
+        sim_audio_text = torch.mm(audio_seq, text_seq.t()) / temperature    # audio->text
+        sim_video_text = torch.mm(video_seq, text_seq.t()) / temperature    # video->text
+        sim_video_audio = torch.mm(video_seq, audio_seq.t()) / temperature  # video->audio
+        sim_text_audio = torch.mm(text_seq, audio_seq.t()) / temperature    # text->audio
+        sim_text_video = torch.mm(text_seq, video_seq.t()) / temperature    # text->video
+        
+        total_nce += cross_modal_weight * torch.sum(torch.diag(lsoftmax(sim_audio_video)))
+        total_nce += cross_modal_weight * torch.sum(torch.diag(lsoftmax(sim_audio_text)))
+        total_nce += cross_modal_weight * torch.sum(torch.diag(lsoftmax(sim_video_text)))
+        total_nce += cross_modal_weight * torch.sum(torch.diag(lsoftmax(sim_video_audio)))
+        total_nce += cross_modal_weight * torch.sum(torch.diag(lsoftmax(sim_text_audio)))
+        total_nce += cross_modal_weight * torch.sum(torch.diag(lsoftmax(sim_text_video)))
+        
+        targets = torch.arange(n_valid, device=device)
+        acc_accumulators['audio_video'] += torch.sum(torch.eq(torch.argmax(softmax(sim_audio_video), dim=1), targets))
+        acc_accumulators['audio_text'] += torch.sum(torch.eq(torch.argmax(softmax(sim_audio_text), dim=1), targets))
+        acc_accumulators['video_text'] += torch.sum(torch.eq(torch.argmax(softmax(sim_video_text), dim=1), targets))
+        acc_accumulators['video_audio'] += torch.sum(torch.eq(torch.argmax(softmax(sim_video_audio), dim=1), targets))
+        acc_accumulators['text_audio'] += torch.sum(torch.eq(torch.argmax(softmax(sim_text_audio), dim=1), targets))
+        acc_accumulators['text_video'] += torch.sum(torch.eq(torch.argmax(softmax(sim_text_video), dim=1), targets))
+        
+        total_valid_samples += n_valid
+    
+    if total_valid_samples > 0:
+        nce_loss = total_nce / (-1.0 * total_valid_samples)
+        accuracy1 = acc_accumulators['audio_video'].float() / total_valid_samples
+        accuracy2 = acc_accumulators['audio_text'].float() / total_valid_samples
+        accuracy3 = acc_accumulators['video_text'].float() / total_valid_samples
+        accuracy4 = acc_accumulators['video_audio'].float() / total_valid_samples
+        accuracy5 = acc_accumulators['text_audio'].float() / total_valid_samples
+        accuracy6 = acc_accumulators['text_video'].float() / total_valid_samples
+    else:
+        nce_loss = torch.tensor(0.0, device=device)
+        accuracy1 = torch.tensor(0.0, device=device)
+        accuracy2 = torch.tensor(0.0, device=device)
+        accuracy3 = torch.tensor(0.0, device=device)
+        accuracy4 = torch.tensor(0.0, device=device)
+        accuracy5 = torch.tensor(0.0, device=device)
+        accuracy6 = torch.tensor(0.0, device=device)
+    
+    return accuracy1, accuracy2, accuracy3, accuracy4, accuracy5, accuracy6, nce_loss
+
+
+
+
 
 def mi_first_forward(CPC, audio_feature, video_feature, text_feature, Decoder,epoch,
                       audio_encoder_result, audio_semantic_result, video_encoder_result, 
@@ -909,7 +892,9 @@ def mi_first_forward(CPC, audio_feature, video_feature, text_feature, Decoder,ep
     accuracy1, accuracy2, accuracy3, accuracy4, \
     accuracy5, accuracy6, accuracy7, accuracy8, accuracy9, \
     cpc_loss = CPC(audio_semantic_result, video_semantic_result, text_semantic_result, lengths=lengths, attention_mask=attention_mask)
+    
 
+    accuracy_1, accuracy_2, accuracy_3, accuracy_4, accuracy_5, accuracy_6, nce_loss_1 = multimodal_temporal_contrastive_loss_intra_sequence(video_semantic_result, audio_semantic_result, text_semantic_result, lengths=lengths, attention_mask=attention_mask)
 
     audio_recon_loss, video_recon_loss, text_recon_loss, audio_score, video_score, text_score, combined_score, \
         = Decoder(audio_feature, video_feature, text_feature, audio_encoder_result, video_encoder_result, text_encoder_result, out_vq_audio, audio_vq, out_vq_video, video_vq, out_vq_text, text_vq, attention_mask=attention_mask)
@@ -923,6 +908,7 @@ def mi_first_forward(CPC, audio_feature, video_feature, text_feature, Decoder,ep
 
     
     return accuracy1, accuracy2, accuracy3, accuracy4, accuracy5, accuracy6, accuracy7, accuracy8, accuracy9, cpc_loss,\
+           accuracy_1, accuracy_2, accuracy_3, accuracy_4, accuracy_5, accuracy_6, nce_loss_1,\
            audio_recon_loss, video_recon_loss, text_recon_loss, audio_score, video_score, text_score,combined_score,\
             video_sentiment_loss, audio_sentiment_loss, text_sentiment_loss, combined_sentiment_loss
 
@@ -1012,6 +998,7 @@ def val_epoch(CPC, Encoder, Decoder, val_dataloader, criterion_sentiment, epoch)
     # Return validation losses
     val_losses = [val_video_sentiment.avg, val_audio_sentiment.avg, val_text_sentiment.avg, val_combined_sentiment.avg]
     return val_losses
+
 
 
 

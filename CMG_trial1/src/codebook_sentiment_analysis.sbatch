@@ -3,16 +3,16 @@
 #SBATCH --job-name=Codebook_Sentiment_Analysis
 #SBATCH --partition=leinegpu
 #SBATCH --nodes=1
-#SBATCH --gres=gpu:a100-40g:1
+#SBATCH --gres=gpu:a100-80g:1
 #SBATCH --time=15:00:00
-#SBATCH --output=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/0_Check_Codebook_Index_2/codebook_sentiment_%j.out
-#SBATCH --error=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/0_Check_Codebook_Index_2/codebook_sentiment_%j.err
+#SBATCH --output=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm1/0_Check_Codebook_Window/codebook_sentiment_%j.out
+#SBATCH --error=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm1/0_Check_Codebook_Window/codebook_sentiment_%j.err
 
 
 
 # Create necessary directories for organized output management
 SRCDIR=/project/ag-jafra/Souptik/CMG_New/Experiments
-mkdir -p $SRCDIR/CMG_trial1/slurm/0_Check_Codebook_Index_2
+mkdir -p $SRCDIR/CMG_trial1/slurm1/0_Check_Codebook_Window
 mkdir -p $SRCDIR/Misc/codebook_sentiment_analysis_10
 
 # Activate the conda environment with all required dependencies
@@ -42,8 +42,8 @@ echo "==========================================="
 # OPTION 1: Supervised Model Analysis (DEFAULT)
 # This model was trained with sentiment labels and should show clear
 # quantization patterns that correlate with emotional content
-CHECKPOINT_PATH="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models_3/ContentAware_MOSEI_unsupervised_TAV/checkpoint/MOSEI-model-unsupervised-29.pt"
-ANALYSIS_TYPE="ContentAware_MOSEI_unsupervised_TAV"
+CHECKPOINT_PATH="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models_3/ContentAware_MOSEI_unsupervised_TAV_contrastive_64dim_window/checkpoint/MOSEI-model-unsupervised-23.pt"
+ANALYSIS_TYPE="ContentAware_MOSEI_supervised_TAV_contrastive_64dim_window_23"
 
 # OPTION 2: Unsupervised Model Analysis (UNCOMMENT TO USE)
 # This model learned representations without explicit sentiment supervision
@@ -67,7 +67,7 @@ ANALYSIS_TYPE="ContentAware_MOSEI_unsupervised_TAV"
 
 # Output directory with timestamp to prevent conflicts between runs
 # This organization allows you to compare results from different experiments
-OUTPUT_DIR="/project/ag-jafra/Souptik/CMG_New/Experiments/Misc/codebook_sentiment_analysis_10/${ANALYSIS_TYPE}_$(date +%Y%m%d_%H%M%S)"
+OUTPUT_DIR="/project/ag-jafra/Souptik/CMG_New/Experiments/Misc/codebook_sentiment_analysis_10/${ANALYSIS_TYPE}"
 
 # Sampling parameters that determine analysis comprehensiveness
 SAMPLES_PER_LABEL=5        # More samples per bin provide better statistical validity
@@ -81,8 +81,8 @@ NUM_WORKERS=8            # Fewer workers during analysis prevent resource confli
 AUDIO_DIM=74             # Standard audio feature dimension for MOSEI/MOSI
 VIDEO_DIM=35             # Standard video feature dimension for MOSEI/MOSI  
 TEXT_DIM=300             # Standard text embedding dimension for MOSEI/MOSI
-N_EMBEDDINGS=400         # Codebook size that determines quantization granularity
-EMBEDDING_DIM=256        # Dimension of individual semantic representations
+N_EMBEDDINGS=256         # Codebook size that determines quantization granularity
+EMBEDDING_DIM=64        # Dimension of individual semantic representations
 
 
 

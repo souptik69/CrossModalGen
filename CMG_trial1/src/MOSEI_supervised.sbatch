@@ -3,19 +3,19 @@
 #SBATCH --job-name=MOSEI_supervised_class
 #SBATCH --partition=leinegpu
 #SBATCH --nodes=1
-#SBATCH --gres=gpu:a100-80g:1
+#SBATCH --gres=gpu:a100-40g:1
 #SBATCH --cpus-per-task=32
 #SBATCH --mem-per-cpu=5G 
 #SBATCH --time=3:00:00
-#SBATCH --output=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/128dim_256_Dynamic_Padding_reg_50_MOSEI_supervised_TAV_L2/mosei_%j.out
-#SBATCH --error=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/128dim_256_Dynamic_Padding_reg_50_MOSEI_supervised_TAV_L2/mosei_%j.err
+#SBATCH --output=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/ContentAware_MOSEI_supervised_TAV_norm_64dim/mosei_%j.out
+#SBATCH --error=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/ContentAware_MOSEI_supervised_TAV_norm_64dim/mosei_%j.err
 
 # Set source directory
 SRCDIR=/project/ag-jafra/Souptik/CMG_New/Experiments
 
 # Create output directories for logs
-mkdir -p $SRCDIR/CMG_trial1/slurm/128dim_256_Dynamic_Padding_reg_50_MOSEI_supervised_TAV_L2
-mkdir -p $SRCDIR/CMG_trial1/MOSEI_Tests_1/128dim_256_Dynamic_Padding_reg_50_MOSEI_supervised_TAV_L2_14
+mkdir -p $SRCDIR/CMG_trial1/slurm/ContentAware_MOSEI_supervised_TAV_norm_64dim
+mkdir -p $SRCDIR/CMG_trial1/MOSEI_Tests_1/ContentAware_MOSEI_supervised_TAV_contrastive_64dim_7
 
 # Activate conda environment
 source ~/.bashrc
@@ -28,7 +28,7 @@ conda activate /project/ag-jafra/Souptik/CMG_New/Experiments/envs/CMG_new
 echo "Running MSR Mode - Multimodal Sentiment Regression Testing"
 python $SRCDIR/CMG_trial1/src/MOSEI_supervised_test.py \
     --gpu 0 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/MOSEI_Tests_1/128dim_256_Dynamic_Padding_reg_50_MOSEI_supervised_TAV_L2_14/MSR/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/MOSEI_Tests_1/ContentAware_MOSEI_supervised_TAV_contrastive_64dim_7/MSR/" \
     --batch_size 32 \
     --test_batch_size 32 \
     --dataset_name "mosei" \
@@ -43,7 +43,7 @@ echo "MSR Mode testing completed!"
 echo "Running CMG Mode - Cross-Modal Generalization Testing"
 python $SRCDIR/CMG_trial1/src/MOSEI_supervised_test.py \
     --gpu 0 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/MOSEI_Tests_1/128dim_256_Dynamic_Padding_reg_50_MOSEI_supervised_TAV_L2_14/CMG/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/MOSEI_Tests_1/ContentAware_MOSEI_supervised_TAV_contrastive_64dim_7/CMG/" \
     --batch_size 32 \
     --test_batch_size 32 \
     --dataset_name "mosei" \

@@ -80,6 +80,7 @@ def sample_by_sentiment_labels(dataloader, dataset_name, samples_per_label=2, nu
         text_feature = batch_data['text_fea']
         labels = batch_data['labels']
         video_ids = batch_data['video_ids']
+        attention_mask = batch_data['attention_mask']
         
         batch_size = audio_feature.shape[0]
         for i in range(batch_size):
@@ -89,6 +90,7 @@ def sample_by_sentiment_labels(dataloader, dataset_name, samples_per_label=2, nu
                 'text': text_feature[i].numpy(),
                 'label': labels[i].numpy(),
                 'video_id': video_ids[i],
+                'attention_mask': attention_mask[i],
                 'global_idx': len(all_samples)  # Unique global index
             }
             all_samples.append(sample)
@@ -262,7 +264,10 @@ def analyze_sample_quantization(encoder, sample, sample_idx, bin_id, bin_range, 
     audio_feat = torch.from_numpy(sample['audio']).unsqueeze(0).double().to(device)  # [1, seq_len, 74]
     video_feat = torch.from_numpy(sample['video']).unsqueeze(0).double().to(device)  # [1, seq_len, 35]  
     text_feat = torch.from_numpy(sample['text']).unsqueeze(0).double().to(device)   # [1, seq_len, 300]
-    
+    # attention_mask = torch.from_numpy(sample['attention_mask']).unsqueeze(0).double().to(device)
+    attention_mask = sample['attention_mask'].unsqueeze(0).to(device)
+
+
     with torch.no_grad():
         # STEP 1: Get semantic representations through full encoder forward pass
         # This captures the output of temporal attention modules before quantization
@@ -273,8 +278,7 @@ def analyze_sample_quantization(encoder, sample, sample_idx, bin_id, bin_range, 
          text_semantic_result, text_encoder_result, _, _, _, _,
          _, _, video_embedding_loss, audio_embedding_loss, text_embedding_loss,
          video_perplexity, audio_perplexity, text_perplexity, equal_num, cmcm_loss, _) = encoder(
-            audio_feat, video_feat, text_feat, epoch=0  # epoch doesn't matter for inference
-        )
+            audio_feat, video_feat, text_feat, epoch=0, attention_mask=attention_mask)
         
         # STEP 2: Get quantized representations using individual VQ encoders
         # This shows exactly how semantic vectors get mapped to codebook indices
@@ -284,9 +288,9 @@ def analyze_sample_quantization(encoder, sample, sample_idx, bin_id, bin_range, 
         encoder.eval()
         
         # Use individual VQ encoder methods for cleaner quantization analysis
-        out_vq_audio, audio_vq = encoder.Audio_VQ_Encoder(audio_feat)
-        out_vq_video, video_vq = encoder.Video_VQ_Encoder(video_feat)
-        out_vq_text, text_vq = encoder.Text_VQ_Encoder(text_feat)
+        out_vq_audio, audio_vq = encoder.Audio_VQ_Encoder(audio_feat, attention_mask=attention_mask)
+        out_vq_video, video_vq = encoder.Video_VQ_Encoder(video_feat, attention_mask=attention_mask)
+        out_vq_text, text_vq = encoder.Text_VQ_Encoder(text_feat, attention_mask=attention_mask)
     
     # Remove batch dimension for analysis
     print_analysis_progress("  Step 3: Processing results for analysis...")
@@ -373,8 +377,8 @@ def analyze_sample_quantization(encoder, sample, sample_idx, bin_id, bin_range, 
     print_analysis_progress(f"  Percentage of total usage: {(max_used_count/total_usage)*100:.2f}%")
     print_analysis_progress(f"  Vector values (first 10 dims): {codebook_embedding[max_used_idx, :10]}")
     print_analysis_progress(f"  Video segment (dims 0-4): {codebook_embedding[max_used_idx, :5]}")
-    print_analysis_progress(f"  Audio segment (dims 256-260): {codebook_embedding[max_used_idx, 256:261]}")
-    print_analysis_progress(f"  Text segment (dims 512-516): {codebook_embedding[max_used_idx, 512:517]}")
+    print_analysis_progress(f"  Audio segment (dims 256-260): {codebook_embedding[max_used_idx, 64:69]}")
+    print_analysis_progress(f"  Text segment (dims 512-516): {codebook_embedding[max_used_idx, 128:133]}")
     
     print_analysis_progress(f"\nLeast Used Codebook Vector:")
     print_analysis_progress(f"  Index: {min_used_idx}")
@@ -446,9 +450,9 @@ def analyze_sample_quantization(encoder, sample, sample_idx, bin_id, bin_range, 
     
     # For each modality, find the quantization indices
     modalities = [
-        ('audio', audio_semantic, audio_quantized, out_vq_audio_full, slice(256, 512)),  # Audio segment: dims 256-511
-        ('video', video_semantic, video_quantized, out_vq_video_full, slice(0, 256)),    # Video segment: dims 0-255
-        ('text', text_semantic, text_quantized, out_vq_text_full, slice(512, 768))      # Text segment: dims 512-767
+        ('audio', audio_semantic, audio_quantized, out_vq_audio_full, slice(64, 128)),  # Audio segment: dims 256-511
+        ('video', video_semantic, video_quantized, out_vq_video_full, slice(0, 64)),    # Video segment: dims 0-255
+        ('text', text_semantic, text_quantized, out_vq_text_full, slice(128, 192))      # Text segment: dims 512-767
     ]
     
     for mod_name, semantic, quantized, full_vq, codebook_slice in modalities:

@@ -7,8 +7,8 @@
 #SBATCH --cpus-per-task=16
 #SBATCH --mem-per-cpu=4G 
 #SBATCH --time=01:00:00
-#SBATCH --output=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/01_test_adaptive_cpc/test_output_%j.out
-#SBATCH --error=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm/01_test_adaptive_cpc/test_error_%j.err
+#SBATCH --output=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm1/01_test_adaptive_cpc/test_output_%j.out
+#SBATCH --error=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm1/01_test_adaptive_cpc/test_error_%j.err
 
 # Print job information
 echo "========================================="
@@ -24,7 +24,7 @@ echo "========================================="
 SRCDIR=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/src/model
 
 # Create output directory
-mkdir -p $SRCDIR/CMG_trial1/slurm/01_test_adaptive_cpc
+mkdir -p $SRCDIR/CMG_trial1/slurm1/01_test_adaptive_cpc
 
 # Source bashrc and activate conda environment
 source ~/.bashrc
@@ -33,7 +33,7 @@ conda activate /project/ag-jafra/Souptik/CMG_New/Experiments/envs/CMG_new
 echo "Starting adaptive CPC testing..."
 
 # Run the test script
-python $SRCDIR/Test_CPC.py
+python $SRCDIR/models_transformer.py
 
 echo "========================================="
 echo "Adaptive CPC testing completed!"

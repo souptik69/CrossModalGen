@@ -11,6 +11,8 @@ CMG_trial1/Models
 
 CMG_trial1/slurm
 
+CMG_trial1/slurm1
+
 CMG_trial1/src/configs/__pycache__
 
 CMG_trial1/src/dataset/__pycache__
@@ -68,3 +70,7 @@ CMG_trial1/MOSEI_Models_3
 CMG_trial1/MOSEI_Models2/100_supervised_class_TAV
 
 CMG_trial1/MOSEI_Tests_1
+
+CMG_trial1/MOSEI_Tests_2
+
+

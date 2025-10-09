@@ -9,6 +9,7 @@ import numpy as np
 import math
 from torch.nn import MultiheadAttention
 from model.models import EncoderLayer, Encoder, DecoderLayer
+from model.models_transformer import TransformerEncoder
 from torch import Tensor
 # The model is testing
 from model.mine import MINE
@@ -38,7 +39,44 @@ class InternalTemporalRelationModule(nn.Module):
             src_key_padding_mask = None
         feature = self.encoder(feature, src_key_padding_mask) 
         return feature
-   
+
+
+
+class InternalTemporalRelationModule_New(nn.Module):
+    def __init__(self, input_dim, d_model, num_heads=5, num_layers=5, 
+                 dropout=0.1):
+        super(InternalTemporalRelationModule_New, self).__init__()
+        self.input_dim = input_dim
+        self.d_model = d_model
+        self.encoder = TransformerEncoder(
+            embed_dim=d_model,
+            num_heads=num_heads,
+            layers=num_layers,
+            attn_dropout=dropout,
+            relu_dropout=dropout,
+            res_dropout=dropout,
+            embed_dropout=0.25,
+            attn_mask=False
+        )
+        self.proj = nn.Conv1d(input_dim, d_model, kernel_size=1, padding=0, bias=False)
+        self.relu = nn.ReLU(inplace=True)
+
+    def forward(self, feature, attention_mask=None):
+        batch_size, seq_len, input_dim = feature.size()
+        feature = feature.transpose(1, 2).contiguous()  # [batch, input_dim, seq_len]
+        feature = self.proj(feature)  # [batch, d_model, seq_len]
+        if attention_mask is not None:
+            mask_expanded = attention_mask.unsqueeze(1).float()  # [batch, 1, seq_len]
+            feature = feature * mask_expanded  # Zero out padding
+        feature = feature.permute(2, 0, 1)  # [seq_len, batch, d_model]
+        if attention_mask is not None:
+            key_padding_mask = ~attention_mask
+        else:
+            key_padding_mask = None
+        feature = self.encoder(feature, key_padding_mask=key_padding_mask)
+        feature = feature.transpose(0, 1).contiguous()  # [batch, seq_len, d_model]
+        return feature
+
 
 
 class ResidualLayer(nn.Module):
@@ -148,34 +186,41 @@ class AVT_VQVAE_Encoder(nn.Module):
         self.Video_encoder = Video_Encoder(video_dim, self.hidden_dim)
         self.Audio_encoder = Audio_Encoder(audio_dim, self.hidden_dim)
         self.Text_encoder = Text_Encoder(text_dim, self.hidden_dim)
-        self.video_self_att = InternalTemporalRelationModule(input_dim=video_dim, d_model=self.hidden_dim)
-        self.audio_self_att = InternalTemporalRelationModule(input_dim=audio_dim, d_model=self.hidden_dim)
-        self.text_self_att = InternalTemporalRelationModule(input_dim=text_dim, d_model=self.hidden_dim)
+        # self.video_self_att = InternalTemporalRelationModule(input_dim=video_dim, d_model=self.hidden_dim)
+        # self.audio_self_att = InternalTemporalRelationModule(input_dim=audio_dim, d_model=self.hidden_dim)
+        # self.text_self_att = InternalTemporalRelationModule(input_dim=text_dim, d_model=self.hidden_dim)
+        self.video_self_att = InternalTemporalRelationModule_New(input_dim=video_dim, d_model=self.hidden_dim, num_heads=5, num_layers=5, dropout=0.1)
+        self.audio_self_att = InternalTemporalRelationModule_New(input_dim=audio_dim, d_model=self.hidden_dim, num_heads=5, num_layers=5, dropout=0.1)
+        self.text_self_att = InternalTemporalRelationModule_New(input_dim=text_dim, d_model=self.hidden_dim, num_heads=5, num_layers=5, dropout=0.1)
+
 
 
     def Audio_VQ_Encoder(self, audio_feat, attention_mask=None):
         audio_feat = audio_feat.cuda()  
-        audio_semantic_result = audio_feat.transpose(0, 1).contiguous()
-        audio_semantic_result = self.audio_self_att(audio_semantic_result, attention_mask) 
-        audio_semantic_result = audio_semantic_result.transpose(0, 1).contiguous() # [batch, 10, 256]
+        # audio_semantic_result = audio_feat.transpose(0, 1).contiguous()
+        # audio_semantic_result = self.audio_self_att(audio_semantic_result, attention_mask) 
+        # audio_semantic_result = audio_semantic_result.transpose(0, 1).contiguous() # [batch, 10, 256]
+        audio_semantic_result = self.audio_self_att(audio_feat, attention_mask)
         out_vq, audio_vq = self.Cross_quantizer.Audio_vq_embedding(audio_semantic_result, attention_mask)
         return out_vq, audio_vq  # [batch, 10, 768], [batch, 10, 256]
 
 
     def Video_VQ_Encoder(self, video_feat, attention_mask=None):
         video_feat = video_feat.cuda()
-        video_semantic_result = video_feat.transpose(0, 1).contiguous()
-        video_semantic_result = self.video_self_att(video_semantic_result, attention_mask) 
-        video_semantic_result = video_semantic_result.transpose(0, 1).contiguous() # [batch, 10, 256]
+        # video_semantic_result = video_feat.transpose(0, 1).contiguous()
+        # video_semantic_result = self.video_self_att(video_semantic_result, attention_mask) 
+        # video_semantic_result = video_semantic_result.transpose(0, 1).contiguous() # [batch, 10, 256]
+        video_semantic_result = self.video_self_att(video_feat, attention_mask) 
         out_vq, video_vq = self.Cross_quantizer.Video_vq_embedding(video_semantic_result, attention_mask)
         return out_vq, video_vq  # [batch,10, 768], [batch, 10, 256]
 
 
     def Text_VQ_Encoder(self, text_feat, attention_mask=None):
         text_feat = text_feat.cuda()
-        text_semantic_result = text_feat.transpose(0, 1).contiguous()
-        text_semantic_result = self.text_self_att(text_semantic_result, attention_mask)
-        text_semantic_result = text_semantic_result.transpose(0, 1).contiguous()  # [batch, 10, 256]
+        # text_semantic_result = text_feat.transpose(0, 1).contiguous()
+        # text_semantic_result = self.text_self_att(text_semantic_result, attention_mask)
+        # text_semantic_result = text_semantic_result.transpose(0, 1).contiguous()  # [batch, 10, 256]
+        text_semantic_result = self.text_self_att(text_feat, attention_mask)
         out_vq, text_vq = self.Cross_quantizer.Text_vq_embedding(text_semantic_result, attention_mask)
         return out_vq, text_vq  # [batch,10, 768], [batch, 10, 256]
 
@@ -189,18 +234,22 @@ class AVT_VQVAE_Encoder(nn.Module):
         if attention_mask is not None:
             attention_mask = attention_mask.cuda()
         
-        video_semantic_result = video_feat.transpose(0, 1).contiguous()
-        video_semantic_result = self.video_self_att(video_semantic_result, attention_mask)
-        video_semantic_result = video_semantic_result.transpose(0, 1).contiguous()  # [batch, length, hidden_dim = 256]
-        
-        
-        audio_semantic_result = audio_feat.transpose(0, 1).contiguous()
-        audio_semantic_result = self.audio_self_att(audio_semantic_result, attention_mask)# [length, batch, hidden_dim]
-        audio_semantic_result = audio_semantic_result.transpose(0, 1).contiguous()  # [batch, length, hidden_dim = 256]
+        # video_semantic_result = video_feat.transpose(0, 1).contiguous()
+        # video_semantic_result = self.video_self_att(video_semantic_result, attention_mask)
+        # video_semantic_result = video_semantic_result.transpose(0, 1).contiguous()  # [batch, length, hidden_dim = 256]
 
-        text_semantic_result = text_feat.transpose(0, 1).contiguous()
-        text_semantic_result = self.text_self_att(text_semantic_result, attention_mask)
-        text_semantic_result = text_semantic_result.transpose(0, 1).contiguous()  # [batch, length, hidden_dim = 256]
+        # audio_semantic_result = audio_feat.transpose(0, 1).contiguous()
+        # audio_semantic_result = self.audio_self_att(audio_semantic_result, attention_mask)# [length, batch, hidden_dim]
+        # audio_semantic_result = audio_semantic_result.transpose(0, 1).contiguous()  # [batch, length, hidden_dim = 256]
+
+        # text_semantic_result = text_feat.transpose(0, 1).contiguous()
+        # text_semantic_result = self.text_self_att(text_semantic_result, attention_mask)
+        # text_semantic_result = text_semantic_result.transpose(0, 1).contiguous()  # [batch, length, hidden_dim = 256]
+
+
+        video_semantic_result = self.video_self_att(video_feat, attention_mask)
+        audio_semantic_result = self.audio_self_att(audio_feat, attention_mask)
+        text_semantic_result = self.text_self_att(text_feat, attention_mask)
 
         video_encoder_result = self.Video_encoder(video_feat, attention_mask)
         audio_encoder_result = self.Audio_encoder(audio_feat, attention_mask)
@@ -232,7 +281,7 @@ class Sentiment_Decoder(nn.Module):
         sentiment_score = self.sentiment_regressor(input_feat)  # Continuous sentiment
         return sentiment_score
     
-
+""" Sentiment Downstream Decoder for Padding Aware Sentiment Label regression """
 class Sentiment_Decoder_Masked(nn.Module):
     def __init__(self, input_dim):
         super(Sentiment_Decoder_Masked, self).__init__()
@@ -272,6 +321,43 @@ class Sentiment_Decoder_Masked(nn.Module):
             sentiment_score = self.sentiment_regressor(input_feat)
         
         return sentiment_score
+
+# class Sentiment_Decoder_Masked(nn.Module):
+#     def __init__(self, input_dim):
+#         super(Sentiment_Decoder_Masked, self).__init__()
+#         self.temporal_encoder = InternalTemporalRelationModule(input_dim=input_dim, d_model=input_dim)
+#         self.linear = nn.Linear(input_dim, input_dim)
+#         self.sentiment_regressor = nn.Linear(input_dim, 1)
+        
+#     def forward(self, input_vq, attention_mask=None):
+#         if attention_mask is not None:
+#             num_valid_positions = attention_mask.sum().item()        
+#             if num_valid_positions == 0:
+#                 batch_size = input_vq.shape[0]
+#                 return torch.zeros(batch_size, 1, device=input_vq.device, dtype=input_vq.dtype)
+        
+#         input_vq_transposed = input_vq.transpose(0, 1).contiguous()
+#         encoded_features = self.temporal_encoder(input_vq_transposed, attention_mask)
+#         encoded_features = encoded_features.transpose(0, 1).contiguous()
+        
+#         if attention_mask is not None:
+#             B, T, D = encoded_features.shape
+#             lengths = attention_mask.sum(dim=1)
+#             last_valid_features = []
+#             for i in range(B):
+#                 last_idx = lengths[i].item() - 1
+#                 if last_idx >= 0:
+#                     last_valid_features.append(encoded_features[i, last_idx])
+#                 else:
+#                     last_valid_features.append(torch.zeros(D, device=input_vq.device, dtype=input_vq.dtype))
+#             pooled_tensor = torch.stack(last_valid_features)
+#         else:
+#             pooled_tensor = encoded_features[:, -1, :]
+        
+#         input_feat = self.linear(pooled_tensor)
+#         sentiment_score = self.sentiment_regressor(input_feat)
+        
+#         return sentiment_score
 
 
 
@@ -320,7 +406,7 @@ class Sentiment_Decoder_Combined_class(nn.Module):
         return sentiment_score
 
 
-
+""" Sentiment Downstream Decoder for Padding Aware Sentiment Label regression combined """
 class Sentiment_Decoder_Combined_Masked(nn.Module):
     def __init__(self, input_dim):
         super(Sentiment_Decoder_Combined_Masked, self).__init__()
@@ -360,6 +446,45 @@ class Sentiment_Decoder_Combined_Masked(nn.Module):
             sentiment_score = self.sentiment_regressor(input_feat)
         
         return sentiment_score
+
+# class Sentiment_Decoder_Combined_Masked(nn.Module):
+#     def __init__(self, input_dim):
+#         super(Sentiment_Decoder_Combined_Masked, self).__init__()
+#         self.temporal_encoder = InternalTemporalRelationModule(input_dim=input_dim, d_model=input_dim)
+#         self.linear = nn.Linear(input_dim, input_dim)
+#         self.sentiment_regressor = nn.Linear(input_dim, 1)
+
+#     def forward(self, video_vq, audio_vq, text_vq, attention_mask=None):
+#         input_vq = (video_vq + audio_vq + text_vq) / 3
+        
+#         if attention_mask is not None:
+#             num_valid_positions = attention_mask.sum().item()
+#             if num_valid_positions == 0:
+#                 batch_size = input_vq.shape[0]
+#                 return torch.zeros(batch_size, 1, device=input_vq.device, dtype=input_vq.dtype)
+        
+#         input_vq_transposed = input_vq.transpose(0, 1).contiguous()
+#         encoded_features = self.temporal_encoder(input_vq_transposed, attention_mask)
+#         encoded_features = encoded_features.transpose(0, 1).contiguous()
+        
+#         if attention_mask is not None:
+#             B, T, D = encoded_features.shape
+#             lengths = attention_mask.sum(dim=1)
+#             last_valid_features = []
+#             for i in range(B):
+#                 last_idx = lengths[i].item() - 1
+#                 if last_idx >= 0:
+#                     last_valid_features.append(encoded_features[i, last_idx])
+#                 else:
+#                     last_valid_features.append(torch.zeros(D, device=input_vq.device, dtype=input_vq.dtype))
+#             pooled_tensor = torch.stack(last_valid_features)
+#         else:
+#             pooled_tensor = encoded_features[:, -1, :]
+        
+#         input_feat = self.linear(pooled_tensor)
+#         sentiment_score = self.sentiment_regressor(input_feat)
+        
+#         return sentiment_score
 
 
 
@@ -493,7 +618,7 @@ class Text_Decoder(nn.Module):
             text_vq_result = self.text_linear(text_vq_1)
             text_encoder_combined = torch.cat([text_vq_result, text_encoder_result], dim=2)
             text_decoder_result = self.text_rec(text_encoder_combined)
-        
+
         return text_decoder_result
 
 
@@ -515,8 +640,8 @@ class Text_Decoder(nn.Module):
 #         return video_decoder_result
     
 
-class Video_Decoder(nn.Module):
 
+class Video_Decoder(nn.Module):
     def __init__(self, output_dim, vq_dim):
         super(Video_Decoder, self).__init__()
         self.output_dim = output_dim
@@ -562,7 +687,6 @@ class Video_Decoder(nn.Module):
             video_decoder_result = self.video_rec(video_encoder_combined)
         
         return video_decoder_result
-
 
 # '''Decoder for both uni-modal feature reconstruction. To be used for unsupervised pre-training'''
 # class AVT_VQVAE_Decoder(nn.Module):
@@ -1617,10 +1741,16 @@ class Cross_VQEmbeddingEMA_AVT_hierarchical_pad(nn.Module):
             # Hierarchical influence between segments
             with torch.no_grad():
                 new_embedding = self.embedding.clone()
+                '''T -> A -> V''' 
+                # new_embedding[:, 2*D:] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D]) + ((1/3) * new_embedding[:, 2*D:])
+                # new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, 2*D:])
+                # new_embedding[:, :D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])
+                # self.embedding = new_embedding
+
+                '''V -> A -> T'''
+                new_embedding[:, :D] =  ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])
+                new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])
                 new_embedding[:, 2*D:] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D]) + ((1/3) * new_embedding[:, 2*D:])
-                new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, 2*D:])
-                new_embedding[:, :D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])
-                self.embedding = new_embedding
 
             # Segment alignment metric
             new_embedding = self.embedding.clone()

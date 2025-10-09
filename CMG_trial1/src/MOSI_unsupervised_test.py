@@ -201,8 +201,8 @@ def main():
     text_dim = 300
     audio_dim = 74
     # text_lstm_dim = 128
-    n_embeddings = 400
-    embedding_dim = 256
+    n_embeddings = 128
+    embedding_dim = 30
     start_epoch = -1
     model_resume = True
     total_step = 0
@@ -242,7 +242,7 @@ def main():
 
     if model_resume is True:
         # Load unsupervised pretrained model
-        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models_3/128dim_256_Dynamic_Padding_reg_50_MOSEI_unsupervised_TAV_L2/checkpoint_1/MOSEI-model-unsupervised-26.pt"
+        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models_3/ContentAware_MOSEI_unsupervised_TAV_contrastive_64dim_window/checkpoint/MOSEI-model-unsupervised-23.pt"
         logger.info(f"Loading unsupervised model from: {path_checkpoints}")
         checkpoints = torch.load(path_checkpoints)
         Encoder.load_state_dict(checkpoints['Encoder_parameters'])

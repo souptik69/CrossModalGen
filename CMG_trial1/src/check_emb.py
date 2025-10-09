@@ -24,8 +24,8 @@ def visualize_codebook_embeddings(checkpoint_path, output_dir, top_k=25):
     text_dim = 300
     audio_dim = 74
     text_lstm_dim = 128
-    n_embeddings = 400
-    embedding_dim = 256
+    n_embeddings = 256
+    embedding_dim = 64
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
