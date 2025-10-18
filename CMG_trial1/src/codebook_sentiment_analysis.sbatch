@@ -5,14 +5,14 @@
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:a100-80g:1
 #SBATCH --time=15:00:00
-#SBATCH --output=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm1/0_Check_Codebook_Window/codebook_sentiment_%j.out
-#SBATCH --error=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm1/0_Check_Codebook_Window/codebook_sentiment_%j.err
+#SBATCH --output=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm1/0_Check_Codebook_Window_NewAttention_final/codebook_sentiment_%j.out
+#SBATCH --error=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm1/0_Check_Codebook_Window_NewAttention_final/codebook_sentiment_%j.err
 
 
 
 # Create necessary directories for organized output management
 SRCDIR=/project/ag-jafra/Souptik/CMG_New/Experiments
-mkdir -p $SRCDIR/CMG_trial1/slurm1/0_Check_Codebook_Window
+mkdir -p $SRCDIR/CMG_trial1/slurm1/0_Check_Codebook_Window_NewAttention_final
 mkdir -p $SRCDIR/Misc/codebook_sentiment_analysis_10
 
 # Activate the conda environment with all required dependencies
@@ -42,8 +42,8 @@ echo "==========================================="
 # OPTION 1: Supervised Model Analysis (DEFAULT)
 # This model was trained with sentiment labels and should show clear
 # quantization patterns that correlate with emotional content
-CHECKPOINT_PATH="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models_3/ContentAware_MOSEI_unsupervised_TAV_contrastive_64dim_window/checkpoint/MOSEI-model-unsupervised-23.pt"
-ANALYSIS_TYPE="ContentAware_MOSEI_supervised_TAV_contrastive_64dim_window_23"
+CHECKPOINT_PATH="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models_3/Final_MOSEI_unsupervised_VAT_30dim__NewAttention_window/checkpoint/MOSEI-model-unsupervised-20.pt"
+ANALYSIS_TYPE="Final_MOSEI_unsupervised_VAT_30dim_NewAttention_window_5"
 
 # OPTION 2: Unsupervised Model Analysis (UNCOMMENT TO USE)
 # This model learned representations without explicit sentiment supervision
@@ -81,8 +81,8 @@ NUM_WORKERS=8            # Fewer workers during analysis prevent resource confli
 AUDIO_DIM=74             # Standard audio feature dimension for MOSEI/MOSI
 VIDEO_DIM=35             # Standard video feature dimension for MOSEI/MOSI  
 TEXT_DIM=300             # Standard text embedding dimension for MOSEI/MOSI
-N_EMBEDDINGS=256         # Codebook size that determines quantization granularity
-EMBEDDING_DIM=64        # Dimension of individual semantic representations
+N_EMBEDDINGS=128         # Codebook size that determines quantization granularity
+EMBEDDING_DIM=30        # Dimension of individual semantic representations
 
 
 

@@ -5,20 +5,20 @@
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:a100-80g:1
 #SBATCH --time=1:00:00
-#SBATCH --output=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm1/0_Check_MOSEI_class/codebook_viz_%j.out
-#SBATCH --error=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm1/0_Check_MOSEI_class/codebook_viz_%j.err
+#SBATCH --output=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm1/0_Check_MOSEI_class_1/codebook_viz_%j.out
+#SBATCH --error=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm1/0_Check_MOSEI_class_1/codebook_viz_%j.err
 
 SRCDIR=/project/ag-jafra/Souptik/CMG_New/Experiments
 
-mkdir -p $SRCDIR/CMG_trial1/slurm1/0_Check_MOSEI_class
-mkdir -p $SRCDIR/Misc/visualizations/ContentAware_MOSEI_unsupervised_TAV_contrastive_64dim_window_23
+mkdir -p $SRCDIR/CMG_trial1/slurm1/0_Check_MOSEI_class_1
+mkdir -p $SRCDIR/Misc/visualizations/Final_MOSEI_unsupervised_VAT_30dim_NewAttention_window_20
 
 source ~/.bashrc
 conda activate /project/ag-jafra/Souptik/CMG_New/Experiments/envs/CMG_new
 
 # Configuration
-CHECKPOINT_PATH="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models_3/ContentAware_MOSEI_unsupervised_TAV_contrastive_64dim_window/checkpoint/MOSEI-model-unsupervised-23.pt"
-OUTPUT_DIR="/project/ag-jafra/Souptik/CMG_New/Experiments/Misc/visualizations/ContentAware_MOSEI_unsupervised_TAV_contrastive_64dim_window_23"
+CHECKPOINT_PATH="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models_3/Final_MOSEI_unsupervised_VAT_30dim__NewAttention_window/checkpoint/MOSEI-model-unsupervised-20.pt"
+OUTPUT_DIR="/project/ag-jafra/Souptik/CMG_New/Experiments/Misc/visualizations/Final_MOSEI_unsupervised_VAT_30dim_NewAttention_window_20"
 TOP_K=50
 
 echo "Starting codebook visualization..."

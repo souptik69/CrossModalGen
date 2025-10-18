@@ -377,8 +377,8 @@ def analyze_sample_quantization(encoder, sample, sample_idx, bin_id, bin_range, 
     print_analysis_progress(f"  Percentage of total usage: {(max_used_count/total_usage)*100:.2f}%")
     print_analysis_progress(f"  Vector values (first 10 dims): {codebook_embedding[max_used_idx, :10]}")
     print_analysis_progress(f"  Video segment (dims 0-4): {codebook_embedding[max_used_idx, :5]}")
-    print_analysis_progress(f"  Audio segment (dims 256-260): {codebook_embedding[max_used_idx, 64:69]}")
-    print_analysis_progress(f"  Text segment (dims 512-516): {codebook_embedding[max_used_idx, 128:133]}")
+    print_analysis_progress(f"  Audio segment (dims 256-260): {codebook_embedding[max_used_idx, 30:35]}")
+    print_analysis_progress(f"  Text segment (dims 512-516): {codebook_embedding[max_used_idx, 60:65]}")
     
     print_analysis_progress(f"\nLeast Used Codebook Vector:")
     print_analysis_progress(f"  Index: {min_used_idx}")
@@ -450,9 +450,9 @@ def analyze_sample_quantization(encoder, sample, sample_idx, bin_id, bin_range, 
     
     # For each modality, find the quantization indices
     modalities = [
-        ('audio', audio_semantic, audio_quantized, out_vq_audio_full, slice(64, 128)),  # Audio segment: dims 256-511
-        ('video', video_semantic, video_quantized, out_vq_video_full, slice(0, 64)),    # Video segment: dims 0-255
-        ('text', text_semantic, text_quantized, out_vq_text_full, slice(128, 192))      # Text segment: dims 512-767
+        ('audio', audio_semantic, audio_quantized, out_vq_audio_full, slice(30, 60)),  # Audio segment: dims 256-511
+        ('video', video_semantic, video_quantized, out_vq_video_full, slice(0, 30)),    # Video segment: dims 0-255
+        ('text', text_semantic, text_quantized, out_vq_text_full, slice(60, 90))      # Text segment: dims 512-767
     ]
     
     for mod_name, semantic, quantized, full_vq, codebook_slice in modalities:

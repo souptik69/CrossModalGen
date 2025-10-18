@@ -43,7 +43,7 @@ class InternalTemporalRelationModule(nn.Module):
 
 
 class InternalTemporalRelationModule_New(nn.Module):
-    def __init__(self, input_dim, d_model, num_heads=5, num_layers=5, 
+    def __init__(self, input_dim, d_model, num_heads=6, num_layers=6, 
                  dropout=0.1):
         super(InternalTemporalRelationModule_New, self).__init__()
         self.input_dim = input_dim
@@ -189,9 +189,9 @@ class AVT_VQVAE_Encoder(nn.Module):
         # self.video_self_att = InternalTemporalRelationModule(input_dim=video_dim, d_model=self.hidden_dim)
         # self.audio_self_att = InternalTemporalRelationModule(input_dim=audio_dim, d_model=self.hidden_dim)
         # self.text_self_att = InternalTemporalRelationModule(input_dim=text_dim, d_model=self.hidden_dim)
-        self.video_self_att = InternalTemporalRelationModule_New(input_dim=video_dim, d_model=self.hidden_dim, num_heads=5, num_layers=5, dropout=0.1)
-        self.audio_self_att = InternalTemporalRelationModule_New(input_dim=audio_dim, d_model=self.hidden_dim, num_heads=5, num_layers=5, dropout=0.1)
-        self.text_self_att = InternalTemporalRelationModule_New(input_dim=text_dim, d_model=self.hidden_dim, num_heads=5, num_layers=5, dropout=0.1)
+        self.video_self_att = InternalTemporalRelationModule_New(input_dim=video_dim, d_model=self.hidden_dim, num_heads=6, num_layers=6, dropout=0.1)
+        self.audio_self_att = InternalTemporalRelationModule_New(input_dim=audio_dim, d_model=self.hidden_dim, num_heads=6, num_layers=6, dropout=0.1)
+        self.text_self_att = InternalTemporalRelationModule_New(input_dim=text_dim, d_model=self.hidden_dim, num_heads=6, num_layers=6, dropout=0.1)
 
 
 
@@ -281,11 +281,54 @@ class Sentiment_Decoder(nn.Module):
         sentiment_score = self.sentiment_regressor(input_feat)  # Continuous sentiment
         return sentiment_score
     
-""" Sentiment Downstream Decoder for Padding Aware Sentiment Label regression """
+# """ Sentiment Downstream Decoder for Padding Aware Sentiment Label regression """
+# class Sentiment_Decoder_Masked(nn.Module):
+#     def __init__(self, input_dim):
+#         super(Sentiment_Decoder_Masked, self).__init__()
+#         self.linear = nn.Linear(input_dim, input_dim)
+#         self.sentiment_regressor = nn.Linear(input_dim, 1)
+        
+#     def forward(self, input_vq, attention_mask=None):
+#         if attention_mask is not None:
+#             valid_mask_flat = attention_mask.flatten()  # [B*T]
+#             num_valid_positions = valid_mask_flat.sum().item()        
+#             if num_valid_positions == 0:
+#                 batch_size = input_vq.shape[0]
+#                 return torch.zeros(batch_size, 1, device=input_vq.device, dtype=input_vq.dtype)    
+#             B, T, D = input_vq.shape
+#             input_vq_flat = input_vq.view(-1, D)  # [B*T, D]
+#             input_vq_valid = input_vq_flat[valid_mask_flat]  # [num_valid, D]   
+#             input_feat_valid = self.linear(input_vq_valid)  # [num_valid, D]
+#             lengths = attention_mask.sum(dim=1)  # [B] - number of valid positions per sample
+#             pooled_features = []
+#             start_idx = 0
+#             for i in range(B):
+#                 sample_length = lengths[i].item()
+#                 end_idx = start_idx + sample_length
+#                 if sample_length > 0:
+#                     sample_features = input_feat_valid[start_idx:end_idx]  # [sample_length, D]
+#                     pooled_sample, _ = sample_features.max(0)  # [D] - max over valid timesteps only
+#                 else:
+#                     # No valid content in this sample
+#                     pooled_sample = torch.zeros(D, device=input_vq.device, dtype=input_vq.dtype)
+#                 pooled_features.append(pooled_sample)
+#                 start_idx = end_idx
+#             pooled_tensor = torch.stack(pooled_features)  # [B, D]
+#             sentiment_score = self.sentiment_regressor(pooled_tensor)  # [B, 1]
+#         else:
+#             input_feat = self.linear(input_vq)
+#             input_feat, _ = input_feat.max(1)  # Global max pooling
+#             sentiment_score = self.sentiment_regressor(input_feat)
+        
+#         return sentiment_score
+
+
+""" Sentiment Downstream Decoder with Attention Pooling """
 class Sentiment_Decoder_Masked(nn.Module):
     def __init__(self, input_dim):
         super(Sentiment_Decoder_Masked, self).__init__()
         self.linear = nn.Linear(input_dim, input_dim)
+        self.attention_weight = nn.Linear(input_dim, 1)  # Attention scoring
         self.sentiment_regressor = nn.Linear(input_dim, 1)
         
     def forward(self, input_vq, attention_mask=None):
@@ -295,69 +338,53 @@ class Sentiment_Decoder_Masked(nn.Module):
             if num_valid_positions == 0:
                 batch_size = input_vq.shape[0]
                 return torch.zeros(batch_size, 1, device=input_vq.device, dtype=input_vq.dtype)    
+            
             B, T, D = input_vq.shape
             input_vq_flat = input_vq.view(-1, D)  # [B*T, D]
             input_vq_valid = input_vq_flat[valid_mask_flat]  # [num_valid, D]   
             input_feat_valid = self.linear(input_vq_valid)  # [num_valid, D]
+            
+            # Compute attention scores for valid positions
+            attention_scores_valid = self.attention_weight(input_feat_valid)  # [num_valid, 1]
+            
             lengths = attention_mask.sum(dim=1)  # [B] - number of valid positions per sample
             pooled_features = []
             start_idx = 0
+            
             for i in range(B):
                 sample_length = lengths[i].item()
                 end_idx = start_idx + sample_length
+                
                 if sample_length > 0:
                     sample_features = input_feat_valid[start_idx:end_idx]  # [sample_length, D]
-                    pooled_sample, _ = sample_features.max(0)  # [D] - max over valid timesteps only
+                    sample_attention_scores = attention_scores_valid[start_idx:end_idx]  # [sample_length, 1]
+                    
+                    # Compute attention weights (softmax over valid timesteps)
+                    sample_attention_weights = F.softmax(sample_attention_scores, dim=0)  # [sample_length, 1]
+                    
+                    # Weighted sum (attention pooling)
+                    pooled_sample = (sample_features * sample_attention_weights).sum(0)  # [D]
                 else:
                     # No valid content in this sample
                     pooled_sample = torch.zeros(D, device=input_vq.device, dtype=input_vq.dtype)
+                
                 pooled_features.append(pooled_sample)
                 start_idx = end_idx
+            
             pooled_tensor = torch.stack(pooled_features)  # [B, D]
             sentiment_score = self.sentiment_regressor(pooled_tensor)  # [B, 1]
         else:
-            input_feat = self.linear(input_vq)
-            input_feat, _ = input_feat.max(1)  # Global max pooling
+            input_feat = self.linear(input_vq)  # [B, T, D]
+            
+            # Compute attention scores
+            attention_scores = self.attention_weight(input_feat)  # [B, T, 1]
+            attention_weights = F.softmax(attention_scores, dim=1)  # [B, T, 1]
+            
+            # Attention pooling
+            input_feat = (input_feat * attention_weights).sum(1)  # [B, D]
             sentiment_score = self.sentiment_regressor(input_feat)
         
         return sentiment_score
-
-# class Sentiment_Decoder_Masked(nn.Module):
-#     def __init__(self, input_dim):
-#         super(Sentiment_Decoder_Masked, self).__init__()
-#         self.temporal_encoder = InternalTemporalRelationModule(input_dim=input_dim, d_model=input_dim)
-#         self.linear = nn.Linear(input_dim, input_dim)
-#         self.sentiment_regressor = nn.Linear(input_dim, 1)
-        
-#     def forward(self, input_vq, attention_mask=None):
-#         if attention_mask is not None:
-#             num_valid_positions = attention_mask.sum().item()        
-#             if num_valid_positions == 0:
-#                 batch_size = input_vq.shape[0]
-#                 return torch.zeros(batch_size, 1, device=input_vq.device, dtype=input_vq.dtype)
-        
-#         input_vq_transposed = input_vq.transpose(0, 1).contiguous()
-#         encoded_features = self.temporal_encoder(input_vq_transposed, attention_mask)
-#         encoded_features = encoded_features.transpose(0, 1).contiguous()
-        
-#         if attention_mask is not None:
-#             B, T, D = encoded_features.shape
-#             lengths = attention_mask.sum(dim=1)
-#             last_valid_features = []
-#             for i in range(B):
-#                 last_idx = lengths[i].item() - 1
-#                 if last_idx >= 0:
-#                     last_valid_features.append(encoded_features[i, last_idx])
-#                 else:
-#                     last_valid_features.append(torch.zeros(D, device=input_vq.device, dtype=input_vq.dtype))
-#             pooled_tensor = torch.stack(last_valid_features)
-#         else:
-#             pooled_tensor = encoded_features[:, -1, :]
-        
-#         input_feat = self.linear(pooled_tensor)
-#         sentiment_score = self.sentiment_regressor(input_feat)
-        
-#         return sentiment_score
 
 
 
@@ -373,6 +400,7 @@ class Sentiment_Decoder_class(nn.Module):
         input_feat, _ = input_feat.max(1)  # Temporal pooling for sequence
         sentiment_score = self.sentiment_regressor(input_feat)  # Continuous sentiment
         return sentiment_score
+
 
 
 """ Sentiment Downstream Decoder for Sentiment Label regression combined """
@@ -406,85 +434,111 @@ class Sentiment_Decoder_Combined_class(nn.Module):
         return sentiment_score
 
 
-""" Sentiment Downstream Decoder for Padding Aware Sentiment Label regression combined """
+# """ Sentiment Downstream Decoder for Padding Aware Sentiment Label regression combined """
+# class Sentiment_Decoder_Combined_Masked(nn.Module):
+#     def __init__(self, input_dim):
+#         super(Sentiment_Decoder_Combined_Masked, self).__init__()
+#         self.linear = nn.Linear(input_dim, input_dim)
+#         self.sentiment_regressor = nn.Linear(input_dim, 1)
+
+#     def forward(self, video_vq, audio_vq, text_vq, attention_mask=None):
+#         input_vq = (video_vq + audio_vq + text_vq) / 3
+#         if attention_mask is not None:
+#             valid_mask_flat = attention_mask.flatten()  # [B*T]
+#             num_valid_positions = valid_mask_flat.sum().item()
+#             if num_valid_positions == 0:
+#                 batch_size = input_vq.shape[0]
+#                 return torch.zeros(batch_size, 1, device=input_vq.device, dtype=input_vq.dtype)            
+#             B, T, D = input_vq.shape
+#             input_vq_flat = input_vq.view(-1, D)  # [B*T, D]
+#             input_vq_valid = input_vq_flat[valid_mask_flat]  # [num_valid, D]                        
+#             input_feat_valid = self.linear(input_vq_valid)  # [num_valid, D]            
+#             lengths = attention_mask.sum(dim=1)  # [B] - valid positions per sample
+#             pooled_features = []            
+#             start_idx = 0
+#             for i in range(B):
+#                 sample_length = lengths[i].item()
+#                 end_idx = start_idx + sample_length                
+#                 if sample_length > 0:
+#                     sample_features = input_feat_valid[start_idx:end_idx]  # [sample_length, D]
+#                     pooled_sample, _ = sample_features.max(0)  # [D] - max over valid timesteps
+#                 else:
+#                     pooled_sample = torch.zeros(D, device=input_vq.device, dtype=input_vq.dtype)                
+#                 pooled_features.append(pooled_sample)
+#                 start_idx = end_idx       
+#             pooled_tensor = torch.stack(pooled_features)  # [B, D]
+#             sentiment_score = self.sentiment_regressor(pooled_tensor)  # [B, 1]            
+#         else:
+#             input_feat = self.linear(input_vq)
+#             input_feat, _ = input_feat.max(1)  # Global max pooling
+#             sentiment_score = self.sentiment_regressor(input_feat)
+        
+#         return sentiment_score
+
+
+""" Sentiment Downstream Decoder Combined with Attention Pooling """
 class Sentiment_Decoder_Combined_Masked(nn.Module):
     def __init__(self, input_dim):
         super(Sentiment_Decoder_Combined_Masked, self).__init__()
         self.linear = nn.Linear(input_dim, input_dim)
+        self.attention_weight = nn.Linear(input_dim, 1)  # Attention scoring
         self.sentiment_regressor = nn.Linear(input_dim, 1)
 
     def forward(self, video_vq, audio_vq, text_vq, attention_mask=None):
         input_vq = (video_vq + audio_vq + text_vq) / 3
+        
         if attention_mask is not None:
             valid_mask_flat = attention_mask.flatten()  # [B*T]
             num_valid_positions = valid_mask_flat.sum().item()
             if num_valid_positions == 0:
                 batch_size = input_vq.shape[0]
                 return torch.zeros(batch_size, 1, device=input_vq.device, dtype=input_vq.dtype)            
+            
             B, T, D = input_vq.shape
             input_vq_flat = input_vq.view(-1, D)  # [B*T, D]
             input_vq_valid = input_vq_flat[valid_mask_flat]  # [num_valid, D]                        
-            input_feat_valid = self.linear(input_vq_valid)  # [num_valid, D]            
+            input_feat_valid = self.linear(input_vq_valid)  # [num_valid, D]
+            
+            # Compute attention scores for valid positions
+            attention_scores_valid = self.attention_weight(input_feat_valid)  # [num_valid, 1]
+            
             lengths = attention_mask.sum(dim=1)  # [B] - valid positions per sample
             pooled_features = []            
             start_idx = 0
+            
             for i in range(B):
                 sample_length = lengths[i].item()
                 end_idx = start_idx + sample_length                
+                
                 if sample_length > 0:
                     sample_features = input_feat_valid[start_idx:end_idx]  # [sample_length, D]
-                    pooled_sample, _ = sample_features.max(0)  # [D] - max over valid timesteps
+                    sample_attention_scores = attention_scores_valid[start_idx:end_idx]  # [sample_length, 1]
+                    
+                    # Compute attention weights (softmax over valid timesteps)
+                    sample_attention_weights = F.softmax(sample_attention_scores, dim=0)  # [sample_length, 1]
+                    
+                    # Weighted sum (attention pooling)
+                    pooled_sample = (sample_features * sample_attention_weights).sum(0)  # [D]
                 else:
                     pooled_sample = torch.zeros(D, device=input_vq.device, dtype=input_vq.dtype)                
+                
                 pooled_features.append(pooled_sample)
                 start_idx = end_idx       
+            
             pooled_tensor = torch.stack(pooled_features)  # [B, D]
             sentiment_score = self.sentiment_regressor(pooled_tensor)  # [B, 1]            
         else:
-            input_feat = self.linear(input_vq)
-            input_feat, _ = input_feat.max(1)  # Global max pooling
+            input_feat = self.linear(input_vq)  # [B, T, D]
+            
+            # Compute attention scores
+            attention_scores = self.attention_weight(input_feat)  # [B, T, 1]
+            attention_weights = F.softmax(attention_scores, dim=1)  # [B, T, 1]
+            
+            # Attention pooling
+            input_feat = (input_feat * attention_weights).sum(1)  # [B, D]
             sentiment_score = self.sentiment_regressor(input_feat)
         
         return sentiment_score
-
-# class Sentiment_Decoder_Combined_Masked(nn.Module):
-#     def __init__(self, input_dim):
-#         super(Sentiment_Decoder_Combined_Masked, self).__init__()
-#         self.temporal_encoder = InternalTemporalRelationModule(input_dim=input_dim, d_model=input_dim)
-#         self.linear = nn.Linear(input_dim, input_dim)
-#         self.sentiment_regressor = nn.Linear(input_dim, 1)
-
-#     def forward(self, video_vq, audio_vq, text_vq, attention_mask=None):
-#         input_vq = (video_vq + audio_vq + text_vq) / 3
-        
-#         if attention_mask is not None:
-#             num_valid_positions = attention_mask.sum().item()
-#             if num_valid_positions == 0:
-#                 batch_size = input_vq.shape[0]
-#                 return torch.zeros(batch_size, 1, device=input_vq.device, dtype=input_vq.dtype)
-        
-#         input_vq_transposed = input_vq.transpose(0, 1).contiguous()
-#         encoded_features = self.temporal_encoder(input_vq_transposed, attention_mask)
-#         encoded_features = encoded_features.transpose(0, 1).contiguous()
-        
-#         if attention_mask is not None:
-#             B, T, D = encoded_features.shape
-#             lengths = attention_mask.sum(dim=1)
-#             last_valid_features = []
-#             for i in range(B):
-#                 last_idx = lengths[i].item() - 1
-#                 if last_idx >= 0:
-#                     last_valid_features.append(encoded_features[i, last_idx])
-#                 else:
-#                     last_valid_features.append(torch.zeros(D, device=input_vq.device, dtype=input_vq.dtype))
-#             pooled_tensor = torch.stack(last_valid_features)
-#         else:
-#             pooled_tensor = encoded_features[:, -1, :]
-        
-#         input_feat = self.linear(pooled_tensor)
-#         sentiment_score = self.sentiment_regressor(input_feat)
-        
-#         return sentiment_score
 
 
 
@@ -1258,8 +1312,10 @@ class Cross_VQEmbeddingEMA_AVT_hierarchical_pad(nn.Module):
         self.embedding_dim = embedding_dim
 
         init_bound = 1 / n_embeddings
-        embedding = torch.Tensor(n_embeddings, embedding_dim * 3)
+        # embedding = torch.Tensor(n_embeddings, embedding_dim * 3)
+        embedding = torch.Tensor(n_embeddings, embedding_dim)
         embedding.uniform_(-init_bound, init_bound)
+        embedding = torch.cat([embedding, embedding, embedding], dim=1)
         
         self.register_buffer("embedding", embedding)
         self.register_buffer("ema_count", torch.zeros(n_embeddings))
@@ -1751,6 +1807,7 @@ class Cross_VQEmbeddingEMA_AVT_hierarchical_pad(nn.Module):
                 new_embedding[:, :D] =  ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])
                 new_embedding[:, D:2*D] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D] ) + ((1/3) * new_embedding[:, 2*D:])
                 new_embedding[:, 2*D:] = ((1/3) * new_embedding[:, :D]) + ((1/3) * new_embedding[:, D:2*D]) + ((1/3) * new_embedding[:, 2*D:])
+                self.embedding = new_embedding
 
             # Segment alignment metric
             new_embedding = self.embedding.clone()

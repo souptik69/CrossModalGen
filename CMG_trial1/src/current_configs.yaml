@@ -1,8 +1,8 @@
 # ======================================= Learning configs ==================================
-n_epoch: 30
-batch_size: 16
-test_batch_size: 16
-lr: 0.0004
+n_epoch: 100
+batch_size: 32
+test_batch_size: 32
+lr: 0.0001
 mi_lr: 0.001
 loss_weights: 0.5
 clip_gradient: 0.5
@@ -11,7 +11,7 @@ weight_decay: 5e-4
 
   # ======================================= Print and snapshot configs ==================================
 snapshot_pref: 
-    /project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models_3/ContentAware_MOSEI_unsupervised_VAT_contrastive_30dim_NewAttention_window/
+    /project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Tests_2/Final_MOSEI_unsupervised_VAT_30dim__NewAttention_window_laststep_29_1/CMG_text/
 print_freq: 1
 eval_freq: 1
 

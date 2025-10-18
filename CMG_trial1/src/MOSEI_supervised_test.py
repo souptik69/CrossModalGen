@@ -14,6 +14,7 @@ from torch.optim.lr_scheduler import StepLR, MultiStepLR
 import numpy as np
 from configs.opts import parser
 from model.main_model_mosei import AVT_VQVAE_Encoder, AVT_VQVAE_Decoder
+from model.main_model_mosei_2 import AVT_VQVAE_Encoder_SingleTimestep, AVT_VQVAE_Decoder_Broadcast
 from utils import AverageMeter, Prepare_logger, get_and_save_args
 from utils.container import metricsContainer
 import torch.nn.functional as F
@@ -194,7 +195,7 @@ def main():
     text_dim = 300
     audio_dim = 74
     # text_lstm_dim = 128
-    n_embeddings = 128
+    n_embeddings = 64
     embedding_dim = 30
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -208,8 +209,8 @@ def main():
     # #     Decoder = AVT_VQVAE_Decoder_modal(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2)
 
     # Decoder = AVT_VQVAE_Decoder(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2)
-    Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_dim, n_embeddings, embedding_dim)
-    Decoder = AVT_VQVAE_Decoder(audio_dim, video_dim, text_dim, embedding_dim)
+    Encoder = AVT_VQVAE_Encoder_SingleTimestep(audio_dim, video_dim, text_dim, n_embeddings, embedding_dim)
+    Decoder = AVT_VQVAE_Decoder_Broadcast(audio_dim, video_dim, text_dim, embedding_dim)
 
     # Text_ar_lstm.double()
     # Video_ar_lstm.double()
@@ -225,7 +226,7 @@ def main():
     Decoder.to(device)
 
     # Load supervised pretrained model
-    path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models_3/ContentAware_MOSEI_supervised_TAV_contrastive_64dim/checkpoint/MOSEI-model-supervised-7.pt"
+    path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/MOSEI_Models_3/Final_MOSEI_supervised_VAT_30dim__NewAttention_window_laststep/checkpoint/MOSEI-model-supervised-29.pt"
     logger.info(f"Loading supervised model from: {path_checkpoints}")
     checkpoints = torch.load(path_checkpoints)
     Encoder.load_state_dict(checkpoints['Encoder_parameters'])
@@ -313,12 +314,12 @@ def test_msr_mode(Encoder, Decoder, test_dataloader, args):
         lengths = lengths.cuda()
 
         # Get VQ representations
-        out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(audio_feature, attention_mask=attention_mask)
-        out_vq_video, video_vq = Encoder.Video_VQ_Encoder(video_feature, attention_mask=attention_mask)
-        out_vq_text, text_vq = Encoder.Text_VQ_Encoder(text_feature, attention_mask=attention_mask)
+        out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(audio_feature, attention_mask=attention_mask, lengths=lengths)
+        out_vq_video, video_vq = Encoder.Video_VQ_Encoder(video_feature, attention_mask=attention_mask, lengths=lengths)
+        out_vq_text, text_vq = Encoder.Text_VQ_Encoder(text_feature, attention_mask=attention_mask, lengths=lengths)
 
         # Test multimodal prediction
-        combined_score = Decoder.combined_sentiment_decoder(out_vq_video, out_vq_audio, out_vq_text, attention_mask=attention_mask)
+        combined_score = Decoder.combined_sentiment_decoder(out_vq_video, out_vq_audio, out_vq_text)
         loss = criterion_sentiment(combined_score, labels)
 
         all_preds.append(combined_score)
@@ -426,14 +427,14 @@ def test_cmg_mode(Encoder, Decoder, test_dataloader, args):
         lengths = lengths.cuda()
 
         # Get VQ representations
-        out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(audio_feature, attention_mask=attention_mask)
-        out_vq_video, video_vq = Encoder.Video_VQ_Encoder(video_feature, attention_mask=attention_mask)
-        out_vq_text, text_vq = Encoder.Text_VQ_Encoder(text_feature, attention_mask=attention_mask)
+        out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(audio_feature, attention_mask=attention_mask, lengths=lengths)
+        out_vq_video, video_vq = Encoder.Video_VQ_Encoder(video_feature, attention_mask=attention_mask, lengths=lengths)
+        out_vq_text, text_vq = Encoder.Text_VQ_Encoder(text_feature, attention_mask=attention_mask, lengths=lengths)
 
         # Test individual modalities
-        audio_score = Decoder.audio_sentiment_decoder(out_vq_audio, attention_mask=attention_mask)
-        video_score = Decoder.video_sentiment_decoder(out_vq_video, attention_mask=attention_mask)
-        text_score = Decoder.text_sentiment_decoder(out_vq_text, attention_mask=attention_mask)
+        audio_score = Decoder.audio_sentiment_decoder(out_vq_audio)
+        video_score = Decoder.video_sentiment_decoder(out_vq_video)
+        text_score = Decoder.text_sentiment_decoder(out_vq_text)
 
         all_audio_preds.append(audio_score)
         all_video_preds.append(video_score)

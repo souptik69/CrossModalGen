@@ -511,17 +511,19 @@ class TransformerEncoder(nn.Module):
         # Scale input embeddings
         x = self.embed_scale * x_in
         
+        
         # Add positional embeddings ONLY to valid (non-padding) positions
-        if self.embed_positions is not None:
-            pos_emb = self.embed_positions((bsz, seq_len), x_in.device)
-            
-            if key_padding_mask is not None:
-                # Create mask: 1 for valid positions, 0 for padding
-                valid_mask = (~key_padding_mask).transpose(0, 1).unsqueeze(-1)
-                # CRITICAL: Zero out positional embeddings for padding positions
-                pos_emb = pos_emb * valid_mask
-            
-            x = x + pos_emb
+
+        # if self.embed_positions is not None:
+        pos_emb = self.embed_positions((bsz, seq_len), x_in.device)
+        
+        if key_padding_mask is not None:
+            # Create mask: 1 for valid positions, 0 for padding
+            valid_mask = (~key_padding_mask).transpose(0, 1).unsqueeze(-1)
+            # CRITICAL: Zero out positional embeddings for padding positions
+            pos_emb = pos_emb * valid_mask
+        
+        x = x + pos_emb
         
         # Apply embedding dropout
         x = F.dropout(x, p=self.dropout, training=self.training)

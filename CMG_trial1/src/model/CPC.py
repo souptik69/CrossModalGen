@@ -271,10 +271,10 @@ class Cross_CPC_AVT_pad(nn.Module):
     
     def forward(self, audio_vq, video_vq, text_vq, lengths=None, attention_mask=None):
         """
-        Adaptive CPC that selects global context length but adapts per-sample based on actual content.
+        Maximum Context CPC: Uses all available timesteps as context to predict the last timestep.
         
-        Key Innovation: Uses full sequence capacity for context selection, but intelligently
-        adapts for individual samples based on their actual content length.
+        Key Innovation: For each sequence, uses maximum possible context (length - 1) to predict
+        the final timestep, maximizing cross-modal alignment at the sequence endpoint.
         """
         batch_dim, time_length, _ = video_vq.shape
         
@@ -290,31 +290,27 @@ class Cross_CPC_AVT_pad(nn.Module):
             mask_length = attention_mask[i].sum().item()
             assert actual_length == mask_length, f"Length mismatch for sample {i}: lengths={actual_length}, attention_mask={mask_length}"
         
-        # STEP 1: Global Context Length Selection Based on Full Sequence Capacity
-        global_max_context = time_length - self.n_prediction_steps - self.min_start_steps
-        global_t_samples = torch.randint(global_max_context, size=(1,)).item() + self.min_start_steps
-        
-        # STEP 2: Per-Sample Context Length Adaptation
+        # STEP 1: Per-Sample Maximum Context Length (all timesteps except last)
         per_sample_context_lengths = []
         per_sample_t_samples = []
         
         for i in range(batch_dim):
             sample_length = lengths[i].item()
-            sample_max_context = max(0, sample_length - self.n_prediction_steps - self.min_start_steps)
-            adapted_t_samples = min(global_t_samples, sample_max_context + self.min_start_steps - 1)
-            adapted_context_length = adapted_t_samples + 1
+            # Use maximum context: all timesteps except the last one
+            context_length = max(1, sample_length - 1)  # At least 1 for LSTM
+            t_sample = context_length - 1  # Last context position (0-indexed)
             
-            per_sample_context_lengths.append(adapted_context_length)
-            per_sample_t_samples.append(adapted_t_samples)
+            per_sample_context_lengths.append(context_length)
+            per_sample_t_samples.append(t_sample)
         
-        # STEP 3: Extract Context Sequences with Individual Adaptation
+        # STEP 2: Extract Context Sequences with Maximum Length
         max_context_length = max(per_sample_context_lengths)
         
         video_forward_seq = video_vq[:, :max_context_length, :]
         audio_forward_seq = audio_vq[:, :max_context_length, :]
         text_forward_seq = text_vq[:, :max_context_length, :]
         
-        # STEP 4: Efficient LSTM Processing with Pack/Unpack
+        # STEP 3: Efficient LSTM Processing with Pack/Unpack
         context_lengths_tensor = torch.tensor(per_sample_context_lengths, device=video_vq.device)
         sorted_lengths, sorted_idx = context_lengths_tensor.sort(0, descending=True)
         unsorted_idx = sorted_idx.argsort(0)
@@ -366,7 +362,7 @@ class Cross_CPC_AVT_pad(nn.Module):
         audio_context = audio_context[unsorted_idx]
         text_context = text_context[unsorted_idx]
         
-        # STEP 5: Extract Context Representations at Appropriate Positions
+        # STEP 4: Extract Context Representations at Maximum Position
         video_context_list = []
         audio_context_list = []
         text_context_list = []
@@ -383,7 +379,7 @@ class Cross_CPC_AVT_pad(nn.Module):
         audio_context = torch.stack(audio_context_list)
         text_context = torch.stack(text_context_list)
         
-        # STEP 6: Intelligent Target Extraction Respecting Individual Sequence Lengths
+        # STEP 5: Extract Last Timestep as Target (Final Representation)
         video_encode_samples = []
         audio_encode_samples = []
         text_encode_samples = []
@@ -394,17 +390,12 @@ class Cross_CPC_AVT_pad(nn.Module):
             step_text = []
             
             for i in range(batch_dim):
-                target_pos = per_sample_t_samples[i] + step + 1
+                # Target is the last valid timestep
+                last_pos = lengths[i] - 1
                 
-                if target_pos < lengths[i]:
-                    step_video.append(video_vq[i, target_pos, :])
-                    step_audio.append(audio_vq[i, target_pos, :])
-                    step_text.append(text_vq[i, target_pos, :])
-                else:
-                    last_valid_pos = lengths[i] - 1
-                    step_video.append(video_vq[i, last_valid_pos, :])
-                    step_audio.append(audio_vq[i, last_valid_pos, :])
-                    step_text.append(text_vq[i, last_valid_pos, :])
+                step_video.append(video_vq[i, last_pos, :])
+                step_audio.append(audio_vq[i, last_pos, :])
+                step_text.append(text_vq[i, last_pos, :])
             
             video_encode_samples.append(torch.stack(step_video))
             audio_encode_samples.append(torch.stack(step_audio))
@@ -414,7 +405,7 @@ class Cross_CPC_AVT_pad(nn.Module):
         audio_encode_samples = torch.stack(audio_encode_samples)
         text_encode_samples = torch.stack(text_encode_samples)
         
-        # STEP 7: Generate Predictions Using Adapted Context Representations
+        # STEP 6: Generate Predictions Using Maximum Context Representations
         video_pred = torch.empty((self.n_prediction_steps, batch_dim, self.embedding_dim), device=video_vq.device).double()
         audio_pred = torch.empty((self.n_prediction_steps, batch_dim, self.embedding_dim), device=audio_vq.device).double()
         text_pred = torch.empty((self.n_prediction_steps, batch_dim, self.embedding_dim), device=text_vq.device).double()
@@ -424,13 +415,13 @@ class Cross_CPC_AVT_pad(nn.Module):
             audio_pred[i] = self.audio_predictors[i](audio_context)
             text_pred[i] = self.text_predictors[i](text_context)
         
-        # STEP 8: Calculate NCE Loss and Accuracies
+        # STEP 7: Calculate NCE Loss and Accuracies
         nce = 0
-        accuracy1 = accuracy2 = accuracy3 = accuracy4 = accuracy5 = 0
-        accuracy6 = accuracy7 = accuracy8 = accuracy9 = 0
+        accuracy1 = accuracy2 = accuracy3 = accuracy4 = accuracy5 = accuracy6 = 0
+        accuracy7 = accuracy8 = accuracy9 = 0
         
         for i in range(self.n_prediction_steps):
-            # Compute similarity matrices
+            # Compute similarity matrices for cross-modal alignment
             total1 = torch.mm(audio_encode_samples[i], torch.transpose(video_pred[i], 0, 1))
             total2 = torch.mm(audio_encode_samples[i], torch.transpose(text_pred[i], 0, 1))
             total3 = torch.mm(video_encode_samples[i], torch.transpose(text_pred[i], 0, 1))
@@ -483,182 +474,6 @@ class Cross_CPC_AVT_pad(nn.Module):
         
         return accuracy1, accuracy2, accuracy3, accuracy4, accuracy5, accuracy6, accuracy7, accuracy8, accuracy9, nce
 
-
-
-# class Cross_CPC_AVT_pad_window(nn.Module):
-#     def __init__(self, embedding_dim, hidden_dim, context_dim, num_layers, n_prediction_steps=1, min_start_steps=1):
-#         super(Cross_CPC_AVT_pad_window, self).__init__()
-#         self.embedding_dim = embedding_dim
-#         self.hidden_dim = hidden_dim
-#         self.context_dim = context_dim
-#         self.num_layers = num_layers
-#         self.n_prediction_steps = n_prediction_steps
-#         self.min_start_steps = min_start_steps
-#         self.softmax = nn.Softmax()
-#         self.lsoftmax = nn.LogSoftmax()
-        
-#         # Autoregressive LSTM networks for each modality
-#         self.video_ar_lstm = nn.LSTM(embedding_dim, context_dim, num_layers, batch_first=True)
-#         self.audio_ar_lstm = nn.LSTM(embedding_dim, context_dim, num_layers, batch_first=True)
-#         self.text_ar_lstm = nn.LSTM(embedding_dim, context_dim, num_layers, batch_first=True)
-        
-#         # Predictor networks for each modality
-#         self.video_predictors = nn.ModuleList([
-#             nn.Linear(context_dim, embedding_dim) for _ in range(n_prediction_steps)
-#         ])
-#         self.audio_predictors = nn.ModuleList([
-#             nn.Linear(context_dim, embedding_dim) for _ in range(n_prediction_steps)
-#         ])
-#         self.text_predictors = nn.ModuleList([
-#             nn.Linear(context_dim, embedding_dim) for _ in range(n_prediction_steps)
-#         ])
-
-
-#     def forward(self, audio_vq, video_vq, text_vq, lengths=None, attention_mask=None):
-        
-#         batch_dim, time_length, _ = video_vq.shape
-        
-#         if lengths is None or attention_mask is None:
-#             raise ValueError("This adaptive CPC requires both lengths and attention_mask")
-        
-#         lengths = lengths.to(video_vq.device)
-#         attention_mask = attention_mask.to(video_vq.device)
-        
-#         total_nce = 0
-#         total_acc1 = total_acc2 = total_acc3 = total_acc4 = total_acc5 = 0
-#         total_acc6 = total_acc7 = total_acc8 = total_acc9 = 0
-#         valid_windows = 0
-        
-#         for t_samples in range(self.min_start_steps, time_length - self.n_prediction_steps):
-#             valid_mask = lengths > (t_samples + self.n_prediction_steps)
-#             if valid_mask.sum() == 0:
-#                 continue
-            
-#             valid_batch_size = valid_mask.sum().item()
-#             valid_indices = valid_mask.nonzero(as_tuple=True)[0]
-            
-#             video_forward_seq = video_vq[valid_mask, :t_samples+1, :]
-#             audio_forward_seq = audio_vq[valid_mask, :t_samples+1, :]
-#             text_forward_seq = text_vq[valid_mask, :t_samples+1, :]
-            
-#             video_hidden = (
-#                 torch.zeros(self.num_layers, valid_batch_size, self.hidden_dim, device=video_vq.device).double(),
-#                 torch.zeros(self.num_layers, valid_batch_size, self.hidden_dim, device=video_vq.device).double()
-#             )
-#             audio_hidden = (
-#                 torch.zeros(self.num_layers, valid_batch_size, self.hidden_dim, device=audio_vq.device).double(),
-#                 torch.zeros(self.num_layers, valid_batch_size, self.hidden_dim, device=audio_vq.device).double()
-#             )
-#             text_hidden = (
-#                 torch.zeros(self.num_layers, valid_batch_size, self.hidden_dim, device=text_vq.device).double(),
-#                 torch.zeros(self.num_layers, valid_batch_size, self.hidden_dim, device=text_vq.device).double()
-#             )
-            
-#             video_context, _ = self.video_ar_lstm(video_forward_seq, video_hidden)
-#             audio_context, _ = self.audio_ar_lstm(audio_forward_seq, audio_hidden)
-#             text_context, _ = self.text_ar_lstm(text_forward_seq, text_hidden)
-            
-#             video_context = video_context[:, t_samples, :].reshape(valid_batch_size, self.context_dim)
-#             audio_context = audio_context[:, t_samples, :].reshape(valid_batch_size, self.context_dim)
-#             text_context = text_context[:, t_samples, :].reshape(valid_batch_size, self.context_dim)
-            
-#             video_encode_samples = torch.empty((self.n_prediction_steps, valid_batch_size, self.embedding_dim), device=video_vq.device).double()
-#             audio_encode_samples = torch.empty((self.n_prediction_steps, valid_batch_size, self.embedding_dim), device=audio_vq.device).double()
-#             text_encode_samples = torch.empty((self.n_prediction_steps, valid_batch_size, self.embedding_dim), device=text_vq.device).double()
-            
-#             for i in range(1, self.n_prediction_steps+1):
-#                 video_encode_samples[i-1] = video_vq[valid_mask, t_samples+i, :].reshape(valid_batch_size, self.embedding_dim)
-#                 audio_encode_samples[i-1] = audio_vq[valid_mask, t_samples+i, :].reshape(valid_batch_size, self.embedding_dim)
-#                 text_encode_samples[i-1] = text_vq[valid_mask, t_samples+i, :].reshape(valid_batch_size, self.embedding_dim)
-            
-#             video_pred = torch.empty((self.n_prediction_steps, valid_batch_size, self.embedding_dim), device=video_vq.device).double()
-#             audio_pred = torch.empty((self.n_prediction_steps, valid_batch_size, self.embedding_dim), device=audio_vq.device).double()
-#             text_pred = torch.empty((self.n_prediction_steps, valid_batch_size, self.embedding_dim), device=text_vq.device).double()
-            
-#             for i in range(self.n_prediction_steps):
-#                 video_pred[i] = self.video_predictors[i](video_context)
-#                 audio_pred[i] = self.audio_predictors[i](audio_context)
-#                 text_pred[i] = self.text_predictors[i](text_context)
-            
-#             window_nce = 0
-#             window_acc1 = window_acc2 = window_acc3 = window_acc4 = window_acc5 = 0
-#             window_acc6 = window_acc7 = window_acc8 = window_acc9 = 0
-            
-#             for i in range(self.n_prediction_steps):
-#                 total1 = torch.mm(audio_encode_samples[i], torch.transpose(video_pred[i], 0, 1))
-#                 total2 = torch.mm(audio_encode_samples[i], torch.transpose(text_pred[i], 0, 1))
-#                 total3 = torch.mm(video_encode_samples[i], torch.transpose(text_pred[i], 0, 1))
-#                 total4 = torch.mm(video_encode_samples[i], torch.transpose(audio_pred[i], 0, 1))
-#                 total5 = torch.mm(text_encode_samples[i], torch.transpose(audio_pred[i], 0, 1))
-#                 total6 = torch.mm(text_encode_samples[i], torch.transpose(video_pred[i], 0, 1))
-#                 total7 = torch.mm(audio_encode_samples[i], torch.transpose(audio_pred[i], 0, 1))
-#                 total8 = torch.mm(video_encode_samples[i], torch.transpose(video_pred[i], 0, 1))
-#                 total9 = torch.mm(text_encode_samples[i], torch.transpose(text_pred[i], 0, 1))
-                
-#                 correct1 = torch.sum(torch.eq(torch.argmax(self.softmax(total1), dim=0), torch.arange(0, valid_batch_size, device=video_vq.device)))
-#                 correct2 = torch.sum(torch.eq(torch.argmax(self.softmax(total2), dim=0), torch.arange(0, valid_batch_size, device=video_vq.device)))
-#                 correct3 = torch.sum(torch.eq(torch.argmax(self.softmax(total3), dim=0), torch.arange(0, valid_batch_size, device=video_vq.device)))
-#                 correct4 = torch.sum(torch.eq(torch.argmax(self.softmax(total4), dim=0), torch.arange(0, valid_batch_size, device=video_vq.device)))
-#                 correct5 = torch.sum(torch.eq(torch.argmax(self.softmax(total5), dim=0), torch.arange(0, valid_batch_size, device=video_vq.device)))
-#                 correct6 = torch.sum(torch.eq(torch.argmax(self.softmax(total6), dim=0), torch.arange(0, valid_batch_size, device=video_vq.device)))
-#                 correct7 = torch.sum(torch.eq(torch.argmax(self.softmax(total7), dim=0), torch.arange(0, valid_batch_size, device=video_vq.device)))
-#                 correct8 = torch.sum(torch.eq(torch.argmax(self.softmax(total8), dim=0), torch.arange(0, valid_batch_size, device=video_vq.device)))
-#                 correct9 = torch.sum(torch.eq(torch.argmax(self.softmax(total9), dim=0), torch.arange(0, valid_batch_size, device=video_vq.device)))
-                
-#                 w1 = w2 = w3 = w4 = w5 = w6 = 1.0
-#                 w7 = w8 = w9 = 0.1
-                
-#                 window_nce += w1 * torch.sum(torch.diag(self.lsoftmax(total1)))
-#                 window_nce += w2 * torch.sum(torch.diag(self.lsoftmax(total2)))
-#                 window_nce += w3 * torch.sum(torch.diag(self.lsoftmax(total3)))
-#                 window_nce += w4 * torch.sum(torch.diag(self.lsoftmax(total4)))
-#                 window_nce += w5 * torch.sum(torch.diag(self.lsoftmax(total5)))
-#                 window_nce += w6 * torch.sum(torch.diag(self.lsoftmax(total6)))
-#                 window_nce += w7 * torch.sum(torch.diag(self.lsoftmax(total7)))
-#                 window_nce += w8 * torch.sum(torch.diag(self.lsoftmax(total8)))
-#                 window_nce += w9 * torch.sum(torch.diag(self.lsoftmax(total9)))
-                
-#                 window_acc1 += correct1.item() / valid_batch_size
-#                 window_acc2 += correct2.item() / valid_batch_size
-#                 window_acc3 += correct3.item() / valid_batch_size
-#                 window_acc4 += correct4.item() / valid_batch_size
-#                 window_acc5 += correct5.item() / valid_batch_size
-#                 window_acc6 += correct6.item() / valid_batch_size
-#                 window_acc7 += correct7.item() / valid_batch_size
-#                 window_acc8 += correct8.item() / valid_batch_size
-#                 window_acc9 += correct9.item() / valid_batch_size
-            
-#             window_nce /= (-1. * valid_batch_size * self.n_prediction_steps)
-            
-#             total_nce += window_nce
-#             total_acc1 += window_acc1 / self.n_prediction_steps
-#             total_acc2 += window_acc2 / self.n_prediction_steps
-#             total_acc3 += window_acc3 / self.n_prediction_steps
-#             total_acc4 += window_acc4 / self.n_prediction_steps
-#             total_acc5 += window_acc5 / self.n_prediction_steps
-#             total_acc6 += window_acc6 / self.n_prediction_steps
-#             total_acc7 += window_acc7 / self.n_prediction_steps
-#             total_acc8 += window_acc8 / self.n_prediction_steps
-#             total_acc9 += window_acc9 / self.n_prediction_steps
-#             valid_windows += 1
-        
-#         if valid_windows > 0:
-#             nce = total_nce / valid_windows
-#             accuracy1 = total_acc1 / valid_windows
-#             accuracy2 = total_acc2 / valid_windows
-#             accuracy3 = total_acc3 / valid_windows
-#             accuracy4 = total_acc4 / valid_windows
-#             accuracy5 = total_acc5 / valid_windows
-#             accuracy6 = total_acc6 / valid_windows
-#             accuracy7 = total_acc7 / valid_windows
-#             accuracy8 = total_acc8 / valid_windows
-#             accuracy9 = total_acc9 / valid_windows
-#         else:
-#             nce = torch.tensor(0.0, device=video_vq.device)
-#             accuracy1 = accuracy2 = accuracy3 = accuracy4 = accuracy5 = 0
-#             accuracy6 = accuracy7 = accuracy8 = accuracy9 = 0
-        
-#         return accuracy1, accuracy2, accuracy3, accuracy4, accuracy5, accuracy6, accuracy7, accuracy8, accuracy9, nce
 
 
 
