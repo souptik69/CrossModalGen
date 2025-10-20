@@ -2,6 +2,7 @@ envs/
 
 Slurm/
 
+CMG_trial1/Benchmarks
 
 Misc/specific_transformers_results
 
@@ -12,6 +13,16 @@ CMG_trial1/Models
 CMG_trial1/slurm
 
 CMG_trial1/slurm1
+
+CMG_trial1/slurm_cvpr
+
+CMG_trial1/src_cvpr/dataset/__pycache__
+
+CMG_trial1/src_cvpr/model/__pycache__
+
+CMG_trial1/src_cvpr/utils/__pycache__
+
+CMG_trial1/src_cvpr/configs/__pycache__
 
 CMG_trial1/src/configs/__pycache__
 

@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import StepLR, MultiStepLR
 import numpy as np
 from configs.opts import parser
-from model.main_model_2 import AV_VQVAE_Encoder, AT_VQVAE_Encoder, AV_VQVAE_Decoder, AT_VQVAE_Decoder, AVT_VQVAE_Encoder, AVT_VQVAE_Decoder, AVT_RQVAE_Encoder
+from model.main_model_2 import AV_VQVAE_Encoder, AT_VQVAE_Encoder, AV_VQVAE_Decoder, AT_VQVAE_Decoder, AVT_VQVAE_Encoder, AVT_VQVAE_Decoder
 from model.CLUB import CLUBSample_group
 from model.CPC import Cross_CPC, Cross_CPC_AVT
 from utils import AverageMeter, Prepare_logger, get_and_save_args
@@ -439,16 +439,16 @@ def to_train(all_models):
 def save_models(CPC, Encoder,Text_ar_lstm,epoch_num, total_step, path):
     state_dict = {
         'Encoder_parameters': Encoder.state_dict(),
-        'CPC_parameters': CPC.state_dict(),
+        # 'CPC_parameters': CPC.state_dict(),
         'Text_ar_lstm_parameters': Text_ar_lstm.state_dict(),
-        'Video_mi_net_parameters': Video_mi_net.state_dict(),
-        'Text_mi_net_parameters': Text_mi_net.state_dict(),
-        'Audio_mi_net_parameters': Audio_mi_net.state_dict(),
-        'Decoder_parameters': Decoder.state_dict(),
-        'optimizer': optimizer.state_dict(),
-        'optimizer_video_mi_net': optimizer_video_mi_net.state_dict(),
-        'optimizer_text_mi_net': optimizer_text_mi_net.state_dict(),
-        'optimizer_audio_mi_net': optimizer_audio_mi_net.state_dict(),
+        # 'Video_mi_net_parameters': Video_mi_net.state_dict(),
+        # 'Text_mi_net_parameters': Text_mi_net.state_dict(),
+        # 'Audio_mi_net_parameters': Audio_mi_net.state_dict(),
+        # 'Decoder_parameters': Decoder.state_dict(),
+        # 'optimizer': optimizer.state_dict(),
+        # 'optimizer_video_mi_net': optimizer_video_mi_net.state_dict(),
+        # 'optimizer_text_mi_net': optimizer_text_mi_net.state_dict(),
+        # 'optimizer_audio_mi_net': optimizer_audio_mi_net.state_dict(),
         'epoch': epoch_num,
         'total_step': total_step
     }
@@ -560,7 +560,7 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Audio_mi_net, Video_mi_net, Text_mi_ne
         
         audio_semantic_result, video_semantic_result, text_semantic_result, \
         audio_encoder_result, video_encoder_result, video_club_feature, text_encoder_result, \
-        audio_vq, video_vq, text_vq, audio_embedding_loss, video_embedding_loss, text_embedding_loss, cmcm_loss, equal_num \
+        audio_vq, video_vq, text_vq, audio_embedding_loss, video_embedding_loss, text_embedding_loss, cmcm_loss, equal_num, audio_perplexity, video_perplexity, text_perplexity \
         = Encoder(audio_feature, video_feature, text_feature, epoch)
         
         # w/o mi_loss in micu(oscmg)
@@ -716,6 +716,9 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Audio_mi_net, Video_mi_net, Text_mi_ne
             'jigsaw_loss': jigsaw_loss.item(),
             'infonce_fine_loss': infonce_fine_loss.item(),
             'infonce_coarse_loss': infonce_coarse_loss.item(),
+            "audio_perplexity": audio_perplexity.item(),
+            "video_perplexity": video_perplexity.item(),
+            "text_perplexity": text_perplexity.item()
         }
 
         metricsContainer.update("loss", loss_items)
@@ -749,7 +752,7 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Audio_mi_net, Video_mi_net, Text_mi_ne
         global_steps = global_steps + 1
         # if global_steps % 2 == 0:
         if global_steps % 200 == 0 and global_steps > 500:
-            save_path = os.path.join(args.model_save_path, 'DCID-att42-mfnce[0.3all]-wo[cpc,jp,cmcm,mi]-step{}.pt'.format(global_steps))
+            save_path = os.path.join(args.model_save_path, 'MICU-step{}.pt'.format(global_steps))
             save_models(CPC, Encoder,Text_ar_lstm, epoch, total_step, save_path)
 
     return losses.avg, n_iter + total_step
@@ -814,7 +817,7 @@ def VQ_video_forward(audio_feature, visual_feature, Encoder, optimizer,epoch):
 def mi_second_forward(CPC, audio_feature, video_feature, text_feature, Encoder, Audio_mi_net, Video_mi_net, Text_mi_net, Decoder,epoch):
     audio_semantic_result, video_semantic_result, text_semantic_result, \
     audio_encoder_result, video_encoder_result, video_club_feature, text_encoder_result,\
-    audio_vq, video_vq, text_vq, audio_embedding_loss, video_embedding_loss, text_embedding_loss, cmcm_loss, equal_num\
+    audio_vq, video_vq, text_vq, audio_embedding_loss, video_embedding_loss, text_embedding_loss, cmcm_loss, equal_num, audio_perplexity, video_perplexity, text_perplexity\
     = Encoder(audio_feature, video_feature, text_feature, epoch)
     
     mi_video_loss = Video_mi_net.mi_est(video_vq, video_club_feature)

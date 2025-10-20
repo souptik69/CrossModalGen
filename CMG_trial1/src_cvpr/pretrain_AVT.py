@@ -22,7 +22,6 @@ from utils.container import metricsContainer
 from utils.Recorder import Recorder
 import torch.nn.functional as F
 from bert_embedding import BertEmbedding
-from transformers import BertTokenizer, BertModel
 import pickle
 from collections import Counter
 import torch.cuda as cuda

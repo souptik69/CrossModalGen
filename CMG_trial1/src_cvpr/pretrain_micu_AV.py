@@ -311,13 +311,13 @@ def to_train(all_models):
 def save_models(CPC, Encoder, epoch_num, total_step, path):
     state_dict = {
         'Encoder_parameters': Encoder.state_dict(),
-        'CPC_parameters': CPC.state_dict(),
-        'Video_mi_net_parameters': Video_mi_net.state_dict(),
-        'Audio_mi_net_parameters': Audio_mi_net.state_dict(),
-        'Decoder_parameters': Decoder.state_dict(),
-        'optimizer': optimizer.state_dict(),
-        'optimizer_video_mi_net': optimizer_video_mi_net.state_dict(),
-        'optimizer_audio_mi_net': optimizer_audio_mi_net.state_dict(),
+        # 'CPC_parameters': CPC.state_dict(),
+        # 'Video_mi_net_parameters': Video_mi_net.state_dict(),
+        # 'Audio_mi_net_parameters': Audio_mi_net.state_dict(),
+        # 'Decoder_parameters': Decoder.state_dict(),
+        # 'optimizer': optimizer.state_dict(),
+        # 'optimizer_video_mi_net': optimizer_video_mi_net.state_dict(),
+        # 'optimizer_audio_mi_net': optimizer_audio_mi_net.state_dict(),
         'epoch': epoch_num,
         'total_step': total_step
     }
@@ -490,6 +490,8 @@ def train_epoch(CPC, Encoder, Audio_mi_net, Video_mi_net, Decoder, train_dataloa
             'jigsaw_loss': jigsaw_loss.item(),
             'infonce_fine_loss': infonce_fine_loss.item(),
             'infonce_coarse_loss': infonce_coarse_loss.item(),
+            "audio_perplexity": audio_perplexity.item(),
+            "video_perplexity": video_perplexity.item()
         }
 
         metricsContainer.update("loss", loss_items)
@@ -517,8 +519,8 @@ def train_epoch(CPC, Encoder, Audio_mi_net, Video_mi_net, Decoder, train_dataloa
         end_time = time.time()
 
         global_steps = global_steps + 1
-        if global_steps % 200 == 0 and global_steps > 500:
-            save_path = os.path.join(args.model_save_path, 'AV-pretrain-mfnce[0.3all]-wo[cpc,jp,cmcm,mi]-step{}.pt'.format(global_steps))
+        if global_steps % 200 == 0 and global_steps > 400:
+            save_path = os.path.join(args.model_save_path, 'MICU-step{}.pt'.format(global_steps))
             save_models(CPC, Encoder, epoch, total_step, save_path)
 
     return losses.avg, n_iter + total_step
