@@ -188,7 +188,7 @@ def main():
 
         #Test
         # path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/Final_CMG_AV/40k/checkpoint/DCID-model-5.pt"
-        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/Final_CMG_AV/90k/checkpoint/DCID-model-5.pt"
+        path_checkpoints = args.checkpoint_path
 
         checkpoints = torch.load(path_checkpoints)
         Encoder.load_state_dict(checkpoints['Encoder_parameters'])

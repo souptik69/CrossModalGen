@@ -10,7 +10,7 @@ from torch.utils.data import Dataset, DataLoader
 
 
 def generate_category_list_vgg2ucf():
-    file_path = 'VGGSoundsameUCF101.txt'
+    file_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/data/data/UCF101/data/VGGSoundsameUCF101.txt'
     category_list = []
     with open(file_path, 'r') as fr:
         for line in fr.readlines():
@@ -18,7 +18,7 @@ def generate_category_list_vgg2ucf():
     return category_list
 
 def generate_category_list_ucf2vgg():
-    file_path = 'UCF101sameVGGSound.txt'
+    file_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/data/data/UCF101/data/UCF101sameVGGSound.txt'
     category_list = []
     with open(file_path, 'r') as fr:
         for line in fr.readlines():

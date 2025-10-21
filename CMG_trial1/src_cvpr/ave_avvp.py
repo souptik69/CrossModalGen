@@ -159,16 +159,16 @@ def main():
 
 
     if model_resume is True:
-        path_checkpoints = "..."
+        path_checkpoints = args.checkpoint_path
         checkpoints = torch.load(path_checkpoints)
         Encoder.load_state_dict(checkpoints['Encoder_parameters'])
         start_epoch = checkpoints['epoch']
         logger.info("Resume from number {}-th model.".format(start_epoch))
 
     '''Tensorboard and Code backup'''
-    writer = SummaryWriter(args.snapshot_pref)
-    recorder = Recorder(args.snapshot_pref, ignore_folder="Exps/")
-    recorder.writeopt(args)
+    # writer = SummaryWriter(args.snapshot_pref)
+    # recorder = Recorder(args.snapshot_pref, ignore_folder="Exps/")
+    # recorder.writeopt(args)
 
     '''Training and Evaluation'''
 
@@ -324,11 +324,11 @@ def train_epoch(Encoder, Decoder, ExpLogLoss_fn, train_dataloader, criterion, cr
         batch_time.update(time.time() - end_time)
         end_time = time.time()
 
-        '''Add loss of a iteration in Tensorboard'''
-        writer.add_scalar('Train_data/loss', losses.val, epoch * len(train_dataloader) + n_iter + 1)
+        # '''Add loss of a iteration in Tensorboard'''
+        # writer.add_scalar('Train_data/loss', losses.val, epoch * len(train_dataloader) + n_iter + 1)
 
-        '''Add loss of an epoch in Tensorboard'''
-        writer.add_scalar('Train_epoch_data/epoch_loss', losses.avg, epoch)
+        # '''Add loss of an epoch in Tensorboard'''
+        # writer.add_scalar('Train_epoch_data/epoch_loss', losses.avg, epoch)
 
     logger.info(
         f'**********************************************\t'

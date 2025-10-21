@@ -118,8 +118,7 @@ def main():
     criterion_event = nn.CrossEntropyLoss().cuda()
 
     if model_resume is True:
-        path_checkpoints = "/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Models/AVT100k_unfiltered/checkpoint/DCID-model-5.pt"
-        # path_checkpoints = "/project/ag-jafra/Souptik/VGGSoundAVEL/CMG_Models/AVT_40k_pretrain/checkpoint/DCID-model-3.pt"
+        path_checkpoints = args.checkpoint_path
         checkpoints = torch.load(path_checkpoints)
         Encoder.load_state_dict(checkpoints['Encoder_parameters'])
         start_epoch = checkpoints['epoch']
@@ -247,11 +246,11 @@ def train_epoch(Encoder, Decoder, train_dataloader, criterion, criterion_event, 
         batch_time.update(time.time() - end_time)
         end_time = time.time()
 
-        '''Add loss of a iteration in Tensorboard'''
-        writer.add_scalar('Train_data/loss', losses.val, epoch * len(train_dataloader) + n_iter + 1)
+        # '''Add loss of a iteration in Tensorboard'''
+        # writer.add_scalar('Train_data/loss', losses.val, epoch * len(train_dataloader) + n_iter + 1)
 
-        '''Add loss of an epoch in Tensorboard'''
-        writer.add_scalar('Train_epoch_data/epoch_loss', losses.avg, epoch)
+        # '''Add loss of an epoch in Tensorboard'''
+        # writer.add_scalar('Train_epoch_data/epoch_loss', losses.avg, epoch)
 
     return losses.avg, n_iter + total_step
 

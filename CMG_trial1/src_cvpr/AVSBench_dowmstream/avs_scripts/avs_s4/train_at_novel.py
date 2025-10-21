@@ -34,7 +34,7 @@ if __name__ == "__main__":
     parser.add_argument("--num_workers", default=8, type=int)
     parser.add_argument("--wt_dec", default=5e-4, type=float)
 
-
+    parser.add_argument("--checkpoint_path", type=str, default="", help="path to pretrained checkpoint")
     parser.add_argument('--sa_loss_flag', action='store_true', default=False, help='additional loss for last four frames')
     parser.add_argument("--lambda_1", default=0, type=float, help='weight for balancing l4 loss')
     parser.add_argument("--sa_loss_stages", default=[], nargs='+', type=int, help='compute sa loss in which stages: [0, 1, 2, 3')
@@ -69,7 +69,7 @@ if __name__ == "__main__":
     n_embeddings = 400
     embedding_dim = 256
     start_epoch = -1
-    model_resume = False
+    model_resume = True
     total_step = 0
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     Text_ar_lstm = nn.LSTM(text_dim, text_lstm_dim, num_layers=2, batch_first=True, bidirectional=True)
@@ -88,7 +88,7 @@ if __name__ == "__main__":
     AT_10_5_Linear.cuda()
     
     if model_resume is True:
-        path_checkpoints = "..."
+        path_checkpoints = args.checkpoint_path
         
         checkpoints = torch.load(path_checkpoints)
         Text_ar_lstm.load_state_dict(checkpoints['Text_ar_lstm_parameters'])

@@ -1,5 +1,5 @@
 # ======================================= Learning configs ==================================
-n_epoch: 5
+n_epoch: 30
 batch_size: 80
 test_batch_size: 64
 lr: 0.0004
@@ -11,7 +11,7 @@ weight_decay: 5e-4
 
   # ======================================= Print and snapshot configs ==================================
 snapshot_pref: 
-    /project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Benchmarks/Models/AV/MICU/40k/
+    /project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Benchmarks/Downstream_MICU/AVT/90k/UCF2CGGSOUND/ucfv_vgga/
 print_freq: 1
 eval_freq: 1
 
