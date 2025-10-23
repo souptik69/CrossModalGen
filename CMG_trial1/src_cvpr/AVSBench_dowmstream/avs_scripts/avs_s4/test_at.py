@@ -107,18 +107,18 @@ if __name__ == "__main__":
     args.log_dir = log_dir
 
     # Save scripts
-    script_path = os.path.join(log_dir, 'scripts')
-    if not os.path.exists(script_path):
-        os.makedirs(script_path, exist_ok=True)
+    # script_path = os.path.join(log_dir, 'scripts')
+    # if not os.path.exists(script_path):
+    #     os.makedirs(script_path, exist_ok=True)
 
-    scripts_to_save = ['train.sh', 'train.py', 'test.sh', 'test.py', 'config.py', 'dataloader.py', './model/ResNet_AVSModel.py', './model/PVT_AVSModel.py', 'loss.py']
-    for script in scripts_to_save:
-        dst_path = os.path.join(script_path, script)
-        try:
-            shutil.copy(script, dst_path)
-        except IOError:
-            os.makedirs(os.path.dirname(dst_path), exist_ok=True)
-            shutil.copy(script, dst_path)
+    # scripts_to_save = ['train.sh', 'train.py', 'test.sh', 'test.py', 'config.py', 'dataloader.py', './model/ResNet_AVSModel.py', './model/PVT_AVSModel.py', 'loss.py']
+    # for script in scripts_to_save:
+    #     dst_path = os.path.join(script_path, script)
+    #     try:
+    #         shutil.copy(script, dst_path)
+    #     except IOError:
+    #         os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+    #         shutil.copy(script, dst_path)
 
     # Set logger
     log_path = os.path.join(log_dir, 'log')

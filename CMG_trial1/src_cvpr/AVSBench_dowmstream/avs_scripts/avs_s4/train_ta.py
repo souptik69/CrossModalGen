@@ -226,7 +226,7 @@ if __name__ == "__main__":
 
             if (global_step-1) % 50 == 0:
                 """save"""
-                mask_save_path = "..."
+                mask_save_path = os.path.join(log_dir, 'pred_masks_train')
                 save_mask(output.squeeze(1),mask_save_path, category_list, video_name_list)
 
 
@@ -274,7 +274,7 @@ if __name__ == "__main__":
                 output, visual_map_list, a_fea_list = model(imgs, audio_vq.to(torch.float32)) # [bs*5, 1, 224, 224]
                 
                 if (global_step_val-1) % 20 == 0:
-                    mask_save_path = "..."
+                    mask_save_path = os.path.join(log_dir, 'pred_masks_val')
                     save_mask(output.squeeze(1),mask_save_path, category_list, video_name_list)
                 
                 global_step_val += 1

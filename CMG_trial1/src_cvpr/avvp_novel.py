@@ -366,6 +366,7 @@ def train_epoch(Encoder, Decoder,ExpLogLoss_fn, train_dataloader, criterion, cri
             loss2 = ExpLogLoss_fn(audio_class, labels_evn.cuda())
             audio_event_loss = loss1 + loss2
             precision, recall = compute_accuracy_supervised_sigmoid(Sigmoid_fun(audio_class), labels_evn.cuda())
+            loss_items = {
                 "audio_event_loss":audio_event_loss.item(),
                 "BCELoss":loss1.item(),
                 "ExpLogLoss":loss2.item(),

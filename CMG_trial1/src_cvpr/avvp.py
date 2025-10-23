@@ -154,6 +154,8 @@ def main():
     audio_dim = 128
     video_output_dim = 2048
     audio_output_dim = 256
+    text_output_dim = 256
+    text_lstm_dim = 128
     n_embeddings = 400
     embedding_dim = 256
     start_epoch = -1
@@ -300,7 +302,7 @@ def train_epoch(Encoder, Decoder,ExpLogLoss_fn, train_dataloader, criterion, cri
 
         data_time.update(time.time() - end_time)
         '''Feed input to model'''
-        if (args.dataset_name == 'avvp_va') or (args.dataset_name == 'avvp_va'):
+        if (args.dataset_name == 'avvp_va') or (args.dataset_name == 'avvp_av'):
             feature, labels, video_id = batch_data
             feature = feature.to(torch.float64)
             feature.cuda()
@@ -480,7 +482,7 @@ def validate_epoch(Encoder,Decoder,ExpLogLoss_fn, val_dataloader, criterion, cri
         data_time.update(time.time() - end_time)
 
         '''Feed input to model'''
-        if (args.dataset_name == 'avvp_va') or (args.dataset_name == 'avvp_va'):
+        if (args.dataset_name == 'avvp_va') or (args.dataset_name == 'avvp_av'):
             feature, labels, video_id = batch_data
             feature = feature.to(torch.float64)
             feature.cuda()
@@ -588,7 +590,7 @@ def validate_epoch(Encoder,Decoder,ExpLogLoss_fn, val_dataloader, criterion, cri
         end_time = time.time()
         losses.update(loss.item(), bs * 10)
 
-    if (args.dataset_name == 'avvp_va') or (args.dataset_name == 'avvp_va'):
+    if (args.dataset_name == 'avvp_va') or (args.dataset_name == 'avvp_av'):
         f1_score = 2.0*downstream_accuracy.avg*downstream_recall.avg/(downstream_accuracy.avg+downstream_recall.avg)
         global best_f1,best_acc,best_rec
         # For AVVP downstream, record the best acc. For AVE_AVVP, record the best f1-score. 

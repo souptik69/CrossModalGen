@@ -16,6 +16,17 @@ CMG_trial1/slurm1
 
 CMG_trial1/slurm_cvpr
 
+CMG_trial1/src_cvpr/AVSBench_dowmstream/avs_scripts/avs_s4/dataset/__pycache__
+
+CMG_trial1/src_cvpr/AVSBench_dowmstream/avs_scripts/avs_s4/__pycache__
+
+CMG_trial1/src_cvpr/AVSBench_dowmstream/avs_scripts/avs_s4/model/__pycache__
+
+CMG_trial1/src_cvpr/AVSBench_dowmstream/avs_scripts/avs_s4/utils/__pycache__
+
+CMG_trial1/src_cvpr/AVSBench_dowmstream/avs_scripts/avs_s4/configs/__pycache__
+
+
 CMG_trial1/src_cvpr/dataset/__pycache__
 
 CMG_trial1/src_cvpr/model/__pycache__

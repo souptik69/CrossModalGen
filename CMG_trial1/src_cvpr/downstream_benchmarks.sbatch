@@ -14,19 +14,19 @@
 SRCDIR=/project/ag-jafra/Souptik/CMG_New/Experiments
 
 mkdir -p $SRCDIR/CMG_trial1/slurm_cvpr/Downstream_Benchmark_DCID
-mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AV/40k/AVE/A2V
-mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AV/40k/AVE/V2A
-mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AV/40k/AVVP/A2V
-mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AV/40k/AVVP/V2A
-mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AV/40k/AVE2AVVP/A2V
-mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AV/40k/AVE2AVVP/V2A
-mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AV/40k/UCF2CGGSOUND/vgga_ucfv
-mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AV/40k/UCF2CGGSOUND/ucfv_vgga
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AV/40k/AVE/A2V
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AV/40k/AVE/V2A
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AV/40k/AVVP/A2V
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AV/40k/AVVP/V2A
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AV/40k/AVE2AVVP/A2V
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AV/40k/AVE2AVVP/V2A
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AV/40k/UCF2CGGSOUND/vgga_ucfv
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AV/40k/UCF2CGGSOUND/ucfv_vgga
 
-CHECKPOINT_PATH_AV_40k="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Benchmarks/Models/AV/DCID/40k/checkpoint/DCID-model-4.pt"
-CHECKPOINT_PATH_AV_90k="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Benchmarks/Models/AV/DCID/90k/checkpoint/DCID-model-4.pt"
-CHECKPOINT_PATH_AVT_40k="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Benchmarks/Models/AVT/DCID/40k/AVT_vgg40k_size400.pt"
-CHECKPOINT_PATH_AVT_90k="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Benchmarks/Models/AVT/DCID/90k/checkpoint/DCID-model-4.pt"
+CHECKPOINT_PATH_AV_40k="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Benchmarks/Models/AV/MICU/40k/checkpoint/MICU-step2400.pt"
+CHECKPOINT_PATH_AV_90k="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Benchmarks/Models/AV/MICU/90k/checkpoint/MICU-step5400.pt"
+CHECKPOINT_PATH_AVT_40k="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Benchmarks/Models/AVT/MICU/40k/MICU.pt"
+CHECKPOINT_PATH_AVT_90k="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Benchmarks/Models/AVT/MICU/90k/checkpoint/MICU-step5400.pt"
 
 # Activate conda environment
 source ~/.bashrc
@@ -37,7 +37,7 @@ python $SRCDIR/CMG_trial1/src_cvpr/ave.py \
     --gpu 0 \
     --lr 0.00025 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AV/40k/AVE/A2V/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AV/40k/AVE/A2V/" \
     --n_epoch 30 \
     --batch_size 256 \
     --test_batch_size 128 \
@@ -52,7 +52,7 @@ python $SRCDIR/CMG_trial1/src_cvpr/ave.py \
     --gpu 0 \
     --lr 0.00025 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AV/40k/AVE/V2A/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AV/40k/AVE/V2A/" \
     --n_epoch 30 \
     --batch_size 256 \
     --test_batch_size 128 \
@@ -71,7 +71,7 @@ python $SRCDIR/CMG_trial1/src_cvpr/avvp.py \
     --gpu 0 \
     --lr 0.0004 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AV/40k/AVVP/V2A/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AV/40k/AVVP/V2A/" \
     --n_epoch 50 \
     --batch_size 64 \
     --test_batch_size 64 \
@@ -86,7 +86,7 @@ python $SRCDIR/CMG_trial1/src_cvpr/avvp.py \
     --gpu 0 \
     --lr 0.0004 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AV/40k/AVVP/A2V/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AV/40k/AVVP/A2V/" \
     --n_epoch 50 \
     --batch_size 64 \
     --test_batch_size 64 \
@@ -106,7 +106,7 @@ python $SRCDIR/CMG_trial1/src_cvpr/ave_avvp.py \
     --gpu 0 \
     --lr 0.0004 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AV/40k/AVE2AVVP/V2A/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AV/40k/AVE2AVVP/V2A/" \
     --n_epoch 30 \
     --batch_size 80 \
     --test_batch_size 64 \
@@ -120,7 +120,7 @@ python $SRCDIR/CMG_trial1/src_cvpr/ave_avvp.py \
     --gpu 0 \
     --lr 0.0004 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AV/40k/AVE2AVVP/A2V/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AV/40k/AVE2AVVP/A2V/" \
     --n_epoch 30 \
     --batch_size 80 \
     --test_batch_size 64 \
@@ -138,7 +138,7 @@ python $SRCDIR/CMG_trial1/src_cvpr/ucf_vggsound.py \
     --gpu 0 \
     --lr 0.0004 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AV/40k/UCF2CGGSOUND/vgga_ucfv/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AV/40k/UCF2CGGSOUND/vgga_ucfv/" \
     --n_epoch 30 \
     --batch_size 80 \
     --test_batch_size 64 \
@@ -152,7 +152,7 @@ python $SRCDIR/CMG_trial1/src_cvpr/ucf_vggsound.py \
     --gpu 0 \
     --lr 0.0004 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AV/40k/UCF2CGGSOUND/ucfv_vgga/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AV/40k/UCF2CGGSOUND/ucfv_vgga/" \
     --n_epoch 30 \
     --batch_size 80 \
     --test_batch_size 64 \
@@ -169,14 +169,14 @@ echo "UCF to VGGSOUND training complete!"
 
 
 
-mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AV/90k/AVE/A2V
-mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AV/90k/AVE/V2A
-mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AV/90k/AVVP/A2V
-mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AV/90k/AVVP/V2A
-mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AV/90k/AVE2AVVP/A2V
-mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AV/90k/AVE2AVVP/V2A
-mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AV/90k/UCF2CGGSOUND/vgga_ucfv
-mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AV/90k/UCF2CGGSOUND/ucfv_vgga
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AV/90k/AVE/A2V
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AV/90k/AVE/V2A
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AV/90k/AVVP/A2V
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AV/90k/AVVP/V2A
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AV/90k/AVE2AVVP/A2V
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AV/90k/AVE2AVVP/V2A
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AV/90k/UCF2CGGSOUND/vgga_ucfv
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AV/90k/UCF2CGGSOUND/ucfv_vgga
 
 
 # Run AVE training
@@ -184,7 +184,7 @@ python $SRCDIR/CMG_trial1/src_cvpr/ave.py \
     --gpu 0 \
     --lr 0.00025 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AV/90k/AVE/A2V/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AV/90k/AVE/A2V/" \
     --n_epoch 30 \
     --batch_size 256 \
     --test_batch_size 128 \
@@ -199,7 +199,7 @@ python $SRCDIR/CMG_trial1/src_cvpr/ave.py \
     --gpu 0 \
     --lr 0.00025 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AV/90k/AVE/V2A/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AV/90k/AVE/V2A/" \
     --n_epoch 30 \
     --batch_size 256 \
     --test_batch_size 128 \
@@ -218,7 +218,7 @@ python $SRCDIR/CMG_trial1/src_cvpr/avvp.py \
     --gpu 0 \
     --lr 0.0004 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AV/90k/AVVP/V2A/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AV/90k/AVVP/V2A/" \
     --n_epoch 50 \
     --batch_size 64 \
     --test_batch_size 64 \
@@ -233,7 +233,7 @@ python $SRCDIR/CMG_trial1/src_cvpr/avvp.py \
     --gpu 0 \
     --lr 0.0004 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AV/90k/AVVP/A2V/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AV/90k/AVVP/A2V/" \
     --n_epoch 50 \
     --batch_size 64 \
     --test_batch_size 64 \
@@ -253,7 +253,7 @@ python $SRCDIR/CMG_trial1/src_cvpr/ave_avvp.py \
     --gpu 0 \
     --lr 0.0004 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AV/90k/AVE2AVVP/V2A/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AV/90k/AVE2AVVP/V2A/" \
     --n_epoch 30 \
     --batch_size 80 \
     --test_batch_size 64 \
@@ -267,7 +267,7 @@ python $SRCDIR/CMG_trial1/src_cvpr/ave_avvp.py \
     --gpu 0 \
     --lr 0.0004 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AV/90k/AVE2AVVP/A2V/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AV/90k/AVE2AVVP/A2V/" \
     --n_epoch 30 \
     --batch_size 80 \
     --test_batch_size 64 \
@@ -285,7 +285,7 @@ python $SRCDIR/CMG_trial1/src_cvpr/ucf_vggsound.py \
     --gpu 0 \
     --lr 0.0004 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AV/90k/UCF2CGGSOUND/vgga_ucfv/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AV/90k/UCF2CGGSOUND/vgga_ucfv/" \
     --n_epoch 30 \
     --batch_size 80 \
     --test_batch_size 64 \
@@ -299,7 +299,7 @@ python $SRCDIR/CMG_trial1/src_cvpr/ucf_vggsound.py \
     --gpu 0 \
     --lr 0.0004 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AV/90k/UCF2CGGSOUND/ucfv_vgga/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AV/90k/UCF2CGGSOUND/ucfv_vgga/" \
     --n_epoch 30 \
     --batch_size 80 \
     --test_batch_size 64 \
@@ -317,14 +317,14 @@ echo "UCF to VGGSOUND training complete!"
 
 
 
-mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AVT/40k/AVE/A2V
-mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AVT/40k/AVE/V2A
-mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AVT/40k/AVVP/A2V
-mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AVT/40k/AVVP/V2A
-mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AVT/40k/AVE2AVVP/A2V
-mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AVT/40k/AVE2AVVP/V2A
-mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AVT/40k/UCF2CGGSOUND/vgga_ucfv
-mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AVT/40k/UCF2CGGSOUND/ucfv_vgga
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AVT/40k/AVE/A2V
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AVT/40k/AVE/V2A
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AVT/40k/AVVP/A2V
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AVT/40k/AVVP/V2A
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AVT/40k/AVE2AVVP/A2V
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AVT/40k/AVE2AVVP/V2A
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AVT/40k/UCF2CGGSOUND/vgga_ucfv
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AVT/40k/UCF2CGGSOUND/ucfv_vgga
 
 
 
@@ -333,7 +333,7 @@ python $SRCDIR/CMG_trial1/src_cvpr/ave.py \
     --gpu 0 \
     --lr 0.00025 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AVT/40k/AVE/A2V/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AVT/40k/AVE/A2V/" \
     --n_epoch 30 \
     --batch_size 256 \
     --test_batch_size 128 \
@@ -348,7 +348,7 @@ python $SRCDIR/CMG_trial1/src_cvpr/ave.py \
     --gpu 0 \
     --lr 0.00025 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AVT/40k/AVE/V2A/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AVT/40k/AVE/V2A/" \
     --n_epoch 30 \
     --batch_size 256 \
     --test_batch_size 128 \
@@ -367,7 +367,7 @@ python $SRCDIR/CMG_trial1/src_cvpr/avvp.py \
     --gpu 0 \
     --lr 0.0004 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AVT/40k/AVVP/V2A/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AVT/40k/AVVP/V2A/" \
     --n_epoch 50 \
     --batch_size 64 \
     --test_batch_size 64 \
@@ -382,7 +382,7 @@ python $SRCDIR/CMG_trial1/src_cvpr/avvp.py \
     --gpu 0 \
     --lr 0.0004 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AVT/40k/AVVP/A2V/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AVT/40k/AVVP/A2V/" \
     --n_epoch 50 \
     --batch_size 64 \
     --test_batch_size 64 \
@@ -402,7 +402,7 @@ python $SRCDIR/CMG_trial1/src_cvpr/ave_avvp.py \
     --gpu 0 \
     --lr 0.0004 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AVT/40k/AVE2AVVP/V2A/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AVT/40k/AVE2AVVP/V2A/" \
     --n_epoch 30 \
     --batch_size 80 \
     --test_batch_size 64 \
@@ -416,7 +416,7 @@ python $SRCDIR/CMG_trial1/src_cvpr/ave_avvp.py \
     --gpu 0 \
     --lr 0.0004 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AVT/40k/AVE2AVVP/A2V/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AVT/40k/AVE2AVVP/A2V/" \
     --n_epoch 30 \
     --batch_size 80 \
     --test_batch_size 64 \
@@ -434,7 +434,7 @@ python $SRCDIR/CMG_trial1/src_cvpr/ucf_vggsound.py \
     --gpu 0 \
     --lr 0.0004 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AVT/40k/UCF2CGGSOUND/vgga_ucfv/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AVT/40k/UCF2CGGSOUND/vgga_ucfv/" \
     --n_epoch 30 \
     --batch_size 80 \
     --test_batch_size 64 \
@@ -448,7 +448,7 @@ python $SRCDIR/CMG_trial1/src_cvpr/ucf_vggsound.py \
     --gpu 0 \
     --lr 0.0004 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AVT/40k/UCF2CGGSOUND/ucfv_vgga/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AVT/40k/UCF2CGGSOUND/ucfv_vgga/" \
     --n_epoch 30 \
     --batch_size 80 \
     --test_batch_size 64 \
@@ -464,21 +464,21 @@ echo "UCF to VGGSOUND training complete!"
 
 
 
-mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AVT/90k/AVE/A2V
-mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AVT/90k/AVE/V2A
-mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AVT/90k/AVVP/A2V
-mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AVT/90k/AVVP/V2A
-mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AVT/90k/AVE2AVVP/A2V
-mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AVT/90k/AVE2AVVP/V2A
-mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AVT/90k/UCF2CGGSOUND/vgga_ucfv
-mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AVT/90k/UCF2CGGSOUND/ucfv_vgga
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AVT/90k/AVE/A2V
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AVT/90k/AVE/V2A
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AVT/90k/AVVP/A2V
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AVT/90k/AVVP/V2A
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AVT/90k/AVE2AVVP/A2V
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AVT/90k/AVE2AVVP/V2A
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AVT/90k/UCF2CGGSOUND/vgga_ucfv
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AVT/90k/UCF2CGGSOUND/ucfv_vgga
 
 # Run AVE training
 python $SRCDIR/CMG_trial1/src_cvpr/ave.py \
     --gpu 0 \
     --lr 0.00025 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AVT/90k/AVE/A2V/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AVT/90k/AVE/A2V/" \
     --n_epoch 30 \
     --batch_size 256 \
     --test_batch_size 128 \
@@ -493,7 +493,7 @@ python $SRCDIR/CMG_trial1/src_cvpr/ave.py \
     --gpu 0 \
     --lr 0.00025 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AVT/90k/AVE/V2A/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AVT/90k/AVE/V2A/" \
     --n_epoch 30 \
     --batch_size 256 \
     --test_batch_size 128 \
@@ -512,7 +512,7 @@ python $SRCDIR/CMG_trial1/src_cvpr/avvp.py \
     --gpu 0 \
     --lr 0.0004 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AVT/90k/AVVP/V2A/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AVT/90k/AVVP/V2A/" \
     --n_epoch 50 \
     --batch_size 64 \
     --test_batch_size 64 \
@@ -527,7 +527,7 @@ python $SRCDIR/CMG_trial1/src_cvpr/avvp.py \
     --gpu 0 \
     --lr 0.0004 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AVT/90k/AVVP/A2V/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AVT/90k/AVVP/A2V/" \
     --n_epoch 50 \
     --batch_size 64 \
     --test_batch_size 64 \
@@ -547,7 +547,7 @@ python $SRCDIR/CMG_trial1/src_cvpr/ave_avvp.py \
     --gpu 0 \
     --lr 0.0004 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AVT/90k/AVE2AVVP/V2A/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AVT/90k/AVE2AVVP/V2A/" \
     --n_epoch 30 \
     --batch_size 80 \
     --test_batch_size 64 \
@@ -561,7 +561,7 @@ python $SRCDIR/CMG_trial1/src_cvpr/ave_avvp.py \
     --gpu 0 \
     --lr 0.0004 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AVT/90k/AVE2AVVP/A2V/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AVT/90k/AVE2AVVP/A2V/" \
     --n_epoch 30 \
     --batch_size 80 \
     --test_batch_size 64 \
@@ -579,7 +579,7 @@ python $SRCDIR/CMG_trial1/src_cvpr/ucf_vggsound.py \
     --gpu 0 \
     --lr 0.0004 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AVT/90k/UCF2CGGSOUND/vgga_ucfv/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AVT/90k/UCF2CGGSOUND/vgga_ucfv/" \
     --n_epoch 30 \
     --batch_size 80 \
     --test_batch_size 64 \
@@ -593,7 +593,7 @@ python $SRCDIR/CMG_trial1/src_cvpr/ucf_vggsound.py \
     --gpu 0 \
     --lr 0.0004 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_DCID/AVT/90k/UCF2CGGSOUND/ucfv_vgga/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Downstream_MICU/AVT/90k/UCF2CGGSOUND/ucfv_vgga/" \
     --n_epoch 30 \
     --batch_size 80 \
     --test_batch_size 64 \
