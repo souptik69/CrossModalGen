@@ -5,6 +5,8 @@ parser = argparse.ArgumentParser(description="A project implemented in pyTorch")
 # =========================== Learning Configs ============================
 parser.add_argument('--dataset_name', type=str)
 parser.add_argument('--modality', type=str)
+parser.add_argument('--n_embeddings', type=int, default=400)
+parser.add_argument('--embedding_dim', type=int, default=256)
 parser.add_argument('--checkpoint_path', type=str)
 parser.add_argument('--n_epoch', type=int)
 parser.add_argument('-b', '--batch_size', type=int)
