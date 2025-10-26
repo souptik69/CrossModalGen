@@ -123,7 +123,7 @@ def main():
     audio_output_dim = 256
     text_lstm_dim = 128
     text_output_dim = 256
-    n_embeddings = 400
+    n_embeddings = 800
     embedding_dim = 256
     start_epoch = -1
     model_resume = True
@@ -132,10 +132,10 @@ def main():
     
     if args.modality == 'AVT':
         Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, video_output_dim, n_embeddings, embedding_dim)
-        Decoder = Semantic_Decoder_AVVP(input_dim=embedding_dim * 3, class_num=26)
+        Decoder = Semantic_Decoder_AVVP(input_dim=embedding_dim * 3, class_num=13)
     elif args.modality == 'AV':
         Encoder = AV_VQVAE_Encoder(audio_dim, video_dim, video_output_dim, n_embeddings, embedding_dim)                                   
-        Decoder = Semantic_Decoder_AVVP(input_dim=embedding_dim * 2, class_num=26)
+        Decoder = Semantic_Decoder_AVVP(input_dim=embedding_dim * 2, class_num=13)
     else:
         raise NotImplementedError    
     Encoder.double()

@@ -1,4 +1,4 @@
-from model.main_model_mosei import AVT_VQVAE_Encoder
+from model.main_model_novel import AVT_VQVAE_Encoder
 import torch
 import torch.nn as nn
 import numpy as np
@@ -20,19 +20,28 @@ def visualize_codebook_embeddings(checkpoint_path, output_dir, top_k=25):
     """
     
     # Model configuration (matching your setup)
-    video_dim = 35
-    text_dim = 300
-    audio_dim = 74
+    # video_dim = 35
+    # text_dim = 300
+    # audio_dim = 74
+    # text_lstm_dim = 128
+    # n_embeddings = 128
+    # embedding_dim = 30
+
+    video_dim = 512
+    text_dim = 768
+    audio_dim = 128
     text_lstm_dim = 128
-    n_embeddings = 128
-    embedding_dim = 30
+    video_output_dim = 2048
+    n_embeddings = 256
+    embedding_dim = 256
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
     
     # Initialize and load model
     print("Loading model...")
-    Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_dim, n_embeddings, embedding_dim)
+    # Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_dim, n_embeddings, embedding_dim)
+    Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, video_output_dim, n_embeddings, embedding_dim)
     # Encoder = AVT_VQVAE_Encoder(text_lstm_dim*2, text_lstm_dim*2, text_lstm_dim*2, n_embeddings, embedding_dim)
     Encoder.double()
     Encoder.to(device)

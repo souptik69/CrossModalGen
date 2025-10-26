@@ -19,20 +19,23 @@ mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_AVS_Novel/40k/test/A2T
 mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_AVS_Novel/90k/test/T2A
 mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Downstream_AVS_Novel/90k/test/A2T
 
-CHECKPOINT_PATH_AVT_40k=""
-CHECKPOINT_PATH_AVT_90k=""
+CHECKPOINT_PATH_AVT_40k="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Benchmarks/Novel_Models/AVT/40k/checkpoint/Ablation-AVT-5.pt"
+CHECKPOINT_PATH_AVT_90k="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Benchmarks/Novel_Models/AVT/90k/checkpoint/HierVQ-model-AVT-5.pt"
+
+# Activate conda environment
 
 # Activate conda environment
 source ~/.bashrc
-conda activate /project/ag-jafra/Souptik/VGGSoundAVEL/CMG/envs/CMG_final
+conda activate /project/ag-jafra/Souptik/CMG_New/Experiments/envs/CMG_new
+
 
 setting='S4'
 visual_backbone="pvt"
 
 #test T2A 40k
-weight_TA_40k="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Benchmarks/Downstream_AVS_Novel/40k/train/T2A/S4_pvt_20251022-165222/S4_pvt_best.pth"
+weight_TA_40k="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Benchmarks/Downstream_AVS_Novel/40k/train/T2A/S4_pvt_20251025-201104/S4_pvt_best.pth"
 
-python $SRCDIR/CMG_trial1/src_cvpr/AVSBench_dowmstream/avs_scripts/avs_s4/test_ta_novel_novel.py \
+python $SRCDIR/CMG_trial1/src_cvpr/AVSBench_dowmstream/avs_scripts/avs_s4/test_ta_novel.py \
         --session_name ${setting}_${visual_backbone} \
         --visual_backbone ${visual_backbone} \
         --test_batch_size 4 \
@@ -46,7 +49,7 @@ python $SRCDIR/CMG_trial1/src_cvpr/AVSBench_dowmstream/avs_scripts/avs_s4/test_t
 
 
 #test A2T 40k
-weight_AT_40k="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Benchmarks/Downstream_AVS_Novel/40k/train/A2T/S4_pvt_20251022-170040/S4_pvt_best.pth"
+weight_AT_40k="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Benchmarks/Downstream_AVS_Novel/40k/train/A2T/S4_pvt_20251025-202245/S4_pvt_best.pth"
 
 python $SRCDIR/CMG_trial1/src_cvpr/AVSBench_dowmstream/avs_scripts/avs_s4/test_at_novel.py \
         --session_name ${setting}_${visual_backbone} \
@@ -63,31 +66,31 @@ python $SRCDIR/CMG_trial1/src_cvpr/AVSBench_dowmstream/avs_scripts/avs_s4/test_a
 
 #test T2A 90k
 
-weight_TA_90k="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Benchmarks/Downstream_AVS_Novel/90k/train/T2A/S4_pvt_20251022-170859/S4_pvt_best.pth"
-python $SRCDIR/CMG_trial1/src_cvpr/AVSBench_dowmstream/avs_scripts/avs_s4/test_ta_novel.py \
-        --session_name ${setting}_${visual_backbone} \
-        --visual_backbone ${visual_backbone} \
-        --test_batch_size 4 \
-        --lr 0.0001 \
-        --tpavi_stages 0 1 2 3 \
-        --checkpoint_path "$CHECKPOINT_PATH_AVT_90k" \
-        --weights "$weight_TA_90k" \
-        --log_dir "$SRCDIR/CMG_trial1/Benchmarks/Downstream_AVS_Novel/90k/test/T2A/" \
-        --tpavi_va_flag \
-        --save_pred_mask 
+# weight_TA_90k="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Benchmarks/Downstream_AVS_Novel/90k/train/T2A/S4_pvt_20251025-203428/S4_pvt_best.pth"
+# python $SRCDIR/CMG_trial1/src_cvpr/AVSBench_dowmstream/avs_scripts/avs_s4/test_ta_novel.py \
+#         --session_name ${setting}_${visual_backbone} \
+#         --visual_backbone ${visual_backbone} \
+#         --test_batch_size 4 \
+#         --lr 0.0001 \
+#         --tpavi_stages 0 1 2 3 \
+#         --checkpoint_path "$CHECKPOINT_PATH_AVT_90k" \
+#         --weights "$weight_TA_90k" \
+#         --log_dir "$SRCDIR/CMG_trial1/Benchmarks/Downstream_AVS_Novel/90k/test/T2A/" \
+#         --tpavi_va_flag \
+#         --save_pred_mask 
 
 
-#test A2T 90k
+# #test A2T 90k
 
-weight_AT_90k="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Benchmarks/Downstream_AVS_Novel/90k/train/A2T/S4_pvt_20251022-171716/S4_pvt_best.pth"
-python $SRCDIR/CMG_trial1/src_cvpr/AVSBench_dowmstream/avs_scripts/avs_s4/test_at_novel.py \
-        --session_name ${setting}_${visual_backbone} \
-        --visual_backbone ${visual_backbone} \
-        --test_batch_size 4 \
-        --lr 0.0001 \
-        --tpavi_stages 0 1 2 3 \
-        --checkpoint_path "$CHECKPOINT_PATH_AVT_90k" \
-        --weights "$weight_AT_90k" \
-        --log_dir "$SRCDIR/CMG_trial1/Benchmarks/Downstream_AVS_Novel/90k/test/A2T/" \
-        --tpavi_va_flag \
-        --save_pred_mask 
+# weight_AT_90k="/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Benchmarks/Downstream_AVS_Novel/90k/train/A2T/S4_pvt_20251025-204609/S4_pvt_best.pth"
+# python $SRCDIR/CMG_trial1/src_cvpr/AVSBench_dowmstream/avs_scripts/avs_s4/test_at_novel.py \
+#         --session_name ${setting}_${visual_backbone} \
+#         --visual_backbone ${visual_backbone} \
+#         --test_batch_size 4 \
+#         --lr 0.0001 \
+#         --tpavi_stages 0 1 2 3 \
+#         --checkpoint_path "$CHECKPOINT_PATH_AVT_90k" \
+#         --weights "$weight_AT_90k" \
+#         --log_dir "$SRCDIR/CMG_trial1/Benchmarks/Downstream_AVS_Novel/90k/test/A2T/" \
+#         --tpavi_va_flag \
+#         --save_pred_mask 

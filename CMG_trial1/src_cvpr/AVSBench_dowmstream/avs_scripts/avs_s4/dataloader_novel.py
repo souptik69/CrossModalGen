@@ -14,7 +14,7 @@ from torchvision import transforms
 
 from config import cfg
 import pdb
-from bert_embedding import BertEmbedding
+# from bert_embedding import BertEmbedding
 from transformers import BertTokenizer, BertModel
 import pickle
 import zipfile

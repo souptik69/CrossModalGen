@@ -66,7 +66,7 @@ if __name__ == "__main__":
     text_output_dim = 256
     video_output_dim = 2048
     audio_output_dim = 256
-    n_embeddings = 400
+    n_embeddings = 800
     embedding_dim = 256
     start_epoch = -1
     model_resume = True

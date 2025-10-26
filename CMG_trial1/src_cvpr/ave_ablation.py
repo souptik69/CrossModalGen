@@ -5,7 +5,6 @@ import random
 import json
 from tqdm import tqdm
 import sys
-
 import torch
 from itertools import chain
 import torch.nn as nn
@@ -13,19 +12,14 @@ from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
 from torch.optim.lr_scheduler import StepLR, MultiStepLR
-
 import numpy as np
 from configs.opts import parser
-from model.main_model_novel import Semantic_Decoder_AVVP, Semantic_Decoder_AVVP_1, AV_VQVAE_Encoder, AVT_VQVAE_Encoder
 
-
+from model.main_model_novel import Semantic_Decoder,AV_VQVAE_Encoder, AVT_VQVAE_Encoder
 from utils import AverageMeter, Prepare_logger, get_and_save_args
 from utils.container import metricsContainer
 from utils.Recorder import Recorder
-
 import torch.nn.functional as F
-from torch.nn.utils.rnn import pad_sequence
-from utils.draw import Draw_Heatmap
 
 # =================================  seed config ============================
 SEED = 43
@@ -42,22 +36,8 @@ def main():
     # utils variable
     global args, logger, writer, dataset_configs
     # statistics variable
-    global best_accuracy, best_accuracy_epoch
-    best_accuracy, best_accuracy_epoch = 0, 0
-    global best_acc,best_rec,best_f1
-    best_acc=0
-    best_rec=0
-    best_f1=0
-
-    global best_audio_f1, best_audio_acc, best_audio_rec
-    global best_video_f1, best_video_acc, best_video_rec
-    best_audio_f1 = 0
-    best_audio_acc = 0
-    best_audio_rec = 0
-    best_video_f1 = 0
-    best_video_acc = 0
-    best_video_rec = 0
-    
+    global best_precision, best_precision_epoch
+    best_precision, best_precision_epoch = 0, 0
     # configs
     dataset_configs = get_and_save_args(parser)
     parser.set_defaults(**dataset_configs)
@@ -82,75 +62,24 @@ def main():
         logger.info(f'\nLog file will be save in a {args.snapshot_pref}/Eval.log.')
 
     '''dataset selection'''
-    if args.dataset_name =='avvp_av' or args.dataset_name =='avvp_va':
-        from dataset.AVVP_dataset import AVVPDataset as AVVPDataset
-    elif args.dataset_name =='avvp':
-        from dataset.AVVP_dataset import AVVPMultimodalDatasetSimplified as AVVPDataset
+    if args.dataset_name == 'ave_va' or args.dataset_name == 'ave_av' or args.dataset_name == 'ave':
+        from dataset.AVE_dataset import AVEDataset as AVEDataset
     else: 
         raise NotImplementedError
-
+    
+  
     '''Dataloader selection'''
-    if args.dataset_name == 'avvp_va':
-        train_csv_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/data/data/AVVP/data/AVVP_eval_visual_checked_combined.csv'
-        val_csv_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/data/data/AVVP/data/AVVP_eval_audio_checked_combined.csv'
-        audio_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/data/data/AVVP/feature/audio/zip'
-        video_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/data/data/AVVP/feature/video/zip'
-        train_dataloader = DataLoader(
-            AVVPDataset(train_csv_path, video_fea_base_path, split='train', modality='video'),
-            batch_size=args.batch_size,
-            shuffle=True,
-            num_workers=8,
-            pin_memory=False
-        )
-        val_dataloader = DataLoader(
-            AVVPDataset(val_csv_path, audio_fea_base_path, split='val', modality='audio'),
-            batch_size=args.batch_size,
-            shuffle=False,
-            num_workers=8,
-            pin_memory=False
-        ) 
-    elif args.dataset_name == 'avvp_av':
-        train_csv_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/data/data/AVVP/data/AVVP_eval_audio_checked_combined.csv' 
-        val_csv_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/data/data/AVVP/data/AVVP_eval_visual_checked_combined.csv'
-        audio_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/data/data/AVVP/feature/audio/zip'
-        video_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/data/data/AVVP/feature/video/zip'
-        train_dataloader = DataLoader(
-            AVVPDataset(train_csv_path, audio_fea_base_path, split='train', modality='audio'),
-            batch_size=args.batch_size,
-            shuffle=True,
-            num_workers=8,
-            pin_memory=False
-        )
-        val_dataloader = DataLoader(
-            AVVPDataset(val_csv_path, video_fea_base_path, split='val', modality='video'),
-            batch_size=args.batch_size,
-            shuffle=False,
-            num_workers=8,
-            pin_memory=False
-        )
-
-    elif args.dataset_name == 'avvp':
-        multimodal_csv_path = "/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/data/data/AVVP/data/AVVP_multimodal_simplified.csv"
-        audio_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/data/data/AVVP/feature/audio/zip'
-        video_fea_base_path = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/data/data/AVVP/feature/video/zip'
-        train_dataloader = DataLoader(
-            AVVPDataset(multimodal_csv_path, audio_fea_base_path, video_fea_base_path, split='train'),
-            batch_size=args.batch_size,
-            shuffle=True,
-            num_workers=8,
-            pin_memory=False
-        )
-        val_dataloader = DataLoader(
-            AVVPDataset(multimodal_csv_path, audio_fea_base_path, video_fea_base_path, split='val'),
-            batch_size=args.batch_size,
-            shuffle=False,
-            num_workers=8,
-            pin_memory=False
-        )
-
+    data_root = '/project/ag-jafra/Souptik/VGGSoundAVEL/Data_CMG/CMG/data/data/AVE/data'
+    train_dataloader = DataLoader(
+        AVEDataset(data_root, split='train'),
+        batch_size=args.batch_size,
+        shuffle=True,
+        num_workers=8,
+        pin_memory=False
+    )
 
     '''model setting'''
-
+   
     video_dim = 512
     text_dim = 768
     audio_dim = 128
@@ -163,26 +92,24 @@ def main():
     total_step = 0
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    
+
     if args.modality == 'AVT':
         Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, video_output_dim, n_embeddings, embedding_dim)
-        Decoder = Semantic_Decoder_AVVP_1(input_dim=embedding_dim * 3, class_num=26)
+        Decoder = Semantic_Decoder(input_dim=embedding_dim * 3, class_num=28)   
     elif args.modality == 'AV':
-        Encoder = AV_VQVAE_Encoder(audio_dim, video_dim, video_output_dim, n_embeddings, embedding_dim)                                   
-        Decoder = Semantic_Decoder_AVVP_1(input_dim=embedding_dim * 2, class_num=26)
+        Encoder = AV_VQVAE_Encoder(audio_dim, video_dim, video_output_dim, n_embeddings, embedding_dim)                                         
+        Decoder = Semantic_Decoder(input_dim=embedding_dim * 2, class_num=28)
     else:
         raise NotImplementedError     
-
 
     Encoder.double()
     Decoder.double()
     Encoder.to(device)
     Decoder.to(device)
-    ExpLogLoss_fn = ExpLogLoss(alpha=0.1)
-    optimizer = torch.optim.Adam(chain(Decoder.parameters(),ExpLogLoss_fn.alpha), lr=args.lr)
+    optimizer = torch.optim.Adam(Decoder.parameters(), lr=args.lr)
 
     scheduler = MultiStepLR(optimizer, milestones=[10, 20, 30], gamma=0.5)
-    
+
     '''loss'''
     criterion = nn.BCEWithLogitsLoss().cuda()
     criterion_event = nn.CrossEntropyLoss().cuda()
@@ -199,12 +126,12 @@ def main():
 
     for epoch in range(start_epoch+1, args.n_epoch):
         
-        loss, total_step = train_epoch(Encoder, Decoder,ExpLogLoss_fn, train_dataloader, criterion, criterion_event,
+        loss, total_step = train_epoch(Encoder, Decoder, train_dataloader, criterion, criterion_event,
                                        optimizer, epoch, total_step, args)
         logger.info(f"epoch: *******************************************{epoch}")
 
         if ((epoch + 1) % args.eval_freq == 0) or (epoch == args.n_epoch - 1):
-            loss = validate_epoch(Encoder, Decoder, ExpLogLoss_fn, val_dataloader, criterion, criterion_event, epoch, args)
+            loss = validate_epoch(Encoder, Decoder, train_dataloader, criterion, criterion_event, epoch)
             logger.info("-----------------------------")
             logger.info(f"evaluate loss:{loss}")
             logger.info("-----------------------------")
@@ -212,7 +139,17 @@ def main():
                 save_final_model(Encoder, Decoder, optimizer, epoch, total_step, args)
         scheduler.step()
 
+def _export_log(epoch, total_step, batch_idx, lr, loss_meter):
+    msg = 'Epoch {}, Batch {}, lr = {:.5f}, '.format(epoch, batch_idx, lr)
+    for k, v in loss_meter.items():
+        msg += '{} = {:.4f}, '.format(k, v)
+    logger.info(msg)
+    sys.stdout.flush()
+    loss_meter.update({"batch": total_step})
 
+def to_eval(all_models):
+    for m in all_models:
+        m.eval()
 
 def save_final_model(Encoder, Decoder, optimizer, epoch_num, total_step, args):
     # Create model directory if it doesn't exist
@@ -235,25 +172,9 @@ def save_final_model(Encoder, Decoder, optimizer, epoch_num, total_step, args):
     logging.info(f'Saved final model to {model_path}')
 
 
-
-def _export_log(epoch, total_step, batch_idx, lr, loss_meter):
-    msg = 'Epoch {}, Batch {}, lr = {:.5f}, '.format(epoch, batch_idx, lr)
-    for k, v in loss_meter.items():
-        msg += '{} = {:.4f}, '.format(k, v)
-    logger.info(msg)
-    sys.stdout.flush()
-    loss_meter.update({"batch": total_step})
-
-
-def to_eval(all_models):
-    for m in all_models:
-        m.eval()
-
-
 def to_train(all_models):
     for m in all_models:
         m.train()
-
 
 def save_models(Encoder, optimizer, epoch_num, total_step, path):
     state_dict = {
@@ -265,29 +186,12 @@ def save_models(Encoder, optimizer, epoch_num, total_step, path):
     torch.save(state_dict, path)
     logging.info('save model to {}'.format(path))
 
-
-
-def train_epoch_check(train_dataloader, epoch, total_step, args):
-    for n_iter, batch_data in enumerate(train_dataloader):
-        
-        '''Feed input to model'''
-        feature, labels, mask = batch_data['feature'],batch_data['label'],batch_data['mask']
-    return torch.zeros(1),torch.zeros(1)
-
-
-
-def train_epoch(Encoder, Decoder,ExpLogLoss_fn, train_dataloader, criterion, criterion_event, optimizer, epoch, total_step, args):
-    Sigmoid_fun = nn.Sigmoid()
+def train_epoch(Encoder, Decoder, train_dataloader, criterion, criterion_event, optimizer, epoch, total_step, args):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
+    train_precision = AverageMeter()
     train_acc = AverageMeter()
-    all_accuracy = AverageMeter()
-    all_recall = AverageMeter()
-    all_accuracy_v = AverageMeter()
-    all_recall_v = AverageMeter()
-    all_accuracy_a = AverageMeter()
-    all_recall_a = AverageMeter()
     end_time = time.time()
     models = [Encoder, Decoder]
     to_train(models)
@@ -299,135 +203,81 @@ def train_epoch(Encoder, Decoder,ExpLogLoss_fn, train_dataloader, criterion, cri
     Decoder.cuda()
     optimizer.zero_grad()
 
+
     for n_iter, batch_data in enumerate(train_dataloader):
 
         data_time.update(time.time() - end_time)
         '''Feed input to model'''
-        if (args.dataset_name == 'avvp_va') or (args.dataset_name == 'avvp_av'):
-            feature, labels, video_id = batch_data
-            feature = feature.to(torch.float64)
-            feature.cuda()
-            labels = labels.double().cuda()
-            B, T, C = labels.size()
-            labels = labels.reshape(-1, C)# [B, T, C] -> [BxT, C] e.g.[80*10, 26]
-            labels_evn = labels.to(torch.float32)
-            bs = feature.size(0)
+        visual_feature, audio_feature, labels = batch_data
+        visual_feature.cuda()
+        audio_feature.cuda()
+        labels = labels.double().cuda()
+        labels_foreground = labels[:, :, :-1]  
+        labels_BCE, labels_evn = labels_foreground.max(-1)
 
-        elif (args.dataset_name == 'avvp'):
-            audio_feature, video_feature, labels, video_id = batch_data
-            audio_feature = audio_feature.to(torch.float64).cuda()
-            video_feature = video_feature.to(torch.float64).cuda()
-            labels = labels.double().cuda()
-            B, T, C = labels.size()
-            labels = labels.reshape(-1, C)  # [B, T, C] -> [BxT, C]
-            labels_evn = labels.to(torch.float32)
-            bs = audio_feature.size(0)
-
-
-        if (args.dataset_name == 'avvp_va'):
-            
-            with torch.no_grad():
-                out_vq_video, video_vq = Encoder.Video_VQ_Encoder(feature)
-            e_dim = out_vq_video.size()[2]
-            out_vq_video = out_vq_video.reshape(-1, e_dim)
+        labels_event, _ = labels_evn.max(-1)
+        
+        if args.dataset_name == 'ave_va':
+            with torch.no_grad():# Freeze Encoder
+                out_vq_video, video_vq = Encoder.Video_VQ_Encoder(visual_feature)
             video_class = Decoder(out_vq_video)
-
-
-            loss1 = criterion(video_class, labels_evn.cuda())
-            loss2 = ExpLogLoss_fn(video_class, labels_evn.cuda())
-            # loss3 = distance_map_loss(Sigmoid_fun(video_class), labels_evn.cuda())+ loss3
-            video_event_loss = loss1 + loss2 
-            
-            precision, recall = compute_accuracy_supervised_sigmoid(Sigmoid_fun(video_class), labels_evn.cuda())
+            # video_class = Decoder(video_vq)
+            video_event_loss = criterion_event(video_class, labels_event.cuda())
+            video_precision = compute_precision_supervised(video_class, labels)
+            video_acc = compute_accuracy_supervised(video_class, labels)
             loss_items = {
                 "video_event_loss":video_event_loss.item(),
-                "BCELoss":loss1.item(),
-                "ExpLogLoss":loss2.item(),
-                # "DistanceMapLoss":loss3.item(),
-                "video_precision": precision.item(),
-                "video_recall": recall.item(),
-                "alpha":ExpLogLoss_fn.check().item()
+                "video_precision": video_precision.item(),
+                "video_acc": video_acc.item(),
             }
-            all_accuracy.update(precision.item(), bs * 10)
-            all_recall.update(recall.item(), bs * 10)
             metricsContainer.update("loss", loss_items)
             loss = video_event_loss
-
-        elif (args.dataset_name == 'avvp_av'):
-
-            with torch.no_grad():
-                out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(feature)
-            e_dim = out_vq_audio.size()[2]
-            out_vq_audio = out_vq_audio.reshape(-1, e_dim)
+        elif args.dataset_name == 'ave_av':
+            with torch.no_grad():# Freeze Encoder
+                out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(audio_feature)
             audio_class = Decoder(out_vq_audio)
-
-
-            loss1 = criterion(audio_class, labels_evn.cuda())
-            loss2 = ExpLogLoss_fn(audio_class, labels_evn.cuda())
-            audio_event_loss = loss1 + loss2
-            precision, recall = compute_accuracy_supervised_sigmoid(Sigmoid_fun(audio_class), labels_evn.cuda())
+            # audio_class = Decoder(audio_vq)
+            audio_event_loss = criterion_event(audio_class, labels_event.cuda())
+            audio_precision = compute_precision_supervised(audio_class, labels)
+            audio_acc = compute_accuracy_supervised(audio_class, labels)
             loss_items = {
                 "audio_event_loss":audio_event_loss.item(),
-                "BCELoss":loss1.item(),
-                "ExpLogLoss":loss2.item(),
-                # "DistanceMapLoss":loss3.item(),
-                "audio_precision": precision.item(),
-                "audio_recall": recall.item()
+                "audio_precision": audio_precision.item(),
+                "audio_acc": audio_acc.item(),
             }
-            all_accuracy.update(precision.item(), bs * 10)
-            all_recall.update(recall.item(), bs * 10)
             metricsContainer.update("loss", loss_items)
             loss = audio_event_loss
 
-        elif (args.dataset_name == 'avvp'):
-            with torch.no_grad():
+        elif args.dataset_name == 'ave':
+            with torch.no_grad():# Freeze Encoder
+                out_vq_video, video_vq = Encoder.Video_VQ_Encoder(visual_feature)
                 out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(audio_feature)
-                out_vq_video, video_vq = Encoder.Video_VQ_Encoder(video_feature)
-            audio_dim = out_vq_audio.size()[2]
-            video_dim = out_vq_video.size()[2]
-            out_vq_audio = out_vq_audio.reshape(-1, audio_dim)
-            out_vq_video = out_vq_video.reshape(-1, video_dim)
-            audio_class = Decoder(out_vq_audio)
             video_class = Decoder(out_vq_video)
-
-            loss1 = criterion(video_class, labels_evn.cuda())
-            loss2 = ExpLogLoss_fn(video_class, labels_evn.cuda())
-            video_event_loss = loss1 + loss2 
-            precision_v, recall_v = compute_accuracy_supervised_sigmoid(Sigmoid_fun(video_class), labels_evn.cuda())
-
-            loss3 = criterion(audio_class, labels_evn.cuda())
-            loss4 = ExpLogLoss_fn(audio_class, labels_evn.cuda())
-            audio_event_loss = loss3 + loss4
-            precision_a, recall_a = compute_accuracy_supervised_sigmoid(Sigmoid_fun(audio_class), labels_evn.cuda())
-
+            audio_class = Decoder(out_vq_audio)
+            # video_class = Decoder(video_vq)
+            # audio_class = Decoder(audio_vq)
+            video_event_loss = criterion_event(video_class, labels_event.cuda())
+            audio_event_loss = criterion_event(audio_class, labels_event.cuda())
+            video_precision = compute_precision_supervised(video_class, labels)
+            audio_precision = compute_precision_supervised(audio_class, labels)
+            audio_acc = compute_accuracy_supervised(audio_class, labels)
+            video_acc = compute_accuracy_supervised(video_class, labels)
             loss_items = {
-                "video_event_loss":video_event_loss.item(),
-                "BCELoss_v":loss1.item(),
-                "ExpLogLoss_v":loss2.item(),
-                "video_precision": precision_v.item(),
-                "video_recall": recall_v.item(),
                 "audio_event_loss":audio_event_loss.item(),
-                "BCELoss_a":loss3.item(),
-                "ExpLogLoss_a":loss4.item(),
-                "audio_precision": precision_a.item(),
-                "audio_recall": recall_a.item(),
-                "alpha":ExpLogLoss_fn.check().item()
+                "audio_precision": audio_precision.item(),
+                "audio_acc": audio_acc.item(),
+                "video_event_loss":video_event_loss.item(),
+                "video_precision": video_precision.item(),
+                "video_acc": video_acc.item(),
             }
-            all_accuracy_v.update(precision_v.item(), bs * 10)
-            all_recall_v.update(recall_v.item(), bs * 10)
-            all_accuracy_a.update(precision_a.item(), bs * 10)
-            all_recall_a.update(recall_a.item(), bs * 10)
             metricsContainer.update("loss", loss_items)
-            loss = video_event_loss + audio_event_loss
+            loss = audio_event_loss + video_event_loss
 
 
-        else: 
-            raise NotImplementedError
-        
-        if n_iter % 10 == 0:
+        if n_iter % 20 == 0:
             _export_log(epoch=epoch, total_step=total_step+n_iter, batch_idx=n_iter, lr=optimizer.state_dict()['param_groups'][0]['lr'], loss_meter=metricsContainer.calculate_average("loss"))
         loss.backward()
-        
+
 
         '''Clip Gradient'''
         if args.clip_gradient is not None:
@@ -438,259 +288,123 @@ def train_epoch(Encoder, Decoder,ExpLogLoss_fn, train_dataloader, criterion, cri
         optimizer.step()
         optimizer.zero_grad()
 
-        losses.update(loss.item(), bs * 10)
+        losses.update(loss.item(), audio_feature.size(0) * 10)
         batch_time.update(time.time() - end_time)
         end_time = time.time()
 
-    if (args.dataset_name == 'avvp_va') or (args.dataset_name == 'avvp_av'):
-        logger.info(
-        f'**********************************************\t'
-        f"\t Train results (accuracy and recall): {all_accuracy.avg:.4f}\t{all_recall.avg:.4f}.")
-
-    elif (args.dataset_name == 'avvp'):
-        logger.info(
-            f'**********************************************\t'
-            f"\t Video Train results (accuracy and recall): {all_accuracy_v.avg:.4f}\t{all_recall_v.avg:.4f}."
-            f"\t Audio Train results (accuracy and recall): {all_accuracy_a.avg:.4f}\t{all_recall_a.avg:.4f}.")
     return losses.avg, n_iter + total_step
 
-
-
 @torch.no_grad()
-def validate_epoch(Encoder,Decoder,ExpLogLoss_fn, val_dataloader, criterion, criterion_event, epoch, args, eval_only=False):
-    Sigmoid_fun = nn.Sigmoid()
+def validate_epoch(Encoder,Decoder, val_dataloader, criterion, criterion_event, epoch, eval_only=False):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
-    downstream_accuracy = AverageMeter()
-    downstream_recall = AverageMeter()
-    end_time = time.time()
-
-    audio_losses = AverageMeter()
-    video_losses = AverageMeter()
+    audio_precision = AverageMeter()
+    video_precision = AverageMeter()
     audio_accuracy = AverageMeter()
-    audio_recall = AverageMeter()
     video_accuracy = AverageMeter()
-    video_recall = AverageMeter()
+    end_time = time.time()
 
     Encoder.eval()
     Decoder.eval()
     Encoder.cuda()
     Decoder.cuda()
-    
-    Draw = Draw_Heatmap()
-    Draw.eval().cuda()
-
 
     for n_iter, batch_data in enumerate(val_dataloader):
         data_time.update(time.time() - end_time)
 
         '''Feed input to model'''
-        if (args.dataset_name == 'avvp_va') or (args.dataset_name == 'avvp_av'):
-            feature, labels, video_id = batch_data
-            feature = feature.to(torch.float64)
-            feature.cuda()
-            labels = labels.double().cuda()
-            B, T, C = labels.size()
-            labels = labels.reshape(-1, C)# [B, T, C] -> [BxT, C] e.g.[80*10, 26]
-            labels_evn = labels.to(torch.float32)
-            bs = feature.size(0)
+        visual_feature, audio_feature, labels = batch_data
+        visual_feature.cuda()
+        audio_feature.cuda()
+        audio_feature = audio_feature.to(torch.float64)
 
-        elif (args.dataset_name == 'avvp'):
-            audio_feature, video_feature, labels, video_id = batch_data
-            audio_feature = audio_feature.to(torch.float64).cuda()
-            video_feature = video_feature.to(torch.float64).cuda()
-            labels = labels.double().cuda()
-            B, T, C = labels.size()
-            labels = labels.reshape(-1, C)  # [B, T, C] -> [BxT, C]
-            labels_evn = labels.to(torch.float32)
-            bs = audio_feature.size(0)
+        labels = labels.double().cuda()
+        labels_foreground = labels[:, :, :-1]
+        labels_BCE, labels_evn = labels_foreground.max(-1)
+        labels_event, _ = labels_evn.max(-1)
 
-        if (args.dataset_name == 'avvp_va'):
-            out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(feature)
-            B, T, e_dim = out_vq_audio.size()
-            out_vq_audio = out_vq_audio.reshape(-1, e_dim)
-            audio_class = Decoder(out_vq_audio)
+        bs = visual_feature.size(0)
+        
+        out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(audio_feature)
+        out_vq_video, video_vq = Encoder.Video_VQ_Encoder(visual_feature)
+        audio_class = Decoder(out_vq_audio)
+        video_class = Decoder(out_vq_video)
+        # audio_class = Decoder(audio_vq)
+        # video_class = Decoder(video_vq)
+        
+        audio_event_loss = criterion_event(audio_class, labels_event.cuda())
+        video_event_loss = criterion_event(video_class, labels_event.cuda())
 
-            loss1 = criterion(audio_class, labels_evn.cuda())
-            loss2 = ExpLogLoss_fn(audio_class, labels_evn.cuda())
-            # loss3 = distance_map_loss(Sigmoid_fun(audio_class), labels_evn.cuda())+ loss3
-            audio_event_loss = loss1 + loss2 
-            
-            loss = audio_event_loss
-            
-            precision, recall = compute_accuracy_supervised_sigmoid(Sigmoid_fun(audio_class), labels_evn.cuda())
+        # loss = audio_event_loss + video_event_loss
+        loss = audio_event_loss 
 
-            """draw image"""
-            # if n_iter % 5 == 0:
-            #     rand_choose = random.randint(0,B-1)
-            #     save_img(Draw, Sigmoid_fun(audio_class.reshape(B,T,C)[rand_choose,:,:]), labels_evn.reshape(B,T,C)[rand_choose,:,:].cuda(), video_id[rand_choose],"va",epoch)
-            downstream_accuracy.update(precision.item(), bs * 10)
-            downstream_recall.update(recall.item(), bs * 10)
-
-        elif (args.dataset_name == 'avvp_av'):
-            out_vq_video, video_vq = Encoder.Video_VQ_Encoder(feature)
-            e_dim = out_vq_video.size()[2]
-            out_vq_video = out_vq_video.reshape(-1, e_dim)
-            video_class = Decoder(out_vq_video)
-
-
-            loss1 = criterion(video_class, labels_evn.cuda())
-            loss2 = ExpLogLoss_fn(video_class, labels_evn.cuda())
-            # loss3 = distance_map_loss(Sigmoid_fun(video_class), labels_evn.cuda())
-            video_event_loss = loss1 + loss2
-            loss = video_event_loss
-            precision, recall = compute_accuracy_supervised_sigmoid(Sigmoid_fun(video_class), labels_evn.cuda())
-            """draw image"""
-            # if n_iter % 5 == 0:
-            #     rand_choose = random.randint(0,B-1)
-            #     save_img(Draw, Sigmoid_fun(video_class.reshape(B,T,C)[rand_choose,:,:]), labels_evn.reshape(B,T,C)[rand_choose,:,:].cuda(), video_id[rand_choose],"av",epoch)
-            downstream_accuracy.update(precision.item(), bs * 10)
-            downstream_recall.update(recall.item(), bs * 10)
-
-        elif (args.dataset_name == 'avvp'):
-            out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(audio_feature)
-            audio_dim = out_vq_audio.size()[2]
-            out_vq_audio = out_vq_audio.reshape(-1, audio_dim)
-            audio_class = Decoder(out_vq_audio)
-            
-            audio_loss1 = criterion(audio_class, labels_evn.cuda())
-            audio_loss2 = ExpLogLoss_fn(audio_class, labels_evn.cuda())
-            audio_total_loss = audio_loss1 + audio_loss2
-            
-            audio_precision, audio_rec = compute_accuracy_supervised_sigmoid(
-                Sigmoid_fun(audio_class), labels_evn.cuda()
-            )
-
-            out_vq_video, video_vq = Encoder.Video_VQ_Encoder(video_feature)
-            video_dim = out_vq_video.size()[2]
-            out_vq_video = out_vq_video.reshape(-1, video_dim)
-            video_class = Decoder(out_vq_video)
-            
-            video_loss1 = criterion(video_class, labels_evn.cuda())
-            video_loss2 = ExpLogLoss_fn(video_class, labels_evn.cuda())
-            video_total_loss = video_loss1 + video_loss2
-            loss = video_total_loss + audio_total_loss
-            video_precision, video_rec = compute_accuracy_supervised_sigmoid(
-                Sigmoid_fun(video_class), labels_evn.cuda()
-            )
-            
-            audio_losses.update(audio_total_loss.item(), bs * 10)
-            audio_accuracy.update(audio_precision.item(), bs * 10)
-            audio_recall.update(audio_rec.item(), bs * 10)
-            
-            video_losses.update(video_total_loss.item(), bs * 10)
-            video_accuracy.update(video_precision.item(), bs * 10)
-            video_recall.update(video_rec.item(), bs * 10)
-
-        else: 
-            raise NotImplementedError
-            
+        audio_prec = compute_precision_supervised(audio_class, labels)
+        video_prec = compute_precision_supervised(video_class, labels)
+        audio_precision.update(audio_prec.item(), bs * 10)
+        video_precision.update(video_prec.item(), bs * 10)
+        audio_acc = compute_accuracy_supervised(audio_class, labels)
+        video_acc = compute_accuracy_supervised(video_class, labels)
+        audio_accuracy.update(audio_acc.item(), bs * 10)
+        video_accuracy.update(video_acc.item(), bs * 10)
         batch_time.update(time.time() - end_time)
         end_time = time.time()
         losses.update(loss.item(), bs * 10)
 
-    if (args.dataset_name == 'avvp_va') or (args.dataset_name == 'avvp_av'):
-        f1_score = 2.0*downstream_accuracy.avg*downstream_recall.avg/(downstream_accuracy.avg+downstream_recall.avg)
-        global best_f1,best_acc,best_rec
-        # For AVVP downstream, record the best acc. For AVE_AVVP, record the best f1-score. 
-        # This setting is simple, there is no special deeper meaning.
-        if downstream_accuracy.avg > best_acc:
-            best_f1 = f1_score
-            best_acc = downstream_accuracy.avg
-            best_rec = downstream_recall.avg
-        logger.info(
-            f'**********************************************\t'
-            f"\t Evaluation results (accuracy and recall F1-score): {downstream_accuracy.avg:.4f}\t{downstream_recall.avg:.4f}\t{f1_score:.4f}.\n"
-            f'**********************************************\t'
-            f"\t Best results (accuracy and recall F1-score): {best_acc:.4f}\t{best_rec:.4f}\t{best_f1:.4f}."
-        )
-    elif (args.dataset_name == 'avvp'):
-        audio_f1 = 2.0 * audio_accuracy.avg * audio_recall.avg / (audio_accuracy.avg + audio_recall.avg) if (audio_accuracy.avg + audio_recall.avg) > 0 else 0.0
-        video_f1 = 2.0 * video_accuracy.avg * video_recall.avg / (video_accuracy.avg + video_recall.avg) if (video_accuracy.avg + video_recall.avg) > 0 else 0.0
-        global best_audio_f1, best_audio_acc, best_audio_rec
-        if audio_accuracy.avg > best_audio_acc:
-            best_audio_f1 = audio_f1
-            best_audio_acc = audio_accuracy.avg
-            best_audio_rec = audio_recall.avg
-        global best_video_f1, best_video_acc, best_video_rec
-        if video_accuracy.avg > best_video_acc:
-            best_video_f1 = video_f1
-            best_video_acc = video_accuracy.avg
-            best_video_rec = video_recall.avg
-        logger.info(
-        f'**********************************************\t'
-        f"\t Audio Evaluation results (accuracy and recall F1-score): {audio_accuracy.avg:.4f}\t{audio_recall.avg:.4f}\t{audio_f1:.4f}.\n"
-        f'**********************************************\t'
-        f"\t Audio Best results (accuracy and recall F1-score): {best_audio_acc:.4f}\t{best_audio_rec:.4f}\t{best_audio_f1:.4f}.")
-
-        logger.info(
-        f'**********************************************\t'
-        f"\t Video Evaluation results (accuracy and recall F1-score): {video_accuracy.avg:.4f}\t{video_recall.avg:.4f}\t{video_f1:.4f}.\n"
-        f'**********************************************\t'
-        f"\t Video Best results (accuracy and recall F1-score): {best_video_acc:.4f}\t{best_video_rec:.4f}\t{best_video_f1:.4f}.")
-
+    logger.info(
+        f'**************************************************************************\t'
+        f"\t Audio Evaluation results (precision): {audio_precision.avg:.4f}%."
+        f"\t Video Evaluation results (precision): {video_precision.avg:.4f}%."
+        f'**************************************************************************\t'
+        f"\t Audio Evaluation results (acc): {audio_accuracy.avg:.4f}%."
+        f"\t Video Evaluation results (acc): {video_accuracy.avg:.4f}%."
+    )
     return losses.avg
 
 
+def compute_accuracy_supervised(event_scores, labels):
+    labels_foreground = labels[:, :, :-1]
+    labels_BCE, labels_evn = labels_foreground.max(-1)
+    labels_event, _ = labels_evn.max(-1)
+    _, event_class = event_scores.max(-1)
+    correct = event_class.eq(labels_event)
+    correct_num = correct.sum().double()
+    acc = correct_num * (100. / correct.numel())
+    return acc
 
-def compute_accuracy_supervised_sigmoid(model_pred, labels):
-    accuracy_th = 0.5
-    pred_result = model_pred > accuracy_th
-    pred_result = pred_result.float()
-    pred_one_num = torch.sum(pred_result)
-    if pred_one_num == 0:
-        return torch.zeros(1), torch.zeros(1)
-    target_one_num = torch.sum(labels)
-    true_predict_num = torch.sum(pred_result * labels)
+
+def compute_precision_supervised(event_scores, labels):
+    labels_foreground = labels[:, :, :-1]
+    labels_BCE, labels_evn = labels_foreground.max(-1)
+    labels_event, _ = labels_evn.max(-1)
+    _, event_class = event_scores.max(-1)
     
-    precision = true_predict_num / pred_one_num
+    # Calculate precision for each class
+    num_classes = event_scores.size(1)
+    precision_sum = 0.0
+    class_count = 0
     
-    recall = true_predict_num / target_one_num
-    return precision, recall
-
-
-
-
-
-# Draw three graphs: the first graph is the predicted values, the second graph is the ground truth,
-# and the third graph is the intersection of the two.
-def save_img(Draw, model_pred, labels, video_id, modality,epoch):
-    accuracy_th = 0.5
-    pred_result = model_pred > accuracy_th
-    labels = labels.int()
-    Draw(model_pred, labels, pred_result * labels, video_id, modality,epoch)
-
-def distance_map_loss(y_pred, y_true):
-    y_true_dist = torch.square(y_true)
-    y_pred_dist = torch.square(y_pred)
-    diff = torch.sqrt(torch.abs(y_true_dist - y_pred_dist))
-    y_true_clone = y_true.clone() + 1
-    
-    for i in range(y_true_clone.size()[0]):
-        for j in range(y_true_clone.size()[1]):
-            if y_true_clone[i][j]==2:
-                y_true_clone[i][j] = 10
-                
-    loss = torch.mean(diff * y_true_clone)
-    return loss
-
-# Exponential Logarithmic Loss
-class ExpLogLoss(nn.Module):
-    def __init__(self, alpha):
-        super(ExpLogLoss, self).__init__()
-        self.alpha = nn.ParameterList([nn.Parameter(alpha * torch.ones(1)) for _ in range(26)])
+    for c in range(num_classes):
+        # True positives: predicted class c and actual class is c
+        true_positives = ((event_class == c) & (labels_event == c)).sum().float()
+        # All positives: predicted class c
+        all_positives = (event_class == c).sum().float()
         
-    def check(self):
-        param_tensors = [p.data for p in self.alpha]
-        mean = torch.mean(torch.cat(param_tensors))  
-        return mean
+        # Calculate precision for this class (if there are predictions)
+        if all_positives > 0:
+            class_precision = true_positives / all_positives * 100.0
+            precision_sum += class_precision
+            class_count += 1
     
-    def forward(self, input, target):
-        log_input = torch.log_softmax(input, dim=1).cuda()
-        alpha = torch.cat([a for a in self.alpha]).cuda()
-        loss = -torch.mean(torch.sum(target * log_input * torch.exp(-alpha), dim=1))
-        return loss
+    # Average precision across classes with predictions
+    if class_count > 0:
+        avg_precision = precision_sum / class_count
+    else:
+        avg_precision = torch.tensor(0.0).cuda()
+        
+    return avg_precision
 
+
+    
 if __name__ == '__main__':
     main()
