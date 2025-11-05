@@ -1,6 +1,6 @@
 # ======================================= Learning configs ==================================
-n_epoch: 30
-batch_size: 80
+n_epoch: 50
+batch_size: 64
 test_batch_size: 64
 lr: 0.0004
 mi_lr: 0.001
@@ -11,7 +11,7 @@ weight_decay: 5e-4
 
   # ======================================= Print and snapshot configs ==================================
 snapshot_pref: 
-    /project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Benchmarks/Downstream_Novel/AVT/90k/UCF2CGGSOUND/ucfv_vgga/
+    /project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/Benchmarks/Ablation_Results/AVT/AlignEMA_HIER/AVVP/A2V/
 print_freq: 1
 eval_freq: 1
 

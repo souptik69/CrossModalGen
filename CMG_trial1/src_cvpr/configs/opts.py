@@ -29,6 +29,11 @@ parser.add_argument('--output_dir', type=str, default='./results',
 parser.add_argument('--weight_decay', '--wd', type=float,
                     metavar='W', help='weight decay (default: 5e-4)')
 
+# =========================== Ablation Study Config ============================
+parser.add_argument('--ablation', type=str, default=None, 
+                    choices=['CPC', 'AlignEMA', 'HIER', 'CMCM', 'Reset', None],
+                    help='Ablation mode: CPC, AlignEMA, HIER, CMCM, Reset, or None for full model')
+
 # =========================== Display Configs ============================
 parser.add_argument('--print_freq', type=int)
 parser.add_argument('--save_freq', type=int)

@@ -14,7 +14,7 @@ from tensorboardX import SummaryWriter
 from torch.optim.lr_scheduler import StepLR, MultiStepLR
 import numpy as np
 from configs.opts import parser
-from model.main_model_novel import AVT_VQVAE_Encoder, AVT_VQVAE_Decoder
+from model.main_model_ablation import AVT_VQVAE_Encoder, AVT_VQVAE_Decoder
 from model.CPC import Cross_CPC, Cross_CPC_AVT
 from utils import AverageMeter, Prepare_logger, get_and_save_args
 from utils.container import metricsContainer
@@ -178,7 +178,7 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     Text_ar_lstm = nn.LSTM(text_dim, text_lstm_dim, num_layers=2, batch_first=True, bidirectional=True)
-    Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, video_output_dim, n_embeddings, embedding_dim)
+    Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, video_output_dim, n_embeddings, embedding_dim, ablation=args.ablation)
     CPC = Cross_CPC_AVT(embedding_dim, hidden_dim=256, context_dim=256, num_layers=2)
     Decoder = AVT_VQVAE_Decoder(audio_dim, video_dim, text_lstm_dim*2, video_output_dim, embedding_dim)
 
@@ -351,9 +351,21 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Decoder,train_dataloader, criterion, c
 
         metricsContainer.update("loss", loss_items)
 
-        # VGG downstream
-        loss =  audio_recon_loss + video_recon_loss + text_recon_loss + audio_embedding_loss +  video_embedding_loss + text_embedding_loss\
+        
+        if args.ablation == 'AlignEMA' or args.ablation == 'HIER' or args.ablation == 'Reset':
+            loss =  audio_recon_loss + video_recon_loss + text_recon_loss + audio_embedding_loss +  video_embedding_loss + text_embedding_loss\
                 + cpc_loss + cmcm_loss
+
+        elif args.ablation == 'CMCM':
+            loss =  audio_recon_loss + video_recon_loss + text_recon_loss + audio_embedding_loss +  video_embedding_loss + text_embedding_loss\
+                + cpc_loss
+
+        elif args.ablation == 'CPC':
+            loss =  audio_recon_loss + video_recon_loss + text_recon_loss + audio_embedding_loss +  video_embedding_loss + text_embedding_loss\
+                 + cmcm_loss
+                 
+        else:
+            raise NotImplementedError
 
         if n_iter % 20 == 0:
             _export_log(epoch=epoch, total_step=total_step+n_iter, batch_idx=n_iter, lr=0.0004, loss_meter=metricsContainer.calculate_average("loss"))

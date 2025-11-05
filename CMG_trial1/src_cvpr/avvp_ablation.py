@@ -16,7 +16,7 @@ from torch.optim.lr_scheduler import StepLR, MultiStepLR
 
 import numpy as np
 from configs.opts import parser
-from model.main_model_novel import Semantic_Decoder_AVVP, Semantic_Decoder_AVVP_1, AV_VQVAE_Encoder, AVT_VQVAE_Encoder
+from model.main_model_ablation import Semantic_Decoder_AVVP, Semantic_Decoder_AVVP_1, AV_VQVAE_Encoder, AVT_VQVAE_Encoder
 
 
 from utils import AverageMeter, Prepare_logger, get_and_save_args
@@ -165,10 +165,10 @@ def main():
 
     
     if args.modality == 'AVT':
-        Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, video_output_dim, n_embeddings, embedding_dim)
+        Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, video_output_dim, n_embeddings, embedding_dim, ablation=args.ablation)
         Decoder = Semantic_Decoder_AVVP_1(input_dim=embedding_dim * 3, class_num=26)
     elif args.modality == 'AV':
-        Encoder = AV_VQVAE_Encoder(audio_dim, video_dim, video_output_dim, n_embeddings, embedding_dim)                                   
+        Encoder = AV_VQVAE_Encoder(audio_dim, video_dim, video_output_dim, n_embeddings, embedding_dim, ablation=args.ablation)                                   
         Decoder = Semantic_Decoder_AVVP_1(input_dim=embedding_dim * 2, class_num=26)
     else:
         raise NotImplementedError     
@@ -591,7 +591,10 @@ def validate_epoch(Encoder,Decoder,ExpLogLoss_fn, val_dataloader, criterion, cri
         losses.update(loss.item(), bs * 10)
 
     if (args.dataset_name == 'avvp_va') or (args.dataset_name == 'avvp_av'):
-        f1_score = 2.0*downstream_accuracy.avg*downstream_recall.avg/(downstream_accuracy.avg+downstream_recall.avg)
+        if downstream_accuracy.avg + downstream_recall.avg > 0:
+            f1_score = 2.0*downstream_accuracy.avg*downstream_recall.avg/(downstream_accuracy.avg+downstream_recall.avg)
+        else:
+            f1_score = 0.0
         global best_f1,best_acc,best_rec
         # For AVVP downstream, record the best acc. For AVE_AVVP, record the best f1-score. 
         # This setting is simple, there is no special deeper meaning.

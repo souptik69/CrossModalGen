@@ -14,7 +14,7 @@ from tensorboardX import SummaryWriter
 from torch.optim.lr_scheduler import StepLR, MultiStepLR
 import numpy as np
 from configs.opts import parser
-from model.main_model_novel import AV_VQVAE_Encoder, AV_VQVAE_Decoder
+from model.main_model_ablation import AV_VQVAE_Encoder, AV_VQVAE_Decoder
 from model.CPC import Cross_CPC
 from utils import AverageMeter, Prepare_logger, get_and_save_args
 from utils.container import metricsContainer
@@ -123,7 +123,7 @@ def main():
     total_step = 0
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    Encoder = AV_VQVAE_Encoder( audio_dim, video_dim, video_output_dim, n_embeddings, embedding_dim)
+    Encoder = AV_VQVAE_Encoder( audio_dim, video_dim, video_output_dim, n_embeddings, embedding_dim, ablation=args.ablation)
     CPC = Cross_CPC(embedding_dim, hidden_dim=256, context_dim=256, num_layers=2)
     Decoder = AV_VQVAE_Decoder(audio_dim, video_dim, video_output_dim, embedding_dim)
 
@@ -273,10 +273,21 @@ def train_epoch(CPC, Encoder, Decoder, train_dataloader, criterion, criterion_ev
 
         metricsContainer.update("loss", loss_items)
 
-        
-        loss =  audio_recon_loss + video_recon_loss + audio_embedding_loss +  video_embedding_loss\
+        if args.ablation == 'AlignEMA' or args.ablation == 'HIER' or args.ablation == 'Reset':
+            loss =  audio_recon_loss + video_recon_loss + audio_embedding_loss +  video_embedding_loss\
                 + cpc_loss + cmcm_loss
+
+        elif args.ablation == 'CMCM':
+            loss =  audio_recon_loss + video_recon_loss + audio_embedding_loss +  video_embedding_loss\
+                + cpc_loss
         
+        elif args.ablation == 'CPC':
+            loss =  audio_recon_loss + video_recon_loss + audio_embedding_loss +  video_embedding_loss\
+                 + cmcm_loss
+
+        else:
+            raise NotImplementedError
+
 
         if n_iter % 20 == 0:
             _export_log(epoch=epoch, total_step=total_step+n_iter, batch_idx=n_iter, lr=0.0004, loss_meter=metricsContainer.calculate_average("loss"))

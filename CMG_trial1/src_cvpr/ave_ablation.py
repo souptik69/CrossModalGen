@@ -15,7 +15,7 @@ from torch.optim.lr_scheduler import StepLR, MultiStepLR
 import numpy as np
 from configs.opts import parser
 
-from model.main_model_novel import Semantic_Decoder,AV_VQVAE_Encoder, AVT_VQVAE_Encoder
+from model.main_model_ablation import Semantic_Decoder,AV_VQVAE_Encoder, AVT_VQVAE_Encoder
 from utils import AverageMeter, Prepare_logger, get_and_save_args
 from utils.container import metricsContainer
 from utils.Recorder import Recorder
@@ -94,10 +94,10 @@ def main():
 
 
     if args.modality == 'AVT':
-        Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, video_output_dim, n_embeddings, embedding_dim)
+        Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, video_output_dim, n_embeddings, embedding_dim, ablation=args.ablation)
         Decoder = Semantic_Decoder(input_dim=embedding_dim * 3, class_num=28)   
     elif args.modality == 'AV':
-        Encoder = AV_VQVAE_Encoder(audio_dim, video_dim, video_output_dim, n_embeddings, embedding_dim)                                         
+        Encoder = AV_VQVAE_Encoder(audio_dim, video_dim, video_output_dim, n_embeddings, embedding_dim, ablation=args.ablation)                                         
         Decoder = Semantic_Decoder(input_dim=embedding_dim * 2, class_num=28)
     else:
         raise NotImplementedError     

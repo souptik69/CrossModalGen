@@ -34,8 +34,8 @@ class TPAVIModule(nn.Module):
                 self.inter_channels = 1
         
         ## add align channel
-        # self.align_channel = nn.Linear(256, in_channels)#origin:128
-        self.align_channel = nn.Linear(768, in_channels)#origin:128
+        self.align_channel = nn.Linear(256, in_channels)#origin:128
+        # self.align_channel = nn.Linear(768, in_channels)#origin:128
         self.norm_layer=nn.LayerNorm(in_channels)
 
         # assign appropriate convolutional, max pool, and batch norm layers for different dimensions
