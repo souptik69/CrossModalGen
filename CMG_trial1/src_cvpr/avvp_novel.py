@@ -156,7 +156,14 @@ def main():
     audio_dim = 128
     text_lstm_dim = 128
     video_output_dim = 2048
-    n_embeddings = 800
+
+    if args.modality == 'AVT':
+        n_embeddings = 133
+    elif args.modality == 'AV':
+        n_embeddings = 200
+    else:
+        raise NotImplementedError 
+        
     embedding_dim = 256
     start_epoch = -1
     model_resume = True

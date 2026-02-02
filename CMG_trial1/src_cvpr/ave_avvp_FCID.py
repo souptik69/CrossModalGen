@@ -11,13 +11,15 @@ from itertools import chain
 import torch.nn as nn
 from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import DataLoader
-from tensorboardX import SummaryWriter
+# from tensorboardX import SummaryWriter
 from torch.optim.lr_scheduler import StepLR, MultiStepLR
 
 import numpy as np
 from configs.opts import parser
-from model.main_model_novel import AV_VQVAE_Encoder
-from model.main_model_novel import Semantic_Decoder_AVVP, AVT_VQVAE_Encoder
+from model.main_model_FCID import AV_VQVAE_Encoder
+from model.main_model_FCID import AV_VQVAE_Decoder
+from model.main_model_FCID import Semantic_Decoder_AVVP, AVT_VQVAE_Encoder
+# from model.main_model_2_dcid import Semantic_Decoder_AVVP, AVT_VQVAE_Encoder
 
 from utils import AverageMeter, Prepare_logger, get_and_save_args
 from utils.container import metricsContainer
@@ -25,7 +27,7 @@ from utils.Recorder import Recorder
 
 import torch.nn.functional as F
 from torch.nn.utils.rnn import pad_sequence
-from utils.draw import Draw_Heatmap
+# from utils.draw import Draw_Heatmap
 from dataset.AVE_AVVP_dataset import AVEDataset, AVVPDataset
 
 # =================================  seed config ============================
@@ -44,7 +46,7 @@ torch.backends.cudnn.benchmark = False
 
 def main():
     # utils variable
-    global args, logger, writer, dataset_configs
+    global args, logger, dataset_configs
     # statistics variable
     global best_acc,best_rec,best_f1
     best_acc=0
@@ -56,7 +58,7 @@ def main():
     args = parser.parse_args()
     # select GPUs
     # os.environ['CUDA_DEVICE_ORDER'] = "PCI_BUS_ID"
-    # os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+    # os.environ['CUDA_VISIBLE_DEVICES'] = '1'
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
     '''Create snapshot_pred dir for copying code and saving models '''
@@ -119,39 +121,39 @@ def main():
     '''model setting'''
     video_dim = 512
     audio_dim = 128
+    text_dim = 768
     video_output_dim = 2048
     audio_output_dim = 256
     text_lstm_dim = 128
     text_output_dim = 256
-    
-    if args.modality == 'AVT':
-        n_embeddings = 133
-    elif args.modality == 'AV':
-        n_embeddings = 200
-    else:
-        raise NotImplementedError 
-
+    n_embeddings = 400
     embedding_dim = 256
     start_epoch = -1
     model_resume = True
     total_step = 0
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    if args.modality == 'AVT':
-        Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, video_output_dim, n_embeddings, embedding_dim)
-        Decoder = Semantic_Decoder_AVVP(input_dim=embedding_dim * 3, class_num=13)
-    elif args.modality == 'AV':
-        Encoder = AV_VQVAE_Encoder(audio_dim, video_dim, video_output_dim, n_embeddings, embedding_dim)                                   
-        Decoder = Semantic_Decoder_AVVP(input_dim=embedding_dim * 2, class_num=13)
-    else:
-        raise NotImplementedError    
+    # AV
+    # Encoder = AV_VQVAE_Encoder(video_dim, audio_dim, video_output_dim, audio_output_dim, n_embeddings, embedding_dim)
+    
+    # AVT
+    # Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, audio_output_dim, video_output_dim, text_output_dim, n_embeddings, embedding_dim)
+    
+    Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_dim, audio_output_dim, video_output_dim, text_output_dim, n_embeddings, embedding_dim)
+    
+    # Decoder = Semantic_Decoder_AVVP(input_dim=embedding_dim,class_num=13)
+
+    choose_channel = args.choose_channel
+    
+    Decoder = Semantic_Decoder_AVVP(input_dim=choose_channel, class_num=13) 
+
     Encoder.double()
     Decoder.double()
     '''optimizer setting'''
     Encoder.to(device)
     Decoder.to(device)
     ExpLogLoss_fn = ExpLogLoss(alpha=0.1)
-    optimizer = torch.optim.Adam(chain(Decoder.parameters(), ExpLogLoss_fn.alpha), lr=args.lr)
+    optimizer = torch.optim.Adam(chain(Encoder.parameters(), Decoder.parameters(), ExpLogLoss_fn.alpha), lr=args.lr)
 
     scheduler = MultiStepLR(optimizer, milestones=[10, 20, 30], gamma=0.5)
     
@@ -162,26 +164,32 @@ def main():
 
     if model_resume is True:
         path_checkpoints = args.checkpoint_path
+        # path_checkpoints = '../checkpoints/nips2023_AVT_vgg40k_size400.pt'
         checkpoints = torch.load(path_checkpoints)
         Encoder.load_state_dict(checkpoints['Encoder_parameters'])
         start_epoch = checkpoints['epoch']
         logger.info("Resume from number {}-th model.".format(start_epoch))
 
-    # '''Tensorboard and Code backup'''
+    '''Tensorboard and Code backup'''
     # writer = SummaryWriter(args.snapshot_pref)
     # recorder = Recorder(args.snapshot_pref, ignore_folder="Exps/")
     # recorder.writeopt(args)
 
     '''Training and Evaluation'''
 
+    
+    indices = cal_criterion(Encoder.Cross_quantizer_coarse.embedding.cuda(), choose_channel, args.toc_max_num, args.toc_min_num)
+    # indices = range(256)
+    print(indices)
+
     for epoch in range(start_epoch+1, args.n_epoch):
         
         loss, total_step = train_epoch(Encoder, Decoder,ExpLogLoss_fn, train_dataloader, criterion, criterion_event,
-                                       optimizer, epoch, total_step, args)
+                                       optimizer, epoch, total_step, args, indices)
         logger.info(f"epoch: *******************************************{epoch}")
 
         if ((epoch + 1) % args.eval_freq == 0) or (epoch == args.n_epoch - 1):
-            loss = validate_epoch(Encoder, Decoder, ExpLogLoss_fn, val_dataloader, criterion, criterion_event, epoch, args)
+            loss = validate_epoch(Encoder, Decoder, ExpLogLoss_fn, val_dataloader, criterion, criterion_event, epoch, args, indices)
             logger.info("-----------------------------")
             logger.info(f"evaluate loss:{loss}")
             logger.info("-----------------------------")
@@ -224,7 +232,7 @@ def train_epoch_check(train_dataloader, epoch, total_step, args):
     return torch.zeros(1),torch.zeros(1)
 
 
-def train_epoch(Encoder, Decoder, ExpLogLoss_fn, train_dataloader, criterion, criterion_event, optimizer, epoch, total_step, args):
+def train_epoch(Encoder, Decoder, ExpLogLoss_fn, train_dataloader, criterion, criterion_event, optimizer, epoch, total_step, args, indices):
     Sigmoid_fun = nn.Sigmoid()
     batch_time = AverageMeter()
     data_time = AverageMeter()
@@ -260,10 +268,12 @@ def train_epoch(Encoder, Decoder, ExpLogLoss_fn, train_dataloader, criterion, cr
 
         if (args.dataset_name == 'ave_avvp_va'):
             with torch.no_grad():
-                out_vq_video, video_vq = Encoder.Video_VQ_Encoder(visual_feat)
-            e_dim = out_vq_video.size()[2]
-            out_vq_video = out_vq_video.reshape(-1, e_dim)
-            video_class = Decoder(out_vq_video)
+                # video_vq = Encoder.Video_VQ_Encoder(visual_feat)
+                video_vq = Encoder.Video_VQ_Encoder_C_split(visual_feat)
+                video_vq = video_vq[:,:,indices]
+            e_dim = video_vq.size()[2]
+            video_vq = video_vq.reshape(-1, e_dim)
+            video_class = Decoder(video_vq)
             loss1 = criterion(video_class, labels_evn.cuda())
             loss2 = ExpLogLoss_fn(video_class, labels_evn.cuda())
             # loss3 = distance_map_loss(Sigmoid_fun(video_class), labels_evn.cuda())+ loss3
@@ -285,11 +295,12 @@ def train_epoch(Encoder, Decoder, ExpLogLoss_fn, train_dataloader, criterion, cr
             loss = video_event_loss
         elif (args.dataset_name == 'ave_avvp_av'):
             with torch.no_grad():
-                out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(audio_feat)
-            e_dim = out_vq_audio.size()[2]
-            out_vq_audio = out_vq_audio.reshape(-1, e_dim)
-            audio_class = Decoder(out_vq_audio)
-
+                # audio_vq = Encoder.Audio_VQ_Encoder(audio_feat)
+                audio_vq = Encoder.Audio_VQ_Encoder_C_split(audio_feat)
+                audio_vq = audio_vq[:,:,indices]
+            e_dim = audio_vq.size()[2]
+            audio_vq = audio_vq.reshape(-1, e_dim)
+            audio_class = Decoder(audio_vq)
             loss1 = criterion(audio_class, labels_evn.cuda())
             loss2 = ExpLogLoss_fn(audio_class, labels_evn.cuda())
             # loss3 = distance_map_loss(Sigmoid_fun(video_class), labels_evn.cuda())
@@ -327,11 +338,6 @@ def train_epoch(Encoder, Decoder, ExpLogLoss_fn, train_dataloader, criterion, cr
         batch_time.update(time.time() - end_time)
         end_time = time.time()
 
-        # '''Add loss of a iteration in Tensorboard'''
-        # writer.add_scalar('Train_data/loss', losses.val, epoch * len(train_dataloader) + n_iter + 1)
-
-        # '''Add loss of an epoch in Tensorboard'''
-        # writer.add_scalar('Train_epoch_data/epoch_loss', losses.avg, epoch)
 
     logger.info(
         f'**********************************************\t'
@@ -342,7 +348,7 @@ def train_epoch(Encoder, Decoder, ExpLogLoss_fn, train_dataloader, criterion, cr
 
 
 @torch.no_grad()
-def validate_epoch(Encoder,Decoder,ExpLogLoss_fn, val_dataloader, criterion, criterion_event, epoch, args, eval_only=False):
+def validate_epoch(Encoder,Decoder,ExpLogLoss_fn, val_dataloader, criterion, criterion_event, epoch, args, indices, eval_only=False):
     
     Sigmoid_fun = nn.Sigmoid()
     batch_time = AverageMeter()
@@ -359,8 +365,8 @@ def validate_epoch(Encoder,Decoder,ExpLogLoss_fn, val_dataloader, criterion, cri
     Decoder.cuda()
     ExpLogLoss_fn.cuda()
     
-    Draw = Draw_Heatmap()
-    Draw.eval().cuda()
+    # Draw = Draw_Heatmap()
+    # Draw.eval().cuda()
 
 
     for n_iter, batch_data in enumerate(val_dataloader):
@@ -379,11 +385,14 @@ def validate_epoch(Encoder,Decoder,ExpLogLoss_fn, val_dataloader, criterion, cri
         bs = feature.size(0)
         
         if (args.dataset_name == 'ave_avvp_va'):
-            out_vq_audio, audio_vq = Encoder.Audio_VQ_Encoder(feature)
-            B, T, e_dim = out_vq_audio.size()
-            out_vq_audio = out_vq_audio.reshape(-1, e_dim)
-            audio_class = Decoder(out_vq_audio)
-  
+            # audio_vq = Encoder.Audio_VQ_Encoder(feature)
+            audio_vq = Encoder.Audio_VQ_Encoder_C_split(feature)
+
+            audio_vq = audio_vq[:,:,indices]
+
+            B, T, e_dim = audio_vq.size()
+            audio_vq = audio_vq.reshape(-1, e_dim)
+            audio_class = Decoder(audio_vq)
             loss1 = criterion(audio_class, labels_evn.cuda())
             loss2 = ExpLogLoss_fn(audio_class, labels_evn.cuda())
             # loss3 = distance_map_loss(Sigmoid_fun(audio_class), labels_evn.cuda())+ loss3
@@ -398,14 +407,16 @@ def validate_epoch(Encoder,Decoder,ExpLogLoss_fn, val_dataloader, criterion, cri
             #     save_img(Draw, Sigmoid_fun(audio_class.reshape(B,T,C)[rand_choose,:,:]), labels_evn.reshape(B,T,C)[rand_choose,:,:].cuda(), video_id[rand_choose],"va",epoch)
             downstream_accuracy.update(precision.item(), bs * 10)
             downstream_recall.update(recall.item(), bs * 10)
-
         elif (args.dataset_name == 'ave_avvp_av'):
             # logger.info(feature.size())
-            out_vq_video, video_vq = Encoder.Video_VQ_Encoder(feature)
-            e_dim = out_vq_video.size()[2]
-            out_vq_video = out_vq_video.reshape(-1, e_dim)
-            video_class = Decoder(out_vq_video)
-          
+            # video_vq = Encoder.Video_VQ_Encoder(feature)
+            video_vq = Encoder.Video_VQ_Encoder_C_split(feature)
+
+            video_vq = video_vq[:,:,indices]
+
+            e_dim = video_vq.size()[2]
+            video_vq = video_vq.reshape(-1, e_dim)
+            video_class = Decoder(video_vq)
             loss1 = criterion(video_class, labels_evn.cuda())
             loss2 = ExpLogLoss_fn(video_class, labels_evn.cuda())
             # loss3 = distance_map_loss(Sigmoid_fun(video_class), labels_evn.cuda())
@@ -425,7 +436,10 @@ def validate_epoch(Encoder,Decoder,ExpLogLoss_fn, val_dataloader, criterion, cri
         end_time = time.time()
         losses.update(loss.item(), bs * 10)
 
-    f1_score = 2.0*downstream_accuracy.avg*downstream_recall.avg/(downstream_accuracy.avg+downstream_recall.avg)
+    if downstream_accuracy.avg+downstream_recall.avg == 0:
+        f1_score = 0
+    else:
+        f1_score = 2.0*downstream_accuracy.avg*downstream_recall.avg/(downstream_accuracy.avg+downstream_recall.avg)
     # For AVVP downstream, record the best acc. For AVE_AVVP, record the best f1-score. 
     # This setting is simple, there is no special deeper meaning.
     global best_f1, best_acc, best_rec
@@ -497,6 +511,31 @@ class ExpLogLoss(nn.Module):
         alpha = torch.cat([a for a in self.alpha]).cuda()
         loss = -torch.mean(torch.sum(target * log_input * torch.exp(-alpha), dim=1))
         return loss
+
+def cal_criterion(feats, choose_channel, max_num, min_num):
+    code_num, code_dim = feats.shape
+    
+    sim_sum = torch.zeros((code_dim)).cuda()
+    count = 0
+    for i in range(code_num):
+        for j in range(code_num):
+            if i != j:
+                sim_sum += feats[i, :] * feats[j, :]
+                count += 1
+    sim = sim_sum / count
+
+    
+    # criterion = (-0.7) * sim + 0.3 * torch.var(feats, dim=0)
+    criterion = (-0.7) * sim
+    # criterion = 0.3 * torch.var(feats, dim=0)
+
+    _, max_indices = torch.topk(criterion, k=choose_channel//int(max_num+min_num)*int(max_num))
+    print(max_indices)
+    _, min_indices = torch.topk(criterion, k=choose_channel//int(max_num+min_num)*int(min_num), largest=False)
+    print(min_indices)
+    indices = torch.cat((max_indices, min_indices),dim=0)
+    # print(indices)
+    return indices
 
 if __name__ == '__main__':
     main()

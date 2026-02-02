@@ -180,7 +180,7 @@ def main():
     Text_ar_lstm = nn.LSTM(text_dim, text_lstm_dim, num_layers=2, batch_first=True, bidirectional=True)
     Encoder = AVT_VQVAE_Encoder(audio_dim, video_dim, text_lstm_dim*2, video_output_dim, n_embeddings, embedding_dim, ablation=args.ablation)
     CPC = Cross_CPC_AVT(embedding_dim, hidden_dim=256, context_dim=256, num_layers=2)
-    Decoder = AVT_VQVAE_Decoder(audio_dim, video_dim, text_lstm_dim*2, video_output_dim, embedding_dim)
+    Decoder = AVT_VQVAE_Decoder(audio_dim, video_dim, text_lstm_dim*2, video_output_dim, embedding_dim, ablation=args.ablation)
 
     Text_ar_lstm.double()
     Encoder.double()
@@ -352,7 +352,7 @@ def train_epoch(CPC,Encoder,Text_ar_lstm, Decoder,train_dataloader, criterion, c
         metricsContainer.update("loss", loss_items)
 
         
-        if args.ablation == 'AlignEMA' or args.ablation == 'HIER' or args.ablation == 'Reset':
+        if args.ablation == 'AlignEMA' or args.ablation == 'HIER' or args.ablation == 'Reset' or args.ablation == 'EqualHIER' or args.ablation == 'UniRecon' or args.ablation == 'Order' or args.ablation == 'VTA' or args.ablation == 'VAT' or args.ablation == 'ATV' or args.ablation == 'AVT':
             loss =  audio_recon_loss + video_recon_loss + text_recon_loss + audio_embedding_loss +  video_embedding_loss + text_embedding_loss\
                 + cpc_loss + cmcm_loss
 

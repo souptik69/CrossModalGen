@@ -31,10 +31,15 @@ parser.add_argument('--weight_decay', '--wd', type=float,
 
 # =========================== Ablation Study Config ============================
 parser.add_argument('--ablation', type=str, default=None, 
-                    choices=['CPC', 'AlignEMA', 'HIER', 'CMCM', 'Reset', None],
-                    help='Ablation mode: CPC, AlignEMA, HIER, CMCM, Reset, or None for full model')
+                    choices=['CPC', 'AlignEMA', 'HIER', 'CMCM', 'Reset', 'EqualHIER', 'UniRecon','Order', 'VTA', 'VAT', 'ATV', 'AVT', None],
+                    help='Ablation mode: CPC, AlignEMA, HIER, CMCM, Reset, EqualHIER, UniRecon, Order, VTA, VAT, ATV, AVT or None for full model')
 
 # =========================== Display Configs ============================
 parser.add_argument('--print_freq', type=int)
 parser.add_argument('--save_freq', type=int)
 parser.add_argument('--eval_freq', type=int)
+
+# =========================== TOC ============================
+parser.add_argument('--toc_max_num', type=int)
+parser.add_argument('--toc_min_num', type=int)
+parser.add_argument('--choose_channel', type=int)

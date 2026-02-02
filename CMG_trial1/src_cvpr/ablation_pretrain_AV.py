@@ -125,7 +125,7 @@ def main():
 
     Encoder = AV_VQVAE_Encoder( audio_dim, video_dim, video_output_dim, n_embeddings, embedding_dim, ablation=args.ablation)
     CPC = Cross_CPC(embedding_dim, hidden_dim=256, context_dim=256, num_layers=2)
-    Decoder = AV_VQVAE_Decoder(audio_dim, video_dim, video_output_dim, embedding_dim)
+    Decoder = AV_VQVAE_Decoder(audio_dim, video_dim, video_output_dim, embedding_dim, ablation=args.ablation)
 
     Encoder.double()
     CPC.double()
@@ -273,7 +273,7 @@ def train_epoch(CPC, Encoder, Decoder, train_dataloader, criterion, criterion_ev
 
         metricsContainer.update("loss", loss_items)
 
-        if args.ablation == 'AlignEMA' or args.ablation == 'HIER' or args.ablation == 'Reset':
+        if args.ablation == 'AlignEMA' or args.ablation == 'HIER' or args.ablation == 'Reset' or args.ablation == 'EqualHIER' or args.ablation == 'UniRecon' or args.ablation == 'Order':
             loss =  audio_recon_loss + video_recon_loss + audio_embedding_loss +  video_embedding_loss\
                 + cpc_loss + cmcm_loss
 

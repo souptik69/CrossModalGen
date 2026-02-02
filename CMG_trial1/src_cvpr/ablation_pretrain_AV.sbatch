@@ -7,35 +7,88 @@
 #SBATCH --cpus-per-task=32
 #SBATCH --mem-per-cpu=5G 
 #SBATCH --time=10:00:00
-#SBATCH --output=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm_cvpr/AV_ablation/pretrain_%j.out
-#SBATCH --error=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm_cvpr/AV_ablation/pretrain_%j.err
+#SBATCH --output=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm_cvpr/AV_ablation_New/pretrain_%j.out
+#SBATCH --error=/project/ag-jafra/Souptik/CMG_New/Experiments/CMG_trial1/slurm_cvpr/AV_ablation_New/pretrain_%j.err
 
 # Set source directory
 SRCDIR=/project/ag-jafra/Souptik/CMG_New/Experiments
 
 # Create output directories for logs
-mkdir -p $SRCDIR/CMG_trial1/slurm_cvpr/AV_ablation
+mkdir -p $SRCDIR/CMG_trial1/slurm_cvpr/AV_ablation_New
 
 
 # Activate conda environment
 source ~/.bashrc
 conda activate /project/ag-jafra/Souptik/CMG_New/Experiments/envs/CMG_new
 
-mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Ablation_pretrain/AV/AlignEMA_HIER/checkpoint
+# mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Ablation_pretrain/AV/AlignEMA_HIER/checkpoint
+
+# python $SRCDIR/CMG_trial1/src_cvpr/ablation_pretrain_AV.py \
+#     --gpu 0 \
+#     --lr 0.0004 \
+#     --clip_gradient 0.5 \
+#     --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Ablation_pretrain/AV/AlignEMA_HIER/" \
+#     --n_epoch 6 \
+#     --batch_size 80 \
+#     --test_batch_size 64 \
+#     --dataset_name "vggsound_AVT_40k" \
+#     --model_save_path "$SRCDIR/CMG_trial1/Benchmarks/Ablation_pretrain/AV/AlignEMA_HIER/checkpoint/" \
+#     --n_embeddings 800 \
+#     --embedding_dim 256 \
+#     --ablation "AlignEMA" \
+#     --print_freq 1
+
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Ablation_pretrain/AV/EqualHIER/checkpoint
 
 python $SRCDIR/CMG_trial1/src_cvpr/ablation_pretrain_AV.py \
     --gpu 0 \
     --lr 0.0004 \
     --clip_gradient 0.5 \
-    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Ablation_pretrain/AV/AlignEMA_HIER/" \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Ablation_pretrain/AV/EqualHIER/" \
     --n_epoch 6 \
     --batch_size 80 \
     --test_batch_size 64 \
     --dataset_name "vggsound_AVT_40k" \
-    --model_save_path "$SRCDIR/CMG_trial1/Benchmarks/Ablation_pretrain/AV/AlignEMA_HIER/checkpoint/" \
+    --model_save_path "$SRCDIR/CMG_trial1/Benchmarks/Ablation_pretrain/AV/EqualHIER/checkpoint/" \
     --n_embeddings 800 \
     --embedding_dim 256 \
-    --ablation "AlignEMA" \
+    --ablation "EqualHIER" \
+    --print_freq 1
+
+
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Ablation_pretrain/AV/UniRecon/checkpoint
+
+python $SRCDIR/CMG_trial1/src_cvpr/ablation_pretrain_AV.py \
+    --gpu 0 \
+    --lr 0.0004 \
+    --clip_gradient 0.5 \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Ablation_pretrain/AV/UniRecon/" \
+    --n_epoch 6 \
+    --batch_size 80 \
+    --test_batch_size 64 \
+    --dataset_name "vggsound_AVT_40k" \
+    --model_save_path "$SRCDIR/CMG_trial1/Benchmarks/Ablation_pretrain/AV/UniRecon/checkpoint/" \
+    --n_embeddings 800 \
+    --embedding_dim 256 \
+    --ablation "UniRecon" \
+    --print_freq 1
+
+
+mkdir -p $SRCDIR/CMG_trial1/Benchmarks/Ablation_pretrain/AV/Order/checkpoint
+
+python $SRCDIR/CMG_trial1/src_cvpr/ablation_pretrain_AV.py \
+    --gpu 0 \
+    --lr 0.0004 \
+    --clip_gradient 0.5 \
+    --snapshot_pref "$SRCDIR/CMG_trial1/Benchmarks/Ablation_pretrain/AV/Order/" \
+    --n_epoch 6 \
+    --batch_size 80 \
+    --test_batch_size 64 \
+    --dataset_name "vggsound_AVT_40k" \
+    --model_save_path "$SRCDIR/CMG_trial1/Benchmarks/Ablation_pretrain/AV/Order/checkpoint/" \
+    --n_embeddings 800 \
+    --embedding_dim 256 \
+    --ablation "Order" \
     --print_freq 1
 
 
